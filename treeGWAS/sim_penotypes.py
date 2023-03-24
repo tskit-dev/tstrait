@@ -15,7 +15,7 @@ def environment(ts, G, h2):
     phenotype = G + E
     return phenotype, E
 
-def update_node_values(tree, node_values, G):
+def update_node_values_old(tree, node_values, G):
     stack = [tree.root]
     while stack:
         parent = stack.pop()
@@ -24,6 +24,22 @@ def update_node_values(tree, node_values, G):
             node_values[child] += node_values[parent]
             stack.append(child)
             right_sib = tree.right_sib(child)
+            node_values[right_sib] += node_values[parent]
+            stack.append(right_sib)
+        else:
+            G[parent] += node_values[parent]
+    return G
+
+def update_node_values(root, left_child_array, right_sib_array, node_values, G):
+    stack = [root]
+    while stack:
+        parent = stack.pop()
+        child = left_child_array[parent]
+        if child != -1:
+            node_values[child] += node_values[parent]
+            stack.append(child)
+            right_sib = right_sib_array[child]
+            assert right_sib != -1
             node_values[right_sib] += node_values[parent]
             stack.append(right_sib)
         else:
@@ -45,7 +61,8 @@ def parse_genotypes(ts, mutation_id, beta):
                 location[snp_idx] = ts.site(mut.site).position
                 mutation_list[snp_idx] = mut.id
                 snp_idx += 1
-        G = update_node_values(tree, node_values, G)
+        #G = update_node_values_old(tree, node_values, G)
+        G = update_node_values(tree.root, tree.left_child_array, tree.right_sib_array, node_values, G)
     # Convert node values to individual values
     G = G[::2] + G[1::2]
     G = G[G != 0]
