@@ -3,10 +3,11 @@ import numpy as np
 import tskit
 import pandas as pd
 
-def choose_causal(ts, num_sites, trait_sd, rng):
-    assert num_sites <= ts.num_mutations
-    mutation_id = rng.choice(range(ts.num_mutations), size=num_sites, replace=False)
-    beta = rng.normal(loc=0, scale=trait_sd, size=num_sites)
+def choose_causal(ts, num_causal, trait_sd, rng):
+    if num_causal > ts.num_mutations:
+        raise ValueError("Too many number of causal sites")
+    mutation_id = rng.choice(range(ts.num_mutations), size=num_causal, replace=False)
+    beta = rng.normal(loc=0, scale=trait_sd, size=num_causal)
     return mutation_id, beta
 
 def environment(ts, G, h2):
@@ -15,7 +16,7 @@ def environment(ts, G, h2):
     phenotype = G + E
     return phenotype, E
 
-def update_node_values_old(tree, node_values, G):
+def update_node_values_tree_object(tree, node_values, G):
     stack = [tree.root]
     while stack:
         parent = stack.pop()
@@ -30,7 +31,7 @@ def update_node_values_old(tree, node_values, G):
             G[parent] += node_values[parent]
     return G
 
-def update_node_values(root, left_child_array, right_sib_array, node_values, G):
+def update_node_values_array_access(root, left_child_array, right_sib_array, node_values, G):
     stack = [root]
     while stack:
         parent = stack.pop()
@@ -62,20 +63,20 @@ def parse_genotypes(ts, mutation_id, beta):
                 mutation_list[snp_idx] = mut.id
                 snp_idx += 1
         #G = update_node_values_old(tree, node_values, G)
-        G = update_node_values(tree.root, tree.left_child_array, tree.right_sib_array, node_values, G)
+        G = update_node_values_array_access(tree.root, tree.left_child_array, tree.right_sib_array, node_values, G)
     # Convert node values to individual values
+    G = G[ts.samples()]
     G = G[::2] + G[1::2]
-    G = G[G != 0]
     location = location[location != 0]
-    assert len(location) == len(mutation_id)
-    assert len(G) == ts.num_individuals
     
     return G, location, mutation_list
 
-def phenotype_sim(ts, num_sites, trait_sd=1, h2=0.3, seed=1, addVar=1):
+def phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=1, addVar=1):
+    if h2 >= 1:
+        raise ValueError("Heritability should be smaller than 1")
     rng = np.random.default_rng(seed)
-    mutation_id, beta = choose_causal(ts, num_sites, trait_sd, rng)
-    # This G is genotype of node (not individuals)
+    mutation_id, beta = choose_causal(ts, num_causal, trait_sd, rng)
+    # This G is genotype of individuals
     G, location, mutation_list = parse_genotypes(ts, mutation_id, beta)
     phenotype, E = environment(ts, G, h2)
     
