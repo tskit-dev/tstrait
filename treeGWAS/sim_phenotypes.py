@@ -3,16 +3,20 @@ import numpy as np
 import tskit
 import pandas as pd
 
-def choose_causal(ts, num_causal, trait_sd, rng):
-    if num_causal > ts.num_mutations:
-        raise ValueError("Too many number of causal sites")
-    mutation_id = rng.choice(range(ts.num_mutations), size=num_causal, replace=False)
+def choose_causal(num_mutations, num_causal, trait_sd, rng):
+    if num_causal > num_mutations:
+        raise ValueError("Too many causal sites")
+    if trait_sd <= 0:
+        raise ValueError("Standard deviation should be greater than 0")
+    mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
     beta = rng.normal(loc=0, scale=trait_sd, size=num_causal)
     return mutation_id, beta
 
-def environment(ts, G, h2):
-    assert len(G) == ts. num_individuals
-    E = np.random.normal(loc=0.0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=ts.num_individuals)        
+def environment(G, h2):
+    if h2 >= 1 or h2 <= 0:
+        raise ValueError("Heritability should be 0 < h2 < 1")
+    num_ind = len(G)
+    E = np.random.normal(loc=0.0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=num_ind)
     phenotype = G + E
     return phenotype, E
 
@@ -71,14 +75,13 @@ def parse_genotypes(ts, mutation_id, beta):
     
     return G, location, mutation_list
 
-def phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=1, addVar=1):
-    if h2 >= 1:
-        raise ValueError("Heritability should be smaller than 1")
+def phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=1):
     rng = np.random.default_rng(seed)
-    mutation_id, beta = choose_causal(ts, num_causal, trait_sd, rng)
+    mutation_id, beta = choose_causal(ts.num_mutations, num_causal, trait_sd, rng)
     # This G is genotype of individuals
     G, location, mutation_list = parse_genotypes(ts, mutation_id, beta)
-    phenotype, E = environment(ts, G, h2)
+    phenotype, E = environment(G, h2)
+    assert len(phenotype) == ts.num_individuals
     
     
     # Phenotype dataframe
