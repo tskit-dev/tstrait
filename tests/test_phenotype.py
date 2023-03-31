@@ -115,3 +115,7 @@ class Test_phenotype_sim:
                 # Check if any values of pheno_df / gene_df is null
                 assert pheno_df.isnull().values.any() == False
                 assert gene_df.isnull().values.any() == False
+                
+                # Check dimension
+                assert len(pheno_df) == ts.num_individuals
+                assert len(gene_df) == num_causal
