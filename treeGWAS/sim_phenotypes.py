@@ -3,13 +3,14 @@ import numpy as np
 import tskit
 import pandas as pd
 
+
 def choose_causal(num_mutations, num_causal, trait_sd, rng):
     if num_causal > num_mutations:
         raise ValueError("Too many causal sites")
     if trait_sd <= 0:
         raise ValueError("Standard deviation should be greater than 0")
     mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
-    beta = rng.normal(loc=0, scale=trait_sd, size=num_causal)
+    beta = rng.normal(loc=0, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
     return mutation_id, beta
 
 def environment(G, h2):
