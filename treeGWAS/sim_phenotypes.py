@@ -2,6 +2,7 @@ import msprime
 import numpy as np
 import tskit
 import pandas as pd
+from numba import jit
 
 
 def choose_causal(num_mutations, num_causal, trait_sd, rng):
@@ -16,13 +17,14 @@ def choose_causal(num_mutations, num_causal, trait_sd, rng):
     if (not isinstance(trait_sd, int) and not isinstance(trait_sd, float)) or trait_sd <= 0:
         raise ValueError("Standard deviation should be a non-negative number")
     mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
+    mutation_id = np.sort(mutation_id)
     if num_causal > 0:
         beta = rng.normal(loc=0, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
     else:
         beta = np.array([])
     return mutation_id, beta
 
-def environment(G, h2, trait_sd):
+def environment(G, h2, trait_sd, rng):
     if len(G) == 0:
         raise ValueError("No individuals in the simulation model")
     if (not isinstance(h2, int) and not isinstance(h2, float)) or h2 > 1 or h2 < 0:
@@ -32,10 +34,10 @@ def environment(G, h2, trait_sd):
         E = np.zeros(num_ind)
         phenotype = G
     elif h2 == 0:
-        E = np.random.normal(loc=0.0, scale=trait_sd, size=num_ind)
+        E = rng.normal(loc=0.0, scale=trait_sd, size=num_ind)
         phenotype = E
     else:
-        E = np.random.normal(loc=0.0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=num_ind)
+        E = rng.normal(loc=0.0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=num_ind)
         phenotype = G + E
     return phenotype, E
 
@@ -54,24 +56,21 @@ def update_node_values_tree_object(tree, node_values, G):
             G[parent] += node_values[parent]
     return G
 
+@jit(nopython=True)
 def update_node_values_array_access(root, left_child_array, right_sib_array, node_values, G):
     stack = [root]
     while stack:
         parent = stack.pop()
         child = left_child_array[parent]
         if child != -1:
-            node_values[child] += node_values[parent]
-            stack.append(child)
-            right_sib = right_sib_array[child]
-            while right_sib != -1:
-                node_values[right_sib] += node_values[parent]
-                stack.append(right_sib)
-                right_sib = right_sib_array[right_sib]
+            while child != -1:
+                node_values[child] += node_values[parent]
+                stack.append(child)
+                child = right_sib_array[child]
         else:
             G[parent] += node_values[parent]
-    return G
 
-def parse_genotypes(ts, mutation_id, beta):
+def genetic_value(ts, mutation_id, beta):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
     size_G = np.max(ts.samples())+1
@@ -79,23 +78,31 @@ def parse_genotypes(ts, mutation_id, beta):
     G = np.zeros(size_G)
     location = np.zeros(len(mutation_id))
     mutation_list = np.zeros(len(mutation_id), dtype=int)
-    snp_idx = 0
-    for tree in ts.trees():
-        node_values = np.zeros(ts.num_nodes)
-        for mut in tree.mutations():
-            if mut.id in mutation_id:
-                node_values[mut.node] += beta[snp_idx]
-                location[snp_idx] = ts.site(mut.site).position
-                mutation_list[snp_idx] = mut.id
-                snp_idx += 1
-        #G = update_node_values_old(tree, node_values, G)
-        G = update_node_values_array_access(tree.root, tree.left_child_array, tree.right_sib_array, node_values, G)
+    
+    for i, mut_id in enumerate(mutation_id):
+        mut = ts.mutation(mut_id)
+        location[i] = ts.site(mut.site).position
+    coordinate = np.argsort(location)
+    location = np.sort(location)
+    
+    N = ts.num_nodes
+    tree = ts.first()
+    
+    for i, loc in enumerate(location):
+        tree.seek(loc)
+        node_values = np.zeros(N)
+        mut = ts.mutation(mutation_id[coordinate[i]])
+        node_values[mut.node] += beta[coordinate[i]]
+        update_node_values_array_access(tree.root, tree.left_child_array, tree.right_sib_array, node_values, G)
+
     # Convert node values to individual values
     G = G[ts.samples()]
     G = G[::2] + G[1::2]
     location = location[location != 0]
     
-    return G, location, mutation_list
+    return G, location, mutation_id
+
+
 
 def phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=1):
     if type(ts) != tskit.trees.TreeSequence:
@@ -103,8 +110,8 @@ def phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=1):
     rng = np.random.default_rng(seed)
     mutation_id, beta = choose_causal(ts.num_mutations, num_causal, trait_sd, rng)
     # This G is genotype of individuals
-    G, location, mutation_list = parse_genotypes(ts, mutation_id, beta)
-    phenotype, E = environment(G, h2, trait_sd)
+    G, location, mutation_list = genetic_value(ts, mutation_id, beta)
+    phenotype, E = environment(G, h2, trait_sd, rng)
     assert len(phenotype) == ts.num_individuals
     
     

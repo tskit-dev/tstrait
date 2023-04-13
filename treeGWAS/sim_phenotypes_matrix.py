@@ -16,13 +16,14 @@ def choose_causal(num_mutations, num_causal, trait_sd, rng):
     if (not isinstance(trait_sd, int) and not isinstance(trait_sd, float)) or trait_sd <= 0:
         raise ValueError("Standard deviation should be a non-negative number")
     mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
+    mutation_id = np.sort(mutation_id)
     if num_causal > 0:
         beta = rng.normal(loc=0, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
     else:
         beta = np.array([])
     return mutation_id, beta
 
-def environment(G, h2, trait_sd):
+def environment(G, h2, trait_sd, rng):
     if len(G) == 0:
         raise ValueError("No individuals in the simulation model")
     if (not isinstance(h2, int) and not isinstance(h2, float)) or h2 > 1 or h2 < 0:
@@ -32,14 +33,14 @@ def environment(G, h2, trait_sd):
         E = np.zeros(num_ind)
         phenotype = G
     elif h2 == 0:
-        E = np.random.normal(loc=0.0, scale=trait_sd, size=num_ind)
+        E = rng.normal(loc=0.0, scale=trait_sd, size=num_ind)
         phenotype = E
     else:
-        E = np.random.normal(loc=0.0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=num_ind)
+        E = rng.normal(loc=0.0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=num_ind)
         phenotype = G + E
     return phenotype, E
 
-def parse_genotypes(ts, mutation_id, beta, num_causal):
+def genetic_value(ts, mutation_id, beta, num_causal):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")
     
@@ -62,8 +63,8 @@ def phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=1):
     rng = np.random.default_rng(seed)
     mutation_id, beta = choose_causal(ts.num_mutations, num_causal, trait_sd, rng)
     # This G is genotype of individuals
-    G, location, mutation_list = parse_genotypes(ts, mutation_id, beta, num_causal)
-    phenotype, E = environment(G, h2, trait_sd)
+    G, location, mutation_list = genetic_value(ts, mutation_id, beta, num_causal)
+    phenotype, E = environment(G, h2, trait_sd, rng)
     assert len(phenotype) == ts.num_individuals
     
     
