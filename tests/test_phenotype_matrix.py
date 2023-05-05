@@ -5,7 +5,7 @@ import numpy as np
 import tskit
 import pandas as pd
 
-import treeGWAS.sim_phenotypes_matrix as sim_pheno
+import tstrait.sim_phenotypes_matrix as sim_pheno
 
 class Test_environment:
     @pytest.mark.parametrize("size", [1, 2, 10, 100])

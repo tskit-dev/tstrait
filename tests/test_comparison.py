@@ -5,8 +5,8 @@ import numpy as np
 import tskit
 import pandas as pd
 
-import treeGWAS.sim_phenotypes as sim_pheno
-import treeGWAS.sim_phenotypes_matrix as sim_matrix
+import tstrait.sim_phenotypes as sim_pheno
+import tstrait.sim_phenotypes_matrix as sim_matrix
 
           
 class Test_phenotype_sim:

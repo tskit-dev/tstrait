@@ -5,7 +5,7 @@ import numpy as np
 import tskit
 import pandas as pd
 
-import treeGWAS.sim_phenotypes as sim_pheno
+import tstrait.sim_phenotypes as sim_pheno
 
 class Test_update_node_values_array_access:
     def test_update(self):
