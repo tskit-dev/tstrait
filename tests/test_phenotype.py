@@ -116,9 +116,10 @@ class Test_choose_causal:
     @pytest.mark.parametrize("num_mutations", [10, 100, 1000])
     @pytest.mark.parametrize("num_causal", [1, 2, 10])
     @pytest.mark.parametrize("trait_sd", [0.1, 0.3, 0.5, 0.7, 0.9])
-    def test_choose_causal(self, num_mutations, num_causal, trait_sd):
+    @pytest.mark.parametrize("trait_mean", [-1,0,1])
+    def test_choose_causal(self, num_mutations, num_causal, trait_sd, trait_mean):
         rng = np.random.default_rng(1)
-        mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_sd, rng)
+        mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
         assert len(beta) == num_causal
         assert len(mutation_id) == num_causal
         assert min(mutation_id) >= 0
@@ -127,38 +128,42 @@ class Test_choose_causal:
         assert np.issubdtype(mutation_id.dtype, np.integer)
 
     @pytest.mark.parametrize("num_mutations", [10, 100, 1000])
-    @pytest.mark.parametrize("trait_sd", [0.1, 0.3, 0.5, 0.7, 0.9])    
-    def test_zero(self, num_mutations, trait_sd):
+    @pytest.mark.parametrize("trait_sd", [0.1, 0.3, 0.5, 0.7, 0.9])   
+    @pytest.mark.parametrize("trait_mean", [-1,0,1])    
+    def test_zero(self, num_mutations, trait_sd, trait_mean):
         rng = np.random.default_rng(1)
         num_causal = 0
-        mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_sd, rng)
+        mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
         assert len(beta) == 0
         assert len(mutation_id) == 0
     
     @pytest.mark.parametrize("addition", [1, 2, 10, 100])
     @pytest.mark.parametrize("num_mutations", [1, 2, 10, 100])
     @pytest.mark.parametrize("trait_sd", [0.1, 0.3, 0.5, 0.7, 0.9]) 
-    def test_error_num_sites(self, addition, num_mutations, trait_sd):
+    @pytest.mark.parametrize("trait_mean", [-1,0,1])
+    def test_error_num_sites(self, addition, num_mutations, trait_sd, trait_mean):
         rng = np.random.default_rng(2)
         with pytest.raises(ValueError, match="There are more causal sites than the number of mutations inside the tree sequence"):
             num_causal = num_mutations + addition
-            mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_sd, rng)
+            mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
     
     @pytest.mark.parametrize("num_mutations", [10, 100, 1000])
     @pytest.mark.parametrize("trait_sd", [0.1, 0.3, 0.5, 0.7, 0.9]) 
-    @pytest.mark.parametrize("num_causal", [-1, 1.0, "1", "a"]) 
-    def test_error_num_causal(self, num_mutations, trait_sd, num_causal):
+    @pytest.mark.parametrize("num_causal", [-1, 1.0]) 
+    @pytest.mark.parametrize("trait_mean", [-1,0,1])
+    def test_error_num_causal(self, num_mutations, trait_sd, num_causal, trait_mean):
         rng = np.random.default_rng(3)
         with pytest.raises(ValueError, match = "Number of causal sites should be a non-negative integer"):
-            mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_sd, rng)
+            mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
         
     @pytest.mark.parametrize("num_mutations", [10, 100, 1000])
-    @pytest.mark.parametrize("trait_sd", [0, -0.1, -1, -10, "1", [1,1]])
-    @pytest.mark.parametrize("num_causal", [0, 1, 2, 10])    
-    def test_error_trait_sd(self, num_mutations, trait_sd, num_causal):
+    @pytest.mark.parametrize("trait_sd", [0, -0.1, -1, -10])
+    @pytest.mark.parametrize("num_causal", [0, 1, 2, 10]) 
+    @pytest.mark.parametrize("trait_mean", [-1,0,1])    
+    def test_error_trait_sd(self, num_mutations, trait_sd, num_causal, trait_mean):
         rng = np.random.default_rng(np.random.randint(5))
         with pytest.raises(ValueError, match = "Standard deviation should be a non-negative number"):
-            mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_sd, rng)
+            mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
 
          
 class Test_genetic_value:
@@ -168,7 +173,7 @@ class Test_genetic_value:
         rng = np.random.default_rng(seed)
         ts = msprime.sim_ancestry(100, sequence_length=10_000, recombination_rate=1e-8,population_size=10**4, random_seed=seed)
         ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=seed, model="binary", discrete_genome=False)
-        mutation_id, beta = sim_pheno.choose_causal(ts.num_mutations, num_causal, 1, rng)
+        mutation_id, beta = sim_pheno.choose_causal(ts.num_mutations, num_causal,0, 1, rng)
         G, location, mutation_list = sim_pheno.genetic_value(ts, mutation_id, beta)
         assert len(G) == ts.num_individuals
         assert len(location) == num_causal

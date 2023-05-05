@@ -5,10 +5,8 @@ import pandas as pd
 from numba import jit
 
 
-def choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng):
-    if not isinstance(num_causal, int):
-        raise TypeError("Number of causal sites should be a non-negative integer")
-    if num_causal < 0:
+def choose_causal(num_mutations, num_causal, trait_mean, trait_sd, dominance_mean, dominance_sd, rng):
+    if not isinstance(num_causal, int) or num_causal < 0:
         raise ValueError("Number of causal sites should be a non-negative integer")
     if num_mutations == 0:
         raise ValueError("No mutation in the provided data")
@@ -17,18 +15,22 @@ def choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng):
     if num_causal > num_mutations:
         raise ValueError("There are more causal sites than the number of mutations inside the tree sequence")
     if (not isinstance(trait_sd, int) and not isinstance(trait_sd, float)):
-        raise TypeError("Standard deviation should be a non-negative number")
+        raise TypeError("Standard deviation is in an incorrect type")
     if trait_sd <= 0:
         raise ValueError("Standard deviation should be a non-negative number")
+    if (not isinstance(dominance_sd, int) and not isinstance(dominance_sd, float)) or dominance_sd <= 0:
+        raise ValueError("Standard deviation of dominance should be a non-negative number")
     if (not isinstance(trait_mean, int) and not isinstance(trait_mean, float)):
-        raise TypeError("Trait mean should be a float or integer data type")        
+        raise TypeError("Trait mean is in an incorrect type")      
+    if (not isinstance(dominance_mean, int) and not isinstance(dominance_mean, float)):
+        raise TypeError("Dominance mean is in an incorrect type")        
     mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
     mutation_id = np.sort(mutation_id)
     if num_causal > 0:
         beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
     else:
         beta = np.array([])
-    return mutation_id, beta
+    return mutation_id, beta, dominance
 
 def environment(G, h2, trait_sd, rng):
     if len(G) == 0:
@@ -109,14 +111,14 @@ def genetic_value(ts, mutation_id, beta):
     return G, location, mutation_id
 
 
-def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
+def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, dominance_mean=0, dominance_sd=0.1, h2=0.3, seed=1):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")    
     rng = np.random.default_rng(seed)
-    mutation_id, beta = choose_causal(ts.num_mutations, num_causal, trait_mean, trait_sd, rng)
+    mutation_id, beta, dominance = choose_causal(ts.num_mutations, num_causal, trait_mean, trait_sd, dominance_mean, dominance_sd, rng)
     # This G is genotype of individuals
-    G, location, mutation_list = genetic_value(ts, mutation_id, beta)
-    phenotype, E = environment(G, h2, trait_sd, rng)
+    G, D, location, mutation_list = genetic_value(ts, mutation_id, beta, dominance)
+    phenotype, E = environment(G, D, h2, trait_sd, rng)
     assert len(phenotype) == ts.num_individuals
     
     
@@ -126,7 +128,7 @@ def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
 #    pheno_df = pd.DataFrame({"Individual ID": [s.id for s in ts.individuals()],
 #                             "Phenotype": phenotype,"Environment":E,"Genotype": G})
     pheno_df = pd.DataFrame({"Individual ID": list(range(ts.num_individuals)),
-                              "Phenotype": phenotype,"Environment":E,"Genotype": G})
+                              "Phenotype": phenotype,"Environment":E,"Genotype": G, "Dominance": D})
     
     # Genotype dataframe
     # 1st column = site ID
