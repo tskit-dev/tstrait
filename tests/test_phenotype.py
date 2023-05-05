@@ -149,7 +149,7 @@ class Test_choose_causal:
     
     @pytest.mark.parametrize("num_mutations", [10, 100, 1000])
     @pytest.mark.parametrize("trait_sd", [0.1, 0.3, 0.5, 0.7, 0.9]) 
-    @pytest.mark.parametrize("num_causal", [-1, 1.0]) 
+    @pytest.mark.parametrize("num_causal", [-1, 0]) 
     @pytest.mark.parametrize("trait_mean", [-1,0,1])
     def test_error_num_causal(self, num_mutations, trait_sd, num_causal, trait_mean):
         rng = np.random.default_rng(3)
@@ -158,7 +158,7 @@ class Test_choose_causal:
         
     @pytest.mark.parametrize("num_mutations", [10, 100, 1000])
     @pytest.mark.parametrize("trait_sd", [0, -0.1, -1, -10])
-    @pytest.mark.parametrize("num_causal", [0, 1, 2, 10]) 
+    @pytest.mark.parametrize("num_causal", [1, 2, 10]) 
     @pytest.mark.parametrize("trait_mean", [-1,0,1])    
     def test_error_trait_sd(self, num_mutations, trait_sd, num_causal, trait_mean):
         rng = np.random.default_rng(np.random.randint(5))
