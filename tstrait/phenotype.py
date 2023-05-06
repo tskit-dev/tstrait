@@ -4,33 +4,56 @@ import tskit
 import pandas as pd
 from numba import jit
 
+"""
+Phenotypic simulation model from the infinite sites model
+"""
 
-def choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng):
+
+def choose_causal(ts, num_causal, rng):
+    """
+    Choose causal sites from tree sequence data and return their mutation ID
+    """
+    if type(ts) != tskit.trees.TreeSequence:
+        raise TypeError("Input should be a tree sequence data")  
     if not isinstance(num_causal, int):
         raise TypeError("Number of causal sites should be a non-negative integer")
     if num_causal < 0:
         raise ValueError("Number of causal sites should be a non-negative integer")
+    
+    num_mutations = ts.num_mutations
+    
     if num_mutations == 0:
         raise ValueError("No mutation in the provided data")
-    if not isinstance(num_mutations, int) or num_mutations < 0:
-        raise ValueError("Number of mutation sites should be a non-negative integer")
     if num_causal > num_mutations:
         raise ValueError("There are more causal sites than the number of mutations inside the tree sequence")
+
+    mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
+    
+    return mutation_id
+    
+def sim_effect_size(num_causal, trait_mean, trait_sd, rng):
+    """
+    Simulate effect sizes from a normal distribution
+    """
+    if not isinstance(num_causal, int):
+        raise TypeError("Number of causal sites should be a non-negative integer")
+    if num_causal < 0:
+        raise ValueError("Number of causal sites should be a non-negative integer")
     if (not isinstance(trait_sd, int) and not isinstance(trait_sd, float)):
         raise TypeError("Standard deviation should be a non-negative number")
     if trait_sd <= 0:
         raise ValueError("Standard deviation should be a non-negative number")
     if (not isinstance(trait_mean, int) and not isinstance(trait_mean, float)):
-        raise TypeError("Trait mean should be a float or integer data type")        
-    mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
-    mutation_id = np.sort(mutation_id)
-    if num_causal > 0:
-        beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
-    else:
-        beta = np.array([])
-    return mutation_id, beta
+        raise TypeError("Trait mean should be a float or integer data type") 
+    
+    beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
+    
+    return beta
 
 def environment(G, h2, trait_sd, rng):
+    """
+    Add environmental noise
+    """
     if len(G) == 0:
         raise ValueError("No individuals in the simulation model")
     if (not isinstance(h2, int) and not isinstance(h2, float)) or h2 > 1 or h2 < 0:
@@ -64,6 +87,9 @@ def update_node_values_tree_object(tree, node_values, G):
 
 @jit(nopython=True)
 def update_node_values_array_access(root, left_child_array, right_sib_array, node_values, G):
+    """
+    Tree traversal algorithm
+    """
     stack = [root]
     while stack:
         parent = stack.pop()
@@ -77,6 +103,9 @@ def update_node_values_array_access(root, left_child_array, right_sib_array, nod
             G[parent] += node_values[parent]
 
 def genetic_value(ts, mutation_id, beta):
+    """
+    Obtain genetic values of individuals
+    """
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
     size_G = np.max(ts.samples())+1
@@ -113,7 +142,8 @@ def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")    
     rng = np.random.default_rng(seed)
-    mutation_id, beta = choose_causal(ts.num_mutations, num_causal, trait_mean, trait_sd, rng)
+    mutation_id = choose_causal(ts, num_causal, rng)
+    beta = sim_effect_size(num_causal, trait_mean, trait_sd, rng)
     # This G is genotype of individuals
     G, location, mutation_list = genetic_value(ts, mutation_id, beta)
     phenotype, E = environment(G, h2, trait_sd, rng)

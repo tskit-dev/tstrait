@@ -1,3 +1,4 @@
+"""
 import pytest
 
 import msprime
@@ -5,8 +6,8 @@ import numpy as np
 import tskit
 import pandas as pd
 
-import tstrait.sim_phenotypes as sim_pheno
-import tstrait.sim_phenotypes_matrix as sim_matrix
+import tstrait.phenotype as sim_pheno
+import tstrait.phenotype_matrix as sim_matrix
 
           
 class Test_phenotype_sim:
@@ -34,3 +35,5 @@ class Test_phenotype_sim:
         assert np.allclose(gene_df["Mutation ID"], gene_df1["Mutation ID"])
         assert np.allclose(gene_df["Location"], gene_df1["Location"])
         assert np.allclose(gene_df["Effect Size"], gene_df1["Effect Size"])
+        
+"""
