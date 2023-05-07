@@ -11,7 +11,7 @@ Phenotypic simulation model from the infinite sites model
 
 def choose_causal(ts, num_causal, rng):
     """
-    Choose causal sites from tree sequence data and return their mutation ID
+    Choose causal sites from tree sequence data and return the site ID
     """
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
@@ -20,16 +20,16 @@ def choose_causal(ts, num_causal, rng):
     if num_causal < 0:
         raise ValueError("Number of causal sites should be a non-negative integer")
     
-    num_mutations = ts.num_mutations
+    num_sites = ts.num_sites
     
-    if num_mutations == 0:
+    if num_sites == 0:
         raise ValueError("No mutation in the provided data")
-    if num_causal > num_mutations:
+    if num_causal > num_sites:
         raise ValueError("There are more causal sites than the number of mutations inside the tree sequence")
 
-    mutation_id = rng.choice(range(num_mutations), size=num_causal, replace=False)
+    site_id = rng.choice(range(num_sites), size=num_causal, replace=False)
     
-    return mutation_id
+    return site_id
     
 def sim_effect_size(num_causal, trait_mean, trait_sd, rng):
     """
@@ -70,20 +70,34 @@ def environment(G, h2, trait_sd, rng):
         phenotype = G + E
     return phenotype, E
 
-def update_node_values_tree_object(tree, node_values, G):
-    stack = [tree.root]
-    while stack:
-        parent = stack.pop()
-        child = tree.left_child(parent)
-        if child != tskit.NULL:
-            node_values[child] += node_values[parent]
-            stack.append(child)
-            right_sib = tree.right_sib(child)
-            node_values[right_sib] += node_values[parent]
-            stack.append(right_sib)
-        else:
-            G[parent] += node_values[parent]
-    return G
+def causal_allele(ts, site_id, rng):
+    """
+    Obtain causal alleles from causal sites, and return the ancestral state, causal allele, and genomic location
+    They are aligned based on their genomic positions
+    """
+    if type(ts) != tskit.trees.TreeSequence:
+        raise TypeError("Input should be a tree sequence data")  
+    location = np.zeros(len(site_id))
+    ancestral = np.zeros(len(site_id))
+    causal_allele = np.zeros(len(site_id), dtype=int)
+    
+    for i, single_id in enumerate(site_id_list):
+        allele_list = np.array([])
+        for m in ts.site(single_id).mutations:
+            if m.derived_state != ts.site(single_id).ancestral_state:
+                allele_list = np.append(allele_list, m.derived_state)
+
+        causal_allele[i] = rng.choice(np.unique(allele_list))
+        location[i] = ts.site(single_id).position
+        ancestral[i] = ts.site(single_id).ancestral_state
+    
+    coordinate = np.argsort(location)
+    location = location[coordinate]
+    site_id = site_id[coordinate]
+    ancestral = ancestral[coordinate]
+    causal_allele = causal_allele[coordinate]
+    
+    return site_id, ancestral, causal_allele, location
 
 @jit(nopython=True)
 def update_node_values_array_access(root, left_child_array, right_sib_array, node_values, G):
@@ -102,23 +116,14 @@ def update_node_values_array_access(root, left_child_array, right_sib_array, nod
         else:
             G[parent] += node_values[parent]
 
-def genetic_value(ts, mutation_id, beta):
+def genetic_value(ts, mutation_id, location, beta, rng):
     """
     Obtain genetic values of individuals
     """
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
     size_G = np.max(ts.samples())+1
-    size_mutation = np.max(mutation_id)+1
     G = np.zeros(size_G)
-    location = np.zeros(len(mutation_id))
-    mutation_list = np.zeros(len(mutation_id), dtype=int)
-    
-    for i, mut_id in enumerate(mutation_id):
-        mut = ts.mutation(mut_id)
-        location[i] = ts.site(mut.site).position
-    coordinate = np.argsort(location)
-    location = np.sort(location)
     
     N = ts.num_nodes
     tree = ts.first()
@@ -126,26 +131,33 @@ def genetic_value(ts, mutation_id, beta):
     for i, loc in enumerate(location):
         tree.seek(loc)
         node_values = np.zeros(N)
-        mut = ts.mutation(mutation_id[coordinate[i]])
-        node_values[mut.node] += beta[coordinate[i]]
+        mut = ts.mutation(mutation_id[i])
+        node_values[mut.node] += beta[i]
         update_node_values_array_access(mut.node, tree.left_child_array, tree.right_sib_array, node_values, G)
 
-    # Convert node values to individual values
+    return G
+
+def individual_genetic(ts, G):
+    """
+    Convert genetic value of nodes to be genetic value of individuals
+    """
     G = G[ts.samples()]
     G = G[::2] + G[1::2]
-    location = location[location != 0]
-    
-    return G, location, mutation_id
+    return G
 
 
 def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")    
     rng = np.random.default_rng(seed)
-    mutation_id = choose_causal(ts, num_causal, rng)
+    site_id = choose_causal(ts, num_causal, rng)
+    
+    site_id, ancestral, causal_allele, location = causal_allele(ts, site_id, rng)
+    
     beta = sim_effect_size(num_causal, trait_mean, trait_sd, rng)
-    # This G is genotype of individuals
-    G, location, mutation_list = genetic_value(ts, mutation_id, beta)
+    G = genetic_value(ts, mutation_id, location, beta, rng)
+    G = individual_genetic(ts, G)
+    
     phenotype, E = environment(G, h2, trait_sd, rng)
     assert len(phenotype) == ts.num_individuals
     
@@ -165,7 +177,9 @@ def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
     # 4th column = Reference allele
     # 5th column = Minor allele frequency
     gene_df = pd.DataFrame({
-        "Mutation ID": mutation_list,
+        "Site ID": site_id,
+        "Ancestral State": ancestral,
+        "Causal State": causal_allele,
         "Location": location,
         "Effect Size": beta,
         #"Frequency": frequency
