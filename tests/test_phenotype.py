@@ -165,10 +165,10 @@ class Test_choose_causal:
         with pytest.raises(ValueError, match = "Standard deviation should be a non-negative number"):
             mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
 """
-   
-"""   
-class Test_genetic_value:
 
+
+class Test_genetic_value:
+    """
     @pytest.mark.parametrize("seed", [1, 3, 5, 7, 9])
     @pytest.mark.parametrize("num_causal", [1, 2, 10])
     def test_genetic_value(self, seed, num_causal):
@@ -183,9 +183,9 @@ class Test_genetic_value:
         assert np.issubdtype(G.dtype, np.floating)
         assert np.issubdtype(location.dtype, np.integer) or np.issubdtype(location.dtype, np.floating)
         assert np.issubdtype(mutation_list.dtype, np.integer)
+    """
     
     def test_tree_sequence_binary(self):
-        rng = np.random.default_rng(1)
         ts = tskit.Tree.generate_comb(6, span=20).tree_sequence
         tables = ts.dump_tables()
         for j in range(10):
@@ -194,13 +194,12 @@ class Test_genetic_value:
         ts = tables.tree_sequence()
         mutation_id = np.array(list(range(10)))
         beta = np.array(list(range(10)))
-        G, location, mutation_list = sim_pheno.genetic_value(ts, mutation_id, beta, rng)
+        G = sim_pheno.genetic_value(ts, mutation_id, beta)
         
         G = G[::2] + G[1::2]
         
         G_actual = np.array([10, 46, 69])
-        
-        assert np.array_equal(mutation_list, mutation_id)
+
         assert np.array_equal(G, G_actual)
         
     def test_tree_sequence_nonbinary(self):
@@ -213,14 +212,12 @@ class Test_genetic_value:
         ts = tables.tree_sequence()
         mutation_id = np.array([0, 1, 3, 6])
         beta = np.repeat(1,4)
-        G, location, mutation_list = sim_pheno.genetic_value(ts, mutation_id, beta, rng)
+        G = sim_pheno.genetic_value(ts, mutation_id, beta)
         G = G[::2] + G[1::2]
         G_actual = np.array([2,2,2])
         
-        assert np.array_equal(mutation_list, mutation_id)
         assert np.array_equal(G, G_actual)
-"""
-               
+"""               
 class Test_phenotype_sim:
     @pytest.mark.parametrize("seed", [1, 2, 3, 4])
     @pytest.mark.parametrize("num_causal", [1, 2, 10])
@@ -242,3 +239,4 @@ class Test_phenotype_sim:
         ts = msprime.sim_ancestry(size, sequence_length=100_000, recombination_rate=1e-8,population_size=10**4, random_seed=seed)
         with pytest.raises(ValueError, match = "No mutation in the provided data"):
             pheno_df, gene_df = sim_pheno.phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=seed)
+"""

@@ -8,7 +8,6 @@ from numba import jit
 Phenotypic simulation model from the infinite sites model
 """
 
-
 def choose_causal(ts, num_causal, rng):
     """
     Choose causal sites from tree sequence data and return the site ID
@@ -116,26 +115,91 @@ def update_node_values_array_access(root, left_child_array, right_sib_array, nod
         else:
             G[parent] += node_values[parent]
 
-def genetic_value(ts, mutation_id, location, beta, rng):
+
+def obtain_sample_nodes(root, left_child_array, right_sib_array):
     """
-    Obtain genetic values of individuals
+    Obtain sample nodes that are below the root
+    """
+    stack = [root]
+    sample_node = []
+    while stack:
+        parent = stack.pop()
+        child = left_child_array[parent]
+        if child != -1:
+            while child != -1:
+                stack.append(child)
+                child = right_sib_array[child]
+        else:
+            sample_node.append(child)
+    return sample_node
+
+def remove_list(sample_nodes, remove_nodes):
+    """
+    Remove elements in remove_nodes from sample_nodes
+    """
+    for i in remove_nodes:
+        sample_nodes.remove(i)
+    return sample_nodes
+
+def causal_mutation_sample_nodes(ts, tree, site, causal_allele):
+    """
+    Obtain list of sample nodes that have the causal mutation
+    """
+    sample_nodes = []
+    mutation_list = sorted(site.mutations, key=lambda x:x.time, reverse=True)
+    
+    for m in mutation_list:
+        if m.derived_state == causal_allele:
+            keep_nodes = obtain_sample_nodes(m.node, tree.left_child_array, tree.right_sib_array)
+            sample_nodes += keep_nodes
+        elif ts.mutation(m.parent).derived_state == causal_allele:
+            remove_nodes = obtain_sample_nodes(m.node, tree.left_child_array, tree.right_sib_array)
+            sample_nodes = remove_list(sample_nodes, remove_nodes)
+    
+    return sample_nodes
+
+### Simulation model of effect size
+def sim_beta_GCTA(trait_mean, trait_sd, num_causal, rng):
+    beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal))
+    return beta
+
+def sim_beta_LDAK(trait_mean, trait_sd, num_causal, allele_freq, alpha, rng):
+    #negative values of α imply larger effect sizes for rare variants
+    beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal))
+    beta *= (allele_freq * (1 - allele_freq))^alpha
+    return beta
+
+###
+
+def node_genetic_value(ts, site_id, location, causal_allele, trait_mean, trait_sd, rng, model):
+    """
+    Obtain genetic values of nodes and effect sizes of causal sites
+    The mutation inside the algorithm are aligned based on their genetic position
     """
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
     size_G = np.max(ts.samples())+1
     G = np.zeros(size_G)
+    beta_list = np.zeros(len(location))
+    frequency = np.zeros(len(location))
     
-    N = ts.num_nodes
     tree = ts.first()
+    N = ts.num_samples
+    num_causal = len(location)
     
     for i, loc in enumerate(location):
         tree.seek(loc)
-        node_values = np.zeros(N)
-        mut = ts.mutation(mutation_id[i])
-        node_values[mut.node] += beta[i]
-        update_node_values_array_access(mut.node, tree.left_child_array, tree.right_sib_array, node_values, G)
+        causal_sample_nodes = causal_mutation_sample_nodes(ts, tree, ts.site(site_id[i]), causal_allele[i])
+        freq_allele = len(causal_sample_nodes) / N
+        frequency[i] = freq_allele
+        # Ideally I would like to have a model here
+        # No function written effectively
+        beta = sim_beta(...)
+        beta_list[i] = beta
+        G[causal_sample_nodes] += beta
 
-    return G
+    return G, beta_list, frequency
+    
 
 def individual_genetic(ts, G):
     """
@@ -146,7 +210,7 @@ def individual_genetic(ts, G):
     return G
 
 
-def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
+def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1, model = None):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")    
     rng = np.random.default_rng(seed)
@@ -154,8 +218,8 @@ def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
     
     site_id, ancestral, causal_allele, location = causal_allele(ts, site_id, rng)
     
-    beta = sim_effect_size(num_causal, trait_mean, trait_sd, rng)
-    G = genetic_value(ts, mutation_id, location, beta, rng)
+    G, beta, frequency = node_genetic_value(ts, site_id, location, causal_allele, trait_mean, trait_sd, rng, model)
+    
     G = individual_genetic(ts, G)
     
     phenotype, E = environment(G, h2, trait_sd, rng)
@@ -163,26 +227,19 @@ def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1):
     
     
     # Phenotype dataframe
-    # 1st column = Individual ID
-    # 2nd column = Phenotypic value
 #    pheno_df = pd.DataFrame({"Individual ID": [s.id for s in ts.individuals()],
 #                             "Phenotype": phenotype,"Environment":E,"Genotype": G})
     pheno_df = pd.DataFrame({"Individual ID": list(range(ts.num_individuals)),
                               "Phenotype": phenotype,"Environment":E,"Genotype": G})
     
     # Genotype dataframe
-    # 1st column = site ID
-    # 2nd column = location of sites in the genome
-    # 3rd column = Effect size
-    # 4th column = Reference allele
-    # 5th column = Minor allele frequency
     gene_df = pd.DataFrame({
         "Site ID": site_id,
         "Ancestral State": ancestral,
         "Causal State": causal_allele,
         "Location": location,
         "Effect Size": beta,
-        #"Frequency": frequency
+        "Frequency": frequency
     })
 
     return pheno_df, gene_df
