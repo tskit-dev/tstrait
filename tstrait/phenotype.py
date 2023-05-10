@@ -3,15 +3,23 @@ import numpy as np
 import tskit
 import pandas as pd
 from numba import jit
+import tstrait.genotype as genotype
 
 """
 Phenotypic simulation model from the infinite sites model
 """
 
-def choose_causal(ts, num_causal, rng):
+def obtain_sample_index_map(num_nodes, sample_id_list):
+    sample_index_map = np.zeros(num_nodes + 1, dtype=int) - 1
+    for j, u in enumerate(sample_id_list):
+        sample_index_map[u] = j
+    return sample_index_map
+
+def choose_causal(ts, num_causal, random_seed = None):
     """
     Choose causal sites from tree sequence data and return the site ID
     """
+    rng = np.random.default_rng(random_seed)
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
     if not isinstance(num_causal, int):
@@ -30,10 +38,11 @@ def choose_causal(ts, num_causal, rng):
     
     return site_id
     
-def sim_effect_size(num_causal, trait_mean, trait_sd, rng):
+def sim_effect_size(num_causal, trait_mean, trait_sd, random_seed = None):
     """
     Simulate effect sizes from a normal distribution
     """
+    rng = np.random.default_rng(random_seed)
     if not isinstance(num_causal, int):
         raise TypeError("Number of causal sites should be a non-negative integer")
     if num_causal < 0:
@@ -49,10 +58,11 @@ def sim_effect_size(num_causal, trait_mean, trait_sd, rng):
     
     return beta
 
-def environment(G, h2, trait_sd, rng):
+def environment(G, h2, trait_sd, random_seed = None):
     """
     Add environmental noise
     """
+    rng = np.random.default_rng(random_seed)
     if len(G) == 0:
         raise ValueError("No individuals in the simulation model")
     if (not isinstance(h2, int) and not isinstance(h2, float)) or h2 > 1 or h2 < 0:
@@ -69,11 +79,12 @@ def environment(G, h2, trait_sd, rng):
         phenotype = G + E
     return phenotype, E
 
-def causal_allele(ts, site_id, rng):
+def causal_allele(ts, site_id, random_seed = None):
     """
     Obtain causal alleles from causal sites, and return the ancestral state, causal allele, and genomic location
     They are aligned based on their genomic positions
     """
+    rng = np.random.default_rng(random_seed)
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")  
     location = np.zeros(len(site_id))
@@ -158,19 +169,6 @@ def causal_mutation_sample_nodes(ts, tree, site, causal_allele):
     
     return sample_nodes
 
-### Simulation model of effect size
-def sim_beta_GCTA(trait_mean, trait_sd, num_causal, rng):
-    beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal))
-    return beta
-
-def sim_beta_LDAK(trait_mean, trait_sd, num_causal, allele_freq, alpha, rng):
-    #negative values of α imply larger effect sizes for rare variants
-    beta = rng.normal(loc=trait_mean, scale=trait_sd/ np.sqrt(num_causal))
-    beta *= (allele_freq * (1 - allele_freq))^alpha
-    return beta
-
-###
-
 def node_genetic_value(ts, site_id, location, causal_allele, trait_mean, trait_sd, rng, model):
     """
     Obtain genetic values of nodes and effect sizes of causal sites
@@ -210,19 +208,18 @@ def individual_genetic(ts, G):
     return G
 
 
-def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, seed=1, model = None):
+def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, model = None, random_seed=None):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")    
-    rng = np.random.default_rng(seed)
-    site_id = choose_causal(ts, num_causal, rng)
+    site_id = choose_causal(ts, num_causal, random_seed)
     
-    site_id, ancestral, causal_allele, location = causal_allele(ts, site_id, rng)
+    site_id, ancestral, causal_allele, location = causal_allele(ts, site_id, random_seed)
     
-    G, beta, frequency = node_genetic_value(ts, site_id, location, causal_allele, trait_mean, trait_sd, rng, model)
+    G, beta, frequency = node_genetic_value(ts, site_id, location, causal_allele, trait_mean, trait_sd, model, random_seed)
     
     G = individual_genetic(ts, G)
     
-    phenotype, E = environment(G, h2, trait_sd, rng)
+    phenotype, E = environment(G, h2, trait_sd, random_seed)
     assert len(phenotype) == ts.num_individuals
     
     
