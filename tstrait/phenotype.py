@@ -3,7 +3,7 @@ import numpy as np
 import tskit
 import pandas as pd
 from numba import jit
-import tstrait.genotype as genotype
+import tstrait.trait as trait
 
 class PhenotypeResult:
 # Genetic result class
@@ -201,7 +201,7 @@ def sim_phenotype(ts, num_causal, h2=0.3, model = None, random_seed=None):
         raise TypeError("Number of causal sites should be an integer")
     if num_causal < 0:
         raise ValueError("Number of causal sites should be a non-negative integer")        
-    if not isinstance(model, genotype.TraitModel):
+    if not isinstance(model, traitModel.trait):
         raise TypeError("Mutation model must be an instance of TraitModel")         
     if (not isinstance(h2, int) and not isinstance(h2, float)):
         raise TypeError("Heritability should be a float or an integer")
@@ -209,6 +209,10 @@ def sim_phenotype(ts, num_causal, h2=0.3, model = None, random_seed=None):
         raise TypeError("Heritability should be a float or an integer")  
     if h2 > 1 or h2 < 0:
         raise ValueError("Heritability should be 0 <= h2 <= 1")
+    if (not isinstance(random_seed, int) and random_seed != None):
+        raise TypeError("Random seed should be None or an integer")
+    if random_seed < 0:
+        raise ValueError("Random seed should be a non-negative integer")
     
     rng = np.random.default_rng(random_seed)
     

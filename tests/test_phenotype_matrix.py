@@ -1,3 +1,4 @@
+"""
 import pytest
 
 import msprime
@@ -7,7 +8,7 @@ import pandas as pd
 
 import tstrait.phenotype_matrix as sim_pheno
 
-"""
+
 class Test_environment:
     @pytest.mark.parametrize("size", [1, 2, 10, 100])
     @pytest.mark.parametrize("h2", [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1])
@@ -114,7 +115,6 @@ class Test_choose_causal:
         rng = np.random.default_rng(np.random.randint(5))
         with pytest.raises(ValueError, match = "Standard deviation should be a non-negative number"):
             mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_mean, trait_sd, rng)
-"""
          
 class Test_genetic_value:
     @pytest.mark.parametrize("seed", [1, 3, 5, 7, 9])
@@ -147,7 +147,7 @@ class Test_genetic_value:
         
         assert np.array_equal(mutation_list, mutation_id)
         assert np.array_equal(G, G_actual)
-    """    
+    
     def test_tree_sequence_nonbinary(self):
         ts = tskit.Tree.generate_balanced(6, arity=4, span=10).tree_sequence
         tables = ts.dump_tables()
@@ -162,7 +162,7 @@ class Test_genetic_value:
         
         assert np.array_equal(mutation_list, mutation_id)
         assert np.array_equal(G, G_actual)
-    """
+
                
 class Test_phenotype_sim:
     @pytest.mark.parametrize("seed", [1, 2, 3, 4])
@@ -185,3 +185,4 @@ class Test_phenotype_sim:
         ts = msprime.sim_ancestry(size, sequence_length=100_000, recombination_rate=1e-8,population_size=10**4, random_seed=seed)
         with pytest.raises(ValueError, match = "No mutation in the provided data"):
             pheno_df, gene_df = sim_pheno.phenotype_sim(ts, num_causal, trait_sd=1, h2=0.3, seed=seed)
+"""            
