@@ -1,1 +1,1 @@
-# treeGWAS
+# tstrait
