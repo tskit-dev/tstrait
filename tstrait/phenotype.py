@@ -3,127 +3,58 @@ import numpy as np
 import tskit
 import pandas as pd
 from numba import jit
+import tstrait.genotype as genotype
 
+class PhenotypeResult:
+# Genetic result class
+    def __init__(self, individual_id, phenotype, environment, genetic):
+        self.individual_id = individual_id
+        self.phenotype = phenotype
+        self.environment = environment
+        self.genetic = genetic
 
-class TraitModel:
-# Trait model class
-    def __init__(self, model_name, trait_mean, trait_sd, num_causal, allele_freq):
-        self._model_name = model_name
-        self.trait_mean = trait_mean
-        self.trait_sd = trait_sd
-        self.num_causal = num_causal
-        self.allele_freq = allele_freq
-    
-    def sim_effect_size(self, random_seed=None):
-        rng = np.random.default_rng(random_seed)
-        if self.trait_sd == 0:
-            beta = self.trait_mean
-        else:
-            beta = rng.normal(loc=self.trait_mean, scale=self.trait_sd / np.sqrt(self.num_causal))
-        return beta   
-    @property
-    def name(self):
-        return self._model_name
+class GeneticResult:
+# Genetic result class
+    def __init__(self, site_id, causal_state, effect_size, frequency):
+        self.site_id = site_id
+        self.causal_state = causal_state
+        self.effect_size = effect_size
+        self.frequency = frequency
 
-class TraitModelGCTA(TraitModel):
-# GCTA model (Effect size simulation won't be affected by allele frequency)
-    def __init__(self, trait_mean, trait_sd, num_causal, allele_freq):
-        super().__init__('gcta', trait_mean, trait_sd, num_causal, allele_freq)
-
-class TraitModelAllele(TraitModel):
-# Allele model (Effect size will be affected by allele frequency)
-    def __init__(self, trait_mean, trait_sd, num_causal, allele_freq):
-        super().__init__('allele', trait_mean, trait_sd, num_causal, allele_freq)
-    def sim_effect_size(self, random_seed=None):
-        beta = super().sim_effect_size(random_seed)
-        beta /= np.sqrt(2 * self.allele_freq * (1 - self.allele_freq))
-        return beta
-    
-class TraitModelLDAK(TraitModel):
-# LDAK model (Effect size will be affected by allele frequency and alpha parameter)
-    def __init__(self, trait_mean, trait_sd, num_causal, allele_freq, alpha):
-        super().__init__('ldak', trait_mean, trait_sd, num_causal, allele_freq)
-        self.alpha = alpha
-    def sim_effect_size(self, random_seed=None):
-        beta = super().sim_effect_size(random_seed)
-        beta *= pow(self.allele_freq * (1 - self.allele_freq), self.alpha)
-        return beta
-        
-        
-MODEL_MAP = {
-    "gcta": TraitModelGCTA,
-    "allele": TraitModelAllele,
-    # "ldak": TraitModelLDAK, Needs alpha argument
-}
-
-
-def effect_size_model(model, trait_mean, trait_sd, num_causal, allele_freq):
-    """
-    Returns a mutation model corresponding to the specified model.
-    - If model is None, the default mutation model is returned.
-    - If model is a string, return the corresponding model instance.
-    - If model is an instance of MutationModel, return it.
-    - Otherwise raise a type error.
-    """
-
-    if model is None:
-        model_instance = TraitModelGCTA(trait_mean, trait_sd, num_causal, allele_freq)
-    elif isinstance(model, str):
-        lower_model = model.lower()
-        if lower_model not in MODEL_MAP:
-            raise ValueError(
-                "Model '{}' unknown. Choose from {}".format(
-                    model, sorted(MODEL_MAP.keys())
-                )
-            )
-        model_instance = MODEL_MAP[lower_model](trait_mean, trait_sd, num_causal, allele_freq)
-    elif isinstance(model, TraitModel):
-        model_instance = model
-    else:
-        raise TypeError(
-            "Mutation model must be a string or an instance of TraitModel"
-        )
-    return model_instance
-
-
-def obtain_sample_index_map(num_nodes, sample_id_list):
+def _obtain_sample_index_map(num_nodes, sample_id_list):
     sample_index_map = np.zeros(num_nodes + 1, dtype=int) - 1
     for j, u in enumerate(sample_id_list):
         sample_index_map[u] = j
     return sample_index_map
 
-def choose_causal(ts, num_causal, random_seed = None):
-    """
-    Choose causal sites from tree sequence data and return the site ID
-    """
-    rng = np.random.default_rng(random_seed)
-    if type(ts) != tskit.trees.TreeSequence:
-        raise TypeError("Input should be a tree sequence data")  
-    if not isinstance(num_causal, int):
-        raise TypeError("Number of causal sites should be a non-negative integer")
-    if num_causal < 0:
-        raise ValueError("Number of causal sites should be a non-negative integer")
+def obtain_sample_index_map(ts):
+    num_nodes = ts.num_nodes
     
-    num_sites = ts.num_sites
+    if num_nodes == 0:
+        raise ValueError("No nodes in the tree sequence data")
     
-    if num_sites == 0:
-        raise ValueError("No mutation in the provided data")
-    if num_causal > num_sites:
-        raise ValueError("There are more causal sites than the number of mutations inside the tree sequence")
+    return _obtain_sample_index_map(ts.num_nodes, ts.samples())
+
+def _choose_causal(num_sites, num_causal, rng):
 
     site_id = rng.choice(range(num_sites), size=num_causal, replace=False)
     
     return site_id
+
+def choose_causal(ts, num_causal, rng):
+    num_sites = ts.num_sites
+    if num_sites == 0:
+        raise ValueError("No mutation in the provided data")
+    if num_causal > num_sites:
+        raise ValueError("There are more causal sites than the number of mutations inside the tree sequence")
     
-def environment(G, h2, trait_sd, random_seed = None):
+    return _choose_causal(num_sites, num_causal, rng)
+    
+def environment(G, h2, model, rng):
     """
     Add environmental noise
     """
-    rng = np.random.default_rng(random_seed)
-    if len(G) == 0:
-        raise ValueError("No individuals in the simulation model")
-    if (not isinstance(h2, int) and not isinstance(h2, float)) or h2 > 1 or h2 < 0:
-        raise ValueError("Heritability should be 0 <= h2 <= 1")
+    trait_sd = model.trait_sd
     num_ind = len(G)
     if h2 == 1:
         E = np.zeros(num_ind)
@@ -136,76 +67,52 @@ def environment(G, h2, trait_sd, random_seed = None):
         phenotype = G + E
     return phenotype, E
 
-def obtain_causal_state(ts, site_id_list, random_seed = None):
+def obtain_causal_state(ts, site_id_list, rng):
     """
-    Obtain causal alleles from causal sites, and return the ancestral state, causal allele, and genomic location
+    Obtain causal alleles from causal sites, and return the site ID and the corresponding causal state
     They are aligned based on their genomic positions
-    """
-    rng = np.random.default_rng(random_seed)
-    if type(ts) != tskit.trees.TreeSequence:
-        raise TypeError("Input should be a tree sequence data")  
+    """ 
     location = np.zeros(len(site_id_list))
-    ancestral = np.array([])
-    causal_state_list = np.array([])
+    causal_state_list = np.zeros(len(site_id_list), dtype=object)
     
     for i, single_id in enumerate(site_id_list):
-        allele_list = np.array([])
+        allele_list = []
         for m in ts.site(single_id).mutations:
             if m.derived_state != ts.site(single_id).ancestral_state:
-                allele_list = np.append(allele_list, m.derived_state)
+                allele_list.append(m.derived_state)
 
-        causal_state_list = np.append(causal_state_list, rng.choice(np.unique(allele_list)))
+        causal_state_list[i] = rng.choice(np.unique(allele_list))
         location[i] = ts.site(single_id).position
-        ancestral = np.append(ancestral, ts.site(single_id).ancestral_state)
     
     coordinate = np.argsort(location)
-    location = location[coordinate]
     site_id_list = site_id_list[coordinate]
-    ancestral = ancestral[coordinate]
     causal_state_list = causal_state_list[coordinate]
     
-    return site_id_list, ancestral, causal_state_list, location
+    return site_id_list, causal_state_list
 
-def check_new_mutation(site, mutation):
-    """
-    Check if the mutation inside the edge is the newest mutation or not
-    site = ts.site(..) and mutation = ts.mutation(...)
-    """
-    newest = True
-    time = mutation.time
-    edge = mutation.edge
-    for m in site.mutations:
-        if m.edge == edge and m.time < time:
-            newest = False
-            break
-    
-    return newest
-
-def examine_mutation(num_nodes, ts, site, causal_state):
+def examine_mutation(ts, site_id, causal_state):
     """
     Input is the tree and site data.
-    The function will obtain a list of nodes with the causal state that is the newest in the edge,
+    The function will obtain a list of nodes with mutation
+    1 represents causal mutation, -1 represents non-causal mutation, and 0 represents no mutation
     and the vector to show if a node has a mutation or not
-    site = ts.site(..)
     """
-    causal_node_id = []
-    has_mutation = np.zeros(ts.num_nodes + 1, dtype=bool)
+    site = ts.site(site_id)
+    has_mutation = np.zeros(ts.num_nodes + 1)
     for m in site.mutations:
-        has_mutation[m.node] = True
+        has_mutation[m.node] = -1
         if m.derived_state == causal_state:
-            if check_new_mutation(site, m):
-                causal_node_id.append(m.node)
+            has_mutation[m.node] = 1
     
-    return has_mutation, causal_node_id
+    return has_mutation
     
 
-def site_genotypes(ts, tree, site, causal_state, sample_index_map):
+def site_genotypes(ts, tree, site_id, causal_state, sample_index_map):
     """
     Obtain list of 0 and 1, where 1 represents sample nodes with the causal mutation
-    site = ts.site(..)
     """
-    has_mutation, causal_node_id = examine_mutation(ts.num_nodes, ts, site, causal_state)
-    
+    has_mutation = examine_mutation(ts, site_id, causal_state)
+    causal_node_id = np.where(has_mutation == 1)[0].tolist()
     has_causal_mutation = np.zeros(ts.num_samples)
     while len(causal_node_id) > 0:
         u = causal_node_id.pop()
@@ -213,36 +120,45 @@ def site_genotypes(ts, tree, site, causal_state, sample_index_map):
         if j > 0:
             has_causal_mutation[j] = 1
         for v in tree.children(u):
-            if not has_mutation[v]:
+            if has_mutation[v] == 0:
                 causal_node_id.append(v)
     
     return has_causal_mutation
 
-def effect_size_simulation_site(ts, tree, site, causal_state, sample_index_map, model, trait_mean, trait_sd, num_causal, random_seed):
+def obtain_beta(model, num_causal, allele_freq, rng):
+    """
+    Obtain effect size from the model
+    """
+    kwargs = {"num_causal": num_causal, "rng": rng}
+    if model._require_allele_freq:
+        kwargs["allele_freq"] = allele_freq
+    
+    beta = model.sim_effect_size(**kwargs)
+    
+    return beta
+
+def effect_size_simulation_site(ts, tree, site_id, causal_state, num_causal, sample_index_map, model, rng):
     """
     Simulate effect size of sample nodes in a single site
-    site = ts.site(..)
     """ 
-    has_causal_mutation = site_genotypes(ts, tree, site, causal_state, sample_index_map)
+    has_causal_mutation = site_genotypes(ts, tree, site_id, causal_state, sample_index_map)
     allele_freq = np.sum(has_causal_mutation) / len(has_causal_mutation)
-    beta_model = effect_size_model(model, trait_mean, trait_sd, num_causal, allele_freq)
-    beta = beta_model.sim_effect_size(random_seed)
+    beta = obtain_beta(model, num_causal, allele_freq, rng)
     genetic_causal_node = has_causal_mutation * beta
     
     return beta, allele_freq, genetic_causal_node
     
-    
-    
-def effect_size_simulation(ts, causal_state_list, site_id_list, location, sample_index_map, model, trait_mean, trait_sd, num_causal, random_seed):
+def effect_size_simulation(ts, causal_state_list, site_id_list, sample_index_map, model, rng):
     tree = ts.first()
     G = np.zeros(ts.num_samples)
-    beta_list = np.zeros(len(location))
-    frequency = np.zeros(len(location))
+    beta_list = np.zeros(len(site_id_list))
+    frequency = np.zeros(len(site_id_list))
+    num_causal = len(site_id_list)
     
-    for i, loc in enumerate(location):
-        tree.seek(loc)
-        site = ts.site(site_id_list[i])
-        beta, allele_freq, genetic_causal_node = effect_size_simulation_site(ts, tree, site, causal_state_list[i], sample_index_map, model, trait_mean, trait_sd, num_causal, random_seed)
+    for i, site_id in enumerate(site_id_list):
+        location = ts.site(site_id).position
+        tree.seek(location)
+        beta, allele_freq, genetic_causal_node = effect_size_simulation_site(ts, tree, site_id, causal_state_list[i], num_causal, sample_index_map, model, rng)
         beta_list[i] = beta
         frequency[i] = allele_freq
         G += genetic_causal_node
@@ -258,40 +174,42 @@ def individual_genetic(ts, G):
     G = G[::2] + G[1::2]
     return G
 
-
-def phenotype_sim(ts, num_causal, trait_mean=0, trait_sd=1, h2=0.3, model = None, random_seed=None):
-    if type(ts) != tskit.trees.TreeSequence:
-        raise TypeError("Input should be a tree sequence data")  
+def _sim_phenotype(ts, num_causal, h2, model, rng):
     
-    sample_index_map = obtain_sample_index_map(ts.num_nodes, ts.samples())
+    sample_index_map = obtain_sample_index_map(ts)
     
-    site_id_list = choose_causal(ts, num_causal, random_seed)
+    site_id_list = choose_causal(ts, num_causal, rng)
     
-    site_id_list, ancestral, causal_state_list, location = obtain_causal_state(ts, site_id_list, random_seed)
+    site_id_list, causal_state_list = obtain_causal_state(ts, site_id_list, rng)
     
-    G, beta_list, frequency = effect_size_simulation(ts, causal_state_list, site_id_list, location,
-        sample_index_map, model, trait_mean, trait_sd, num_causal, random_seed)
+    G, beta_list, frequency = effect_size_simulation(ts, causal_state_list, site_id_list, sample_index_map, model, rng)
     
     G = individual_genetic(ts, G)
     
-    phenotype, E = environment(G, h2, trait_sd, random_seed)
-    assert len(phenotype) == ts.num_individuals
+    phenotype, E = environment(G, h2, model, rng)
     
+    phenotype_result = PhenotypeResult(list(range(ts.num_individuals)), phenotype, E, G)
+    genetic_result = GeneticResult(site_id_list, causal_state_list, beta_list, frequency)
+    # Ancestral state and location can easily be determined
     
-    # Phenotype dataframe
-#    pheno_df = pd.DataFrame({"Individual ID": [s.id for s in ts.individuals()],
-#                             "Phenotype": phenotype,"Environment":E,"Genotype": G})
-    pheno_df = pd.DataFrame({"Individual ID": list(range(ts.num_individuals)),
-                              "Phenotype": phenotype,"Environment":E,"Genetic Value": G})
+    return phenotype_result, genetic_result
     
-    # Genotype dataframe
-    gene_df = pd.DataFrame({
-        "Site ID": site_id_list,
-        "Ancestral State": ancestral,
-        "Causal State": causal_state_list,
-        "Location": location,
-        "Effect Size": beta_list,
-        "Frequency": frequency
-    })
-
-    return pheno_df, gene_df
+def sim_phenotype(ts, num_causal, h2=0.3, model = None, random_seed=None):
+    if type(ts) != tskit.trees.TreeSequence:
+        raise TypeError("Input should be a tree sequence data")
+    if not isinstance(num_causal, int):
+        raise TypeError("Number of causal sites should be an integer")
+    if num_causal < 0:
+        raise ValueError("Number of causal sites should be a non-negative integer")        
+    if not isinstance(model, genotype.TraitModel):
+        raise TypeError("Mutation model must be an instance of TraitModel")         
+    if (not isinstance(h2, int) and not isinstance(h2, float)):
+        raise TypeError("Heritability should be a float or an integer")
+    if (not isinstance(h2, int) and not isinstance(h2, float)):
+        raise TypeError("Heritability should be a float or an integer")  
+    if h2 > 1 or h2 < 0:
+        raise ValueError("Heritability should be 0 <= h2 <= 1")
+    
+    rng = np.random.default_rng(random_seed)
+    
+    return _sim_phenotype(ts, num_causal, h2, model, rng)
