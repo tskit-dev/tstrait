@@ -1,4 +1,3 @@
-"""
 import pytest
 
 import msprime
@@ -6,8 +5,169 @@ import numpy as np
 import tskit
 import pandas as pd
 
-import tstrait.phenotype as sim_pheno
+import tstrait.phenotype as phenotype
+import tstrait.trait as trait
 
+class Test_sim_phenotype_output_dim:
+    @pytest.mark.parametrize("num_ind", [1,2,5])
+    @pytest.mark.parametrize("num_causal", [1,2,3])
+    @pytest.mark.parametrize("h2", [0.1, 0.5])
+    @pytest.mark.parametrize("random_seed", [1,2,None])
+    def test_output_dim_GCTA(self, num_ind, num_causal, h2, random_seed):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=random_seed)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
+        phenotype_result, genetic_result = phenotype.sim_phenotype(ts, num_causal, model, h2, random_seed)
+        
+        assert len(phenotype_result.__dict__) == 4
+        assert len(genetic_result.__dict__) == 4
+        
+        assert len(phenotype_result.individual_id) == num_ind
+        assert len(phenotype_result.phenotype) == num_ind
+        assert len(phenotype_result.environment) == num_ind
+        assert len(phenotype_result.genetic) == num_ind
+        
+        assert len(genetic_result.site_id) == num_causal
+        assert len(genetic_result.causal_state) == num_causal
+        assert len(genetic_result.effect_size) == num_causal
+        assert len(genetic_result.frequency) == num_causal
+
+    @pytest.mark.parametrize("num_ind", [1,2,5])
+    @pytest.mark.parametrize("num_causal", [1,2,3])
+    @pytest.mark.parametrize("h2", [0.1, 0.5])
+    @pytest.mark.parametrize("random_seed", [1,2, None])
+    def test_output_dim_Allele(self, num_ind, num_causal, h2, random_seed):
+        model = trait.TraitModelAllele(0,1)
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=random_seed)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
+        phenotype_result, genetic_result = phenotype.sim_phenotype(ts, num_causal, model, h2, random_seed)
+        
+        assert len(phenotype_result.__dict__) == 4
+        assert len(genetic_result.__dict__) == 4
+        
+        assert len(phenotype_result.individual_id) == num_ind
+        assert len(phenotype_result.phenotype) == num_ind
+        assert len(phenotype_result.environment) == num_ind
+        assert len(phenotype_result.genetic) == num_ind
+        
+        assert len(genetic_result.site_id) == num_causal
+        assert len(genetic_result.causal_state) == num_causal
+        assert len(genetic_result.effect_size) == num_causal
+        assert len(genetic_result.frequency) == num_causal
+        
+        # assert max(genetic_result.frequency < 1) and min(genetic_result.frequency > 0)
+
+    @pytest.mark.parametrize("num_ind", [1,2,5])
+    @pytest.mark.parametrize("num_causal", [1,2,3])
+    @pytest.mark.parametrize("h2", [0.1, 0.5])
+    @pytest.mark.parametrize("random_seed", [1,2,None])
+    def test_output_dim_LDAK(self, num_ind, num_causal, h2, random_seed):
+        model = trait.TraitModelLDAK(0,1, -1)
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=random_seed)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
+        phenotype_result, genetic_result = phenotype.sim_phenotype(ts, num_causal, model, h2, random_seed)
+        
+        assert len(phenotype_result.__dict__) == 4
+        assert len(genetic_result.__dict__) == 4
+        
+        assert len(phenotype_result.individual_id) == num_ind
+        assert len(phenotype_result.phenotype) == num_ind
+        assert len(phenotype_result.environment) == num_ind
+        assert len(phenotype_result.genetic) == num_ind
+        
+        assert len(genetic_result.site_id) == num_causal
+        assert len(genetic_result.causal_state) == num_causal
+        assert len(genetic_result.effect_size) == num_causal
+        assert len(genetic_result.frequency) == num_causal               
+
+class Test_sim_phenotype_input:
+    @pytest.mark.parametrize("ts", [0, "a", [1,1]])
+    def test_ts(self, ts):
+        model = trait.TraitModelGCTA(0,1)
+        with pytest.raises(TypeError, match="Input should be a tree sequence data"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 2, model, 0.3, 1)
+
+    @pytest.mark.parametrize("num_ind", [1,2,5])
+    @pytest.mark.parametrize("num_causal", [1,2,3])
+    @pytest.mark.parametrize("h2", [0.1, 0.5])
+    @pytest.mark.parametrize("random_seed", [1,2])
+    def test_no_mutation(self, num_ind, num_causal, h2, random_seed):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=random_seed)
+        with pytest.raises(ValueError, match="No mutation in the provided data"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, num_causal, model, h2, random_seed)        
+
+    @pytest.mark.parametrize("model", [None, 1, "a"])
+    def test_model(self, model):
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=2)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=2)
+        with pytest.raises(TypeError, match="Mutation model must be an instance of TraitModel"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 3, model, 0.3, 2)
+    
+    @pytest.mark.parametrize("h2", ["0", "a", [1,1]])
+    def test_h2(self, h2):
+        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = trait.TraitModelGCTA(0,1)
+        with pytest.raises(TypeError, match="Heritability should be a float or an integer"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 2, model, h2, 1)
+            
+    @pytest.mark.parametrize("h2", [-1, -0.1, 1.01])
+    def test_h2_value(self, h2):
+        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = trait.TraitModelGCTA(0,1)
+        with pytest.raises(ValueError, match="Heritability should be 0 <= h2 <= 1"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 2, model, h2, 1)            
+    
+    @pytest.mark.parametrize("num_ind", [1,2,5])
+    @pytest.mark.parametrize("num_causal", [1,2,3])
+    @pytest.mark.parametrize("random_seed", [1,2])
+    def test_h2_zero(self, num_ind, num_causal, random_seed):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=random_seed)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
+        phenotype_result, genetic_result = phenotype.sim_phenotype(ts, num_causal, model, 0, random_seed)
+        
+        assert np.allclose(phenotype_result.phenotype, phenotype_result.environment)
+
+    @pytest.mark.parametrize("num_ind", [1,2,5])
+    @pytest.mark.parametrize("num_causal", [1,2,3])
+    @pytest.mark.parametrize("random_seed", [1,2])
+    def test_h2_one(self, num_ind, num_causal, random_seed):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=random_seed)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
+        phenotype_result, genetic_result = phenotype.sim_phenotype(ts, num_causal, model, 1, random_seed)
+        
+        assert np.allclose(phenotype_result.phenotype, phenotype_result.genetic)
+        assert np.array_equiv(phenotype_result.environment, np.zeros(num_ind))
+    
+    @pytest.mark.parametrize("random_seed", [1.1, 5.0, "a", [1,2]])
+    def test_random_seed(self, random_seed):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        with pytest.raises(TypeError, match="Random seed should be None or an integer"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 3, model, 0.3, random_seed)
+
+    @pytest.mark.parametrize("random_seed", [-1, -2])
+    def test_random_seed_negative(self, random_seed):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        with pytest.raises(ValueError, match="Random seed should be None or a non-negative integer"):
+            phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 3, model, 0.3, random_seed)
+
+    def test_random_seed_zero(self):
+        model = trait.TraitModelGCTA(0,1)
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        phenotype_result, genetic_result = phenotype.sim_phenotype(ts, 3, model, 0.3, 0)   
+            
+
+
+"""
 class Test_update_node_values_array_access:
     def test_update(self):
         # Construct an artificial tree with 6 leaves with node 7 and 9 missing from the tree

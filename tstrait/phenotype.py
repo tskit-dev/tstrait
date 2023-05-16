@@ -46,7 +46,7 @@ def choose_causal(ts, num_causal, rng):
     if num_sites == 0:
         raise ValueError("No mutation in the provided data")
     if num_causal > num_sites:
-        raise ValueError("There are more causal sites than the number of mutations inside the tree sequence")
+        raise ValueError("There are less number of sites in the tree sequence than the inputted number of causal sites")
     
     return _choose_causal(num_sites, num_causal, rng)
     
@@ -143,7 +143,10 @@ def effect_size_simulation_site(ts, tree, site_id, causal_state, num_causal, sam
     """ 
     has_causal_mutation = site_genotypes(ts, tree, site_id, causal_state, sample_index_map)
     allele_freq = np.sum(has_causal_mutation) / len(has_causal_mutation)
-    beta = obtain_beta(model, num_causal, allele_freq, rng)
+    if allele_freq > 0 and allele_freq < 1:
+        beta = obtain_beta(model, num_causal, allele_freq, rng)
+    else:
+        beta = 0
     genetic_causal_node = has_causal_mutation * beta
     
     return beta, allele_freq, genetic_causal_node
@@ -194,25 +197,24 @@ def _sim_phenotype(ts, num_causal, h2, model, rng):
     
     return phenotype_result, genetic_result
     
-def sim_phenotype(ts, num_causal, h2=0.3, model = None, random_seed=None):
+def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     if type(ts) != tskit.trees.TreeSequence:
         raise TypeError("Input should be a tree sequence data")
     if not isinstance(num_causal, int):
         raise TypeError("Number of causal sites should be an integer")
     if num_causal < 0:
         raise ValueError("Number of causal sites should be a non-negative integer")        
-    if not isinstance(model, traitModel.trait):
+    if not isinstance(model, trait.TraitModel):
         raise TypeError("Mutation model must be an instance of TraitModel")         
     if (not isinstance(h2, int) and not isinstance(h2, float)):
         raise TypeError("Heritability should be a float or an integer")
-    if (not isinstance(h2, int) and not isinstance(h2, float)):
-        raise TypeError("Heritability should be a float or an integer")  
     if h2 > 1 or h2 < 0:
         raise ValueError("Heritability should be 0 <= h2 <= 1")
     if (not isinstance(random_seed, int) and random_seed != None):
         raise TypeError("Random seed should be None or an integer")
-    if random_seed < 0:
-        raise ValueError("Random seed should be a non-negative integer")
+    if random_seed != None:
+        if random_seed < 0:
+            raise ValueError("Random seed should be None or a non-negative integer")
     
     rng = np.random.default_rng(random_seed)
     
