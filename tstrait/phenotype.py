@@ -3,52 +3,25 @@ import numpy as np
 import tskit
 import pandas as pd
 from numba import jit
+import collections
+from dataclasses import dataclass
 import tstrait.trait as trait
 
+@dataclass
 class PhenotypeResult:
 # Genetic result class
-    def __init__(self, individual_id, phenotype, environment, genetic):
-        self.individual_id = individual_id
-        self.phenotype = phenotype
-        self.environment = environment
-        self.genetic = genetic
+    individual_id: np.ndarray
+    phenotype: np.ndarray
+    environment: np.ndarray
+    genetic: np.ndarray
 
+@dataclass
 class GeneticResult:
 # Genetic result class
-    def __init__(self, site_id, causal_state, effect_size, frequency):
-        self.site_id = site_id
-        self.causal_state = causal_state
-        self.effect_size = effect_size
-        self.frequency = frequency
-
-def _obtain_sample_index_map(num_nodes, sample_id_list):
-    sample_index_map = np.zeros(num_nodes + 1, dtype=int) - 1
-    for j, u in enumerate(sample_id_list):
-        sample_index_map[u] = j
-    return sample_index_map
-
-def obtain_sample_index_map(ts):
-    num_nodes = ts.num_nodes
-    
-    if num_nodes == 0:
-        raise ValueError("No nodes in the tree sequence data")
-    
-    return _obtain_sample_index_map(ts.num_nodes, ts.samples())
-
-def _choose_causal(num_sites, num_causal, rng):
-
-    site_id = rng.choice(range(num_sites), size=num_causal, replace=False)
-    
-    return site_id
-
-def choose_causal(ts, num_causal, rng):
-    num_sites = ts.num_sites
-    if num_sites == 0:
-        raise ValueError("No mutation in the provided data")
-    if num_causal > num_sites:
-        raise ValueError("There are less number of sites in the tree sequence than the inputted number of causal sites")
-    
-    return _choose_causal(num_sites, num_causal, rng)
+    site_id: np.ndarray
+    causal_state: np.ndarray
+    effect_size: np.ndarray
+    frequency: np.ndarray
     
 def environment(G, h2, model, rng):
     """
@@ -67,28 +40,41 @@ def environment(G, h2, model, rng):
         phenotype = G + E
     return phenotype, E
 
+def count_site_alleles(ts, tree, site):
+    """
+    Obtain a dictionary of allele frequency counts, excluding the ancestral state
+    Input is the tree sequence site (ts.site(ID))
+    If only state exists, don't delete the ancestral state
+    """
+    counts = collections.Counter({site.ancestral_state: ts.num_samples})
+    for m in site.mutations:
+        current_state = site.ancestral_state
+        if m.parent != tskit.NULL:
+            current_state = ts.mutation(m.parent).derived_state
+        # Silent mutations do nothing
+        if current_state != m.derived_state:
+            num_samples = tree.num_samples(m.node)
+            counts[m.derived_state] += num_samples
+            counts[current_state] -= num_samples
+    if len(counts) > 1:
+        del counts[site.ancestral_state]
+    return counts
+
 def obtain_causal_state(ts, site_id_list, rng):
     """
     Obtain causal alleles from causal sites, and return the site ID and the corresponding causal state
     They are aligned based on their genomic positions
     """ 
-    location = np.zeros(len(site_id_list))
     causal_state_list = np.zeros(len(site_id_list), dtype=object)
+    tree = tskit.Tree(ts)
     
     for i, single_id in enumerate(site_id_list):
-        allele_list = []
-        for m in ts.site(single_id).mutations:
-            if m.derived_state != ts.site(single_id).ancestral_state:
-                allele_list.append(m.derived_state)
-
-        causal_state_list[i] = rng.choice(np.unique(allele_list))
-        location[i] = ts.site(single_id).position
+        site = ts.site(single_id)
+        tree.seek(site.position)
+        counts = count_site_alleles(ts, tree, site)
+        causal_state_list[i] = rng.choice(list(counts))
     
-    coordinate = np.argsort(location)
-    site_id_list = site_id_list[coordinate]
-    causal_state_list = causal_state_list[coordinate]
-    
-    return site_id_list, causal_state_list
+    return causal_state_list
 
 def examine_mutation(ts, site_id, causal_state):
     """
@@ -177,13 +163,69 @@ def individual_genetic(ts, G):
     G = G[::2] + G[1::2]
     return G
 
+class SimPhenotype:
+# Phenotype simulation class
+    def __init__(self, ts, num_causal, h2, model, rng):
+        self.ts = ts
+        self.num_causal = num_causal
+        self.h2 = h2
+        self.model = model
+        self.rng = rng
+        self.sample_index_map = self._obtain_sample_index_map()
+        self.site_id_list = self._choose_causal()
+        
+    def _obtain_sample_index_map(self):
+        num_nodes = self.ts.num_nodes
+        if num_nodes == 0:
+            raise ValueError("No nodes in the tree sequence data")
+        sample_index_map = np.zeros(num_nodes + 1, dtype=int) - 1
+        for j, u in enumerate(self.ts.samples()):
+            sample_index_map[u] = j
+        return sample_index_map
+    
+    def _choose_causal(self):
+        """
+        Obtain site ID based on their position (site IDs are aligned based on their positions in tree sequence data requirement)
+        """
+        num_sites = self.ts.num_sites
+        if num_sites == 0:
+            raise ValueError("No mutation in the provided data")
+        if num_causal > num_sites:
+            raise ValueError("There are less number of sites in the tree sequence than the inputted number of causal sites")
+        site_id = self.rng.choice(range(num_sites), size=self.num_causal, replace=False)
+        site_id = np.sort(site_id)
+        
+        return site_id
+        
+    def obtain_causal_state(self):
+    """
+    Obtain causal alleles from causal sites, and return the site ID and the corresponding causal state
+    They are aligned based on their genomic positions
+    """ 
+    causal_state_list = np.zeros(len(self.site_id_list), dtype=object)
+    tree = tskit.Tree(ts)
+    
+        for i, single_id in enumerate(self.site_id_list):
+            site = ts.site(single_id)
+            tree.seek(site.position)
+            counts = count_site_alleles(self.ts, tree, site)
+            causal_state_list[i] = rng.choice(list(counts))
+        
+        return causal_state_list
+
+@dataclass
+class Result:
+# Genetic result class
+    G: np.ndarray
+    beta_list: np.ndarray
+    frequency: np.ndarray
+    
+
+
 def _sim_phenotype(ts, num_causal, h2, model, rng):
+    simulateClass = SimPhenotype(ts, num_causal, h2, model, rng)
     
-    sample_index_map = obtain_sample_index_map(ts)
-    
-    site_id_list = choose_causal(ts, num_causal, rng)
-    
-    site_id_list, causal_state_list = obtain_causal_state(ts, site_id_list, rng)
+    causal_state_list = simulateClass.obtain_causal_state()
     
     G, beta_list, frequency = effect_size_simulation(ts, causal_state_list, site_id_list, sample_index_map, model, rng)
     
