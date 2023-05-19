@@ -13,7 +13,7 @@ class TraitModel:
         self.trait_mean = trait_mean
         self.trait_sd = trait_sd
 
-    def sim_effect_size(self, num_causal, rng):
+    def sim_effect_size(self, num_causal, allele_freq, rng):
         """
         Simulates an effect size from a normal distribution, assuming that it won't be affected by allele frequency
         """
@@ -33,20 +33,16 @@ class TraitModel:
     @property
     def name(self):
         return self._model_name
-    
-    @property
-    def _require_allele_freq(self):
-        return False
 
 class TraitModelGCTA(TraitModel):
 # GCTA model (Effect size simulation won't be affected by allele frequency)
     def __init__(self, trait_mean, trait_sd):
         super().__init__('gcta', trait_mean, trait_sd)
-    def sim_effect_size(self, num_causal, rng):
+    def sim_effect_size(self, num_causal, allele_freq, rng):
         """
         Simulates an effect size from the GCTA model
         """
-        beta = super().sim_effect_size(num_causal, rng)
+        beta = super().sim_effect_size(num_causal, allele_freq, rng)
         return beta
 
 class TraitModelAllele(TraitModel):
@@ -65,11 +61,7 @@ class TraitModelAllele(TraitModel):
         
         beta = super().sim_effect_size(num_causal, rng)
         beta /= np.sqrt(2 * allele_freq * (1 - allele_freq))
-        return beta  
-        
-    @property
-    def _require_allele_freq(self):
-        return True
+        return beta
     
 class TraitModelLDAK(TraitModel):
 # LDAK model (Effect size will be affected by allele frequency and alpha parameter)
@@ -90,7 +82,3 @@ class TraitModelLDAK(TraitModel):
         beta = super().sim_effect_size(num_causal, rng)
         beta *= pow(allele_freq * (1 - allele_freq), self.alpha)
         return beta
-        
-    @property
-    def _require_allele_freq(self):
-        return True  
