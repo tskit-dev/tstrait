@@ -142,9 +142,13 @@ class SimPhenotype:
         """
         Convert genetic value of nodes to be genetic value of individuals
         """
-        G = G[self.ts.samples()]
-        G = G[::2] + G[1::2]
-        return G
+        I = np.zeros(self.ts.num_individuals)
+
+        for j in range(self.ts.num_samples):
+            ind = self.ts.nodes_individual[self.sample_index_map[j]]
+            I[ind] += G[j]
+            
+        return I
 
     def _environment(self, G):
         """
