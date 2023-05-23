@@ -5,31 +5,23 @@ import pandas as pd
 from numba import jit
 import collections
 from dataclasses import dataclass
-import tstrait.trait as trait
+import tstrait.trait_model as trait_model
 
 @dataclass
 class PhenotypeResult:
 # Phenotype result class
     individual_id: np.ndarray
     phenotype: np.ndarray
-    environment: np.ndarray
-    genetic: np.ndarray
+    environment_noise: np.ndarray
+    genetic_value: np.ndarray
 
 @dataclass
-class GeneticResult:
+class GeneticValueResult:
 # Genetic result class
     site_id: np.ndarray
     causal_state: np.ndarray
     effect_size: np.ndarray
-    frequency: np.ndarray
-    
-@dataclass
-class SiteGenetic:
-# Genetic information of a site
-    beta: float
-    allele_freq: float
-    site_genetic: np.ndarray
-    
+    allele_frequency: np.ndarray
 
 class SimPhenotype:
 # Phenotype simulation class
@@ -40,7 +32,7 @@ class SimPhenotype:
         self.model = model
         self.rng = rng
         self.sample_index_map = self._obtain_sample_index_map()
-        self.site_id_list = self._choose_causal()
+        self.site_id_array = self._choose_causal_site()
         
     def _obtain_sample_index_map(self):
         num_nodes = self.ts.num_nodes
@@ -51,7 +43,7 @@ class SimPhenotype:
             sample_index_map[u] = j
         return sample_index_map
     
-    def _choose_causal(self):
+    def _choose_causal_site(self):
         """
         Obtain site ID based on their position (site IDs are aligned based on their positions in tree sequence data requirement)
         """
@@ -65,11 +57,12 @@ class SimPhenotype:
         
         return site_id
         
-    def _count_site_alleles(self, tree, site):
+    def _obtain_allele_frequency(self, tree, site):
         """
         Obtain a dictionary of allele frequency counts, excluding the ancestral state
         Input is the tree sequence site (ts.site(ID))
-        If only state exists, don't delete the ancestral state
+        Remove sites from dictionary having no items
+        If only the ancestral state exists, don't delete the ancestral state
         """
         counts = collections.Counter({site.ancestral_state: self.ts.num_samples})
         for m in site.mutations:
@@ -81,25 +74,26 @@ class SimPhenotype:
                 num_samples = tree.num_samples(m.node)
                 counts[m.derived_state] += num_samples
                 counts[current_state] -= num_samples
+        counts = {x:y for x,y in counts.items() if y!=0}
         if len(counts) > 1:
             del counts[site.ancestral_state]
         return counts
         
     def _obtain_causal_state(self):
         """
-        Obtain causal alleles from causal sites, and return the site ID and the corresponding causal state
-        They are aligned based on their genomic positions
+        Obtain causal alleles from causal sites, and return the corresponding causal state
+        It is aligned based on site ID array
         """ 
-        causal_state_list = np.zeros(len(self.site_id_list), dtype=object)
+        causal_state_array = np.zeros(len(self.site_id_array), dtype=object)
         tree = tskit.Tree(self.ts)
     
-        for i, single_id in enumerate(self.site_id_list):
+        for i, single_id in enumerate(self.site_id_array):
             site = self.ts.site(single_id)
             tree.seek(site.position)
-            counts = self._count_site_alleles(tree, site)
-            causal_state_list[i] = self.rng.choice(list(counts))
+            counts = self._obtain_allele_frequency(tree, site)
+            causal_state_array[i] = self.rng.choice(list(counts))
         
-        return causal_state_list
+        return causal_state_array
 
     def _site_genotypes(self, tree, site, causal_state):
         """
@@ -119,96 +113,96 @@ class SimPhenotype:
         while len(stack) > 0:
             u = stack.pop()
             j = self.sample_index_map[u]
-            if j > 0:
+            if j > -1:
                 genotype[j] = 1
             for v in tree.children(u):
                 if not has_mutation[v]:
                     stack.append(v)
         return genotype
-        
-
-    def _effect_size_simulation_site(self, site_genotype):
-        """
-        Simulate effect size of sample nodes in a single site
-        """ 
-        allele_freq = np.sum(site_genotype) / len(site_genotype)
-        beta = self.model.sim_effect_size(self.num_causal, allele_freq, self.rng)
-        site_genetic = site_genotype * beta
-        result = SiteGenetic(beta, allele_freq, site_genetic)
-        
-        return result
-        
-    def _individual_genetic(self, G):
+                
+    def _group_by_individual_genetic_value(self, node_genetic_value):
         """
         Convert genetic value of nodes to be genetic value of individuals
         """
-        I = np.zeros(self.ts.num_individuals)
+        individual_genetic_value = np.zeros(self.ts.num_individuals)
 
         for j in range(self.ts.num_samples):
             ind = self.ts.nodes_individual[self.sample_index_map[j]]
-            I[ind] += G[j]
+            individual_genetic_value[ind] += node_genetic_value[j]
             
-        return I
+        return individual_genetic_value
 
-    def _environment(self, G):
+    def _sim_environment_noise(self, individual_genetic_value):
         """
         Add environmental noise
         G should be values of individuals
         """
         trait_sd = self.model.trait_sd
-        num_ind = len(G)
+        num_ind = len(individual_genetic_value)
         if self.h2 == 1:
             E = np.zeros(num_ind)
-            phenotype = G
+            phenotype = individual_genetic_value
         elif self.h2 == 0:
             E = self.rng.normal(loc=0.0, scale=trait_sd, size=num_ind)
             phenotype = E
         else:
-            E = self.rng.normal(loc=0.0, scale=np.sqrt((1-self.h2)/self.h2 * np.var(G)), size=num_ind)
-            phenotype = G + E
+            env_std = np.sqrt((1-self.h2)/self.h2 * np.var(individual_genetic_value))
+            E = self.rng.normal(loc=0.0, scale=env_std, size=num_ind)
+            phenotype = individual_genetic_value + E
         
         return phenotype, E
     
-    def effect_size_simulation(self):
-        causal_state_list = self._obtain_causal_state()
+    def genetic_value_simulation(self):
+        causal_state_array = self._obtain_causal_state()
         tree = tskit.Tree(self.ts)
-        G = np.zeros(self.ts.num_samples)
-        beta_list = np.zeros(self.num_causal)
-        frequency = np.zeros(self.num_causal)
+        node_genetic_value = np.zeros(self.ts.num_samples)
+        beta_array = np.zeros(self.num_causal)
+        allele_frequency = np.zeros(self.num_causal)
 
-        for i, site_id in enumerate(self.site_id_list):
+        for i, site_id in enumerate(self.site_id_array):
             site = self.ts.site(site_id)
             tree.seek(site.position)
-            site_genotype = self._site_genotypes(tree, site, causal_state_list[i])
-            genetic_info_site = self._effect_size_simulation_site(site_genotype)
-            beta_list[i] = genetic_info_site.beta
-            frequency[i] = genetic_info_site.allele_freq
-            G += genetic_info_site.site_genetic
+            site_genotype = self._site_genotypes(tree, site, causal_state_array[i])
+            allele_frequency[i] = np.sum(site_genotype) / len(site_genotype)
+            beta_array[i] = self.model.sim_effect_size(self.num_causal, allele_frequency[i], self.rng)
+            node_genetic_value += site_genotype * beta_array[i]
         
-        G = self._individual_genetic(G)
+        genotypic_effect_sizes = GeneticValueResult(self.site_id_array, causal_state_array, beta_array, allele_frequency)
         
-        phenotype, E = self._environment(G)
+        return node_genetic_value, genotypic_effect_sizes
+    
+    def phenotype_environemnt_simulation(self, node_genetic_value):
+        individual_genetic_value = self._group_by_individual_genetic_value(node_genetic_value)
+        phenotype, E = self._sim_environment_noise(individual_genetic_value)
+        phenotype_individuals = PhenotypeResult(list(range(self.ts.num_individuals)), phenotype, E, individual_genetic_value)
         
-        genetic_result = GeneticResult(self.site_id_list, causal_state_list, beta_list, frequency)
-        phenotype_result = PhenotypeResult(list(range(self.ts.num_individuals)), phenotype, E, G)
-        
-        return genetic_result, phenotype_result
+        return phenotype_individuals
 
 def _sim_phenotype(ts, num_causal, h2, model, rng):
     simulateClass = SimPhenotype(ts, num_causal, h2, model, rng)
     
-    genetic_result, phenotype_result = simulateClass.effect_size_simulation()
+    node_genetic_value, genotypic_effect_sizes = simulateClass.genetic_value_simulation()
+    
+    phenotype_individuals = simulateClass.phenotype_environemnt_simulation(node_genetic_value)
     # Ancestral state and location can easily be determined
     
-    return phenotype_result, genetic_result
+    return phenotype_individuals, genotypic_effect_sizes
     
 def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     if not isinstance(ts, tskit.TreeSequence):
         raise TypeError("Input should be a tree sequence data")
-    if int(num_causal) != num_causal or num_causal < 0:
-        raise ValueError("Number of causal sites should be a non-negative integer")   
-    if not isinstance(model, trait.TraitModel):
+    try:
+        num_causal > 0
+    except:
+        raise TypeError("Number of causal sites should be a positive integer")  
+    if int(num_causal) != num_causal or num_causal <= 0:
+        raise ValueError("Number of causal sites should be a positive integer")   
+    if not isinstance(model, trait_model.TraitModel):
         raise TypeError("Mutation model must be an instance of TraitModel")
+    try:
+        h2 > 0
+    except:
+        raise TypeError("Heritability should be 0 <= h2 <= 1")
     if h2 > 1 or h2 < 0:
         raise ValueError("Heritability should be 0 <= h2 <= 1")
     
