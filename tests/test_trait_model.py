@@ -6,7 +6,7 @@ import tstrait.trait_model as trait_model
 class Test_TraitModelAdditive:
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1, np.array([1])[0]])
     @pytest.mark.parametrize("trait_sd", [0.1, 1,np.array([1])[0]])
-    @pytest.mark.parametrize("num_causal", [1, 5])
+    @pytest.mark.parametrize("num_causal", [1, 5, np.array([1])[0]])
     @pytest.mark.parametrize("random_seed", [1,2,None])
     def test_pass_condition(self, trait_mean, trait_sd, num_causal, random_seed):
         model = trait_model.TraitModelAdditive(trait_mean, trait_sd)
@@ -17,7 +17,7 @@ class Test_TraitModelAdditive:
         
         assert isinstance(beta, float)
         
-    @pytest.mark.parametrize("trait_mean", ["a", None, [1,1]])
+    @pytest.mark.parametrize("trait_mean", ["a", "1", None, [1,1]])
     def test_mean_type(self, trait_mean):
         with pytest.raises(TypeError, match="Mean value of traits should be a number"):
             model = trait_model.TraitModelAdditive(trait_mean, 1)        
@@ -27,9 +27,9 @@ class Test_TraitModelAdditive:
         with pytest.raises(ValueError, match="Standard deviation of traits should be a non-negative number"):
             model = trait_model.TraitModelAdditive(0, trait_sd)
 
-    @pytest.mark.parametrize("trait_sd", ["a", None])
+    @pytest.mark.parametrize("trait_sd", ["a", "1", None])
     def test_sd_type(self, trait_sd):
-        with pytest.raises(TypeError, match="Standard deviation of traits should be a non-negative number"):
+        with pytest.raises(TypeError, match="Standard deviation of traits should be a number"):
             model = trait_model.TraitModelAdditive(0, trait_sd)
 
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1])
@@ -55,7 +55,7 @@ class Test_TraitModelAdditive:
     def test_num_causal(self, num_causal):
         model = trait_model.TraitModelAdditive(0,1)
         rng = np.random.default_rng(1)
-        with pytest.raises(TypeError, match="Number of causal sites should be a positive integer"):
+        with pytest.raises(TypeError, match="Number of causal sites should be a number"):
             beta = model.sim_effect_size(num_causal, 0.3, rng)
 
     @pytest.mark.parametrize("rng", [1, 1.1, "a", 0, None])
@@ -70,7 +70,7 @@ class Test_TraitModelAllele:
     @pytest.mark.parametrize("trait_sd", [0.1, 1])
     @pytest.mark.parametrize("num_causal", [1, 5])
     @pytest.mark.parametrize("random_seed", [1,2,None])
-    @pytest.mark.parametrize("allele_freq", [0.1, 0.99])    
+    @pytest.mark.parametrize("allele_freq", [0.1, 0.99, np.array([0.5])[0]])    
     def test_pass_condition(self, trait_mean, trait_sd, num_causal, allele_freq, random_seed):
         model = trait_model.TraitModelAllele(trait_mean, trait_sd)
         assert model.name == "allele"
@@ -85,9 +85,9 @@ class Test_TraitModelAllele:
         with pytest.raises(ValueError, match="Standard deviation of traits should be a non-negative number"):
             model = trait_model.TraitModelAllele(0, trait_sd)
 
-    @pytest.mark.parametrize("trait_sd", ["a", [1,1]])
+    @pytest.mark.parametrize("trait_sd", ["a", "1", [1,1]])
     def test_sd_type(self, trait_sd):
-        with pytest.raises(TypeError, match="Standard deviation of traits should be a non-negative number"):
+        with pytest.raises(TypeError, match="Standard deviation of traits should be a number"):
             model = trait_model.TraitModelAllele(0, trait_sd)            
             
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1])
@@ -110,11 +110,11 @@ class Test_TraitModelAllele:
         with pytest.raises(ValueError, match="Number of causal sites should be a positive integer"):
             beta = model.sim_effect_size(num_causal, 0.3, rng)
     
-    @pytest.mark.parametrize("num_causal", ["a", None])  
+    @pytest.mark.parametrize("num_causal", ["a", "1", None])  
     def test_num_causal(self, num_causal):
         model = trait_model.TraitModelAllele(0,1)
         rng = np.random.default_rng(1)
-        with pytest.raises(TypeError, match="Number of causal sites should be a positive integer"):
+        with pytest.raises(TypeError, match="Number of causal sites should be a number"):
             beta = model.sim_effect_size(num_causal, 0.3, rng)
             
     @pytest.mark.parametrize("rng", [1, 1.1, "a", 0, None])
@@ -134,12 +134,12 @@ class Test_TraitModelAllele:
     
        
 class Test_TraitModelLDAK:
-    @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1])
-    @pytest.mark.parametrize("trait_sd", [0.1, 1])
+    @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1, np.array([0])[0]])
+    @pytest.mark.parametrize("trait_sd", [0.1, 1, np.array([1])[0]])
     @pytest.mark.parametrize("num_causal", [1, 5])
     @pytest.mark.parametrize("random_seed", [1,2,None])
-    @pytest.mark.parametrize("allele_freq", [0.1, 0.99])  
-    @pytest.mark.parametrize("alpha", [0, 1, 1.1, -1, -1.1])
+    @pytest.mark.parametrize("allele_freq", [0.1, 0.99, np.array([0.5])[0]])  
+    @pytest.mark.parametrize("alpha", [0, 1, 1.1, -1, -1.1, np.array([0])[0]])
     def test_pass_condition(self, trait_mean, trait_sd, num_causal, allele_freq, alpha, random_seed):
         model = trait_model.TraitModelLDAK(trait_mean, trait_sd, alpha)
         assert model.name == "ldak"
@@ -174,11 +174,11 @@ class Test_TraitModelLDAK:
         with pytest.raises(ValueError, match="Number of causal sites should be a positive integer"):
             beta = model.sim_effect_size(num_causal, 0.3, rng)
     
-    @pytest.mark.parametrize("num_causal", ["a", None])  
+    @pytest.mark.parametrize("num_causal", ["a", "1", None])  
     def test_num_causal(self, num_causal):
         model = trait_model.TraitModelLDAK(0,1,-1)        
         rng = np.random.default_rng(1)
-        with pytest.raises(TypeError, match="Number of causal sites should be a positive integer"):
+        with pytest.raises(TypeError, match="Number of causal sites should be a number"):
             beta = model.sim_effect_size(num_causal, 0.3, rng)            
             
     @pytest.mark.parametrize("num_causal", [0, -1])

@@ -1,18 +1,15 @@
 import numpy as np
+import numbers
 
 class TraitModel:
 # Trait model class
     def __init__(self, model_name, trait_mean, trait_sd):
-        try:
-            trait_sd > 0
-        except:
-            raise TypeError("Standard deviation of traits should be a non-negative number")
+        if not isinstance(trait_mean, numbers.Number):
+            raise TypeError("Mean value of traits should be a number")
+        if not isinstance(trait_sd, numbers.Number):
+            raise TypeError("Standard deviation of traits should be a number")
         if trait_sd < 0:
             raise ValueError("Standard deviation of traits should be a non-negative number")
-        try:
-            trait_mean > 0
-        except:
-            raise TypeError("Mean value of traits should be a number")
         self._model_name = model_name
         self.trait_mean = trait_mean
         self.trait_sd = trait_sd
@@ -21,13 +18,9 @@ class TraitModel:
         """
         Simulates an effect size from a normal distribution, assuming that it won't be affected by allele frequency
         """
-        try:
-            num_causal > 0
-        except:
-            raise TypeError("Number of causal sites should be a positive integer")
-        try:
-            int(allele_freq)
-        except:
+        if not isinstance(num_causal, numbers.Number):
+            raise TypeError("Number of causal sites should be a number")
+        if not isinstance(allele_freq, numbers.Number):
             raise TypeError("Allele frequency should be a number")  
         if int(num_causal) != num_causal or num_causal <= 0:
             raise ValueError("Number of causal sites should be a positive integer")
@@ -74,11 +67,8 @@ class TraitModelLDAK(TraitModel):
 # LDAK model (Effect size will be affected by allele frequency and alpha parameter)
     def __init__(self, trait_mean, trait_sd, alpha):  
         super().__init__('ldak', trait_mean, trait_sd)
-        try:
-            alpha > 0
-        except:
-            raise TypeError("Alpha should be a number")
-        
+        if not isinstance(alpha, numbers.Number):
+            raise TypeError("Alpha should be a number")        
         self.alpha = alpha
     
     def sim_effect_size(self, num_causal, allele_freq, rng):
