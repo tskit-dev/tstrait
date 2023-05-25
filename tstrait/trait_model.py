@@ -2,7 +2,18 @@ import numpy as np
 import numbers
 
 class TraitModel:
-# Trait model class
+    """Superclass of the trait model
+    
+    This class can be used to create a trait model that simulates effect sizes with
+    custom distributions.
+    
+    :param model_name: Name of the trait model
+    :type model_name: str
+    :param trait_mean: Mean value of the simulated traits
+    :type trait_mean: float or array_like(float)[int]
+    :param trait_sd: Standard deviation of the simulated traits
+    :type trait_sd: float or array_like(float)[int]
+    """
     def __init__(self, model_name, trait_mean, trait_sd):
         if not isinstance(trait_mean, numbers.Number):
             raise TypeError("Mean value of traits should be a number")
@@ -16,7 +27,22 @@ class TraitModel:
 
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        Simulates an effect size from a normal distribution, assuming that it won't be affected by allele frequency
+        This method simulates an effect size of a causal mutation assuming that it
+        follows a normal distribution with a constant standard deviation. The mean
+        of the normal distrbution is the `trait_mean` attribute of the class
+        `tstrait.TraitModel` object, and the standard deviation is the `trait_sd`
+        attribute of the class `trait.TraitModel` object divided by the square-root
+        of the number of causal sites given by `num_causal`. The `allele_freq` input
+        is not used in the simulation process.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int or array_like(int)[int]
+        :param allele_freq: Allele frequency of the causal mutation
+        :type allele_freq: float or array_like(float)[int]
+        :param rng: Random generator that will be used to simulate effect size
+        :type rng: class `np.random.Generator`
+        :return: Simulated effect size of a causal mutation
+        :rtype: float
         """
         if not isinstance(num_causal, numbers.Number):
             raise TypeError("Number of causal sites should be a number")
@@ -38,24 +64,72 @@ class TraitModel:
         return self._model_name
 
 class TraitModelAdditive(TraitModel):
-# GCTA model (Effect size simulation won't be affected by allele frequency)
+    """Additive trait model class, where the distribution of effect size does not
+    depend on allele frequency
+
+    :param trait_mean: Mean value of the simulated traits
+    :type trait_mean: float or array_like(float)[int]
+    :param trait_sd: Standard deviation of the simulated traits
+    :type trait_sd: float or array_like(float)[int]
+    """
     def __init__(self, trait_mean, trait_sd):
         super().__init__('additive', trait_mean, trait_sd)
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        Simulates an effect size from the GCTA model
+        Simulates an effect size of a causal mutation, assuming that it follows a
+        normal distribution. The mean value is the `trait_mean` attribute of the class
+        `tskit.TraitModelAdditive` object, and the standard deviation is the
+        `trait_sd` attribute of the `tskit.TraitModelAdditive` object divided by the
+        square-root of the number of causal sites, which is given by the `num_causal`
+        input. The `allele_freq` input is not used in the simulation process.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int or array_like(int)[int]
+        :param allele_freq: Allele frequency of causal mutation
+        :type allele_freq: float or array_like(float)[int]
+        :param rng: Random generator that will be used to simulate effect size
+        :type rng: class `np.random.Generator`
+        :return: Simulated effect size of a causal mutation
+        :rtype: float
         """
         beta = super().sim_effect_size(num_causal, allele_freq, rng)
         return beta
 
 class TraitModelAllele(TraitModel):
-# Allele model (Effect size will be affected by allele frequency)
+    """Allele frequency trait model class, where the distribution of effect size
+    depends on allele frequency.
+
+    :param trait_mean: Mean value of the simulated traits
+    :type trait_mean: float or array_like(float)[int]
+    :param trait_sd: Standard deviation of the simulated traits
+    :type trait_sd: float or array_like(float)[int]
+    """
     def __init__(self, trait_mean, trait_sd):
         super().__init__('allele', trait_mean, trait_sd) 
         
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        Simulates an effect size from the allele frequency model
+        Simulates an effect size of a causal mutation, assuming that it follows a
+        normal distribution. The mean value is the `trait_mean` attribute of the class
+        `tskit.TraitModelAdditive` object, and the standard deviation is the
+        `trait_sd` attribute of the `tskit.TraitModelAdditive` object divided by the
+        square-root of the number of causal sites, which is given by the `num_causal`
+        input.
+        
+        After the effect size gets simulated from the normal distribution, it will be
+        divided by the standard deviation of the genotype under the
+        Hardy–Weinberg equilibrium, which can be determined by the `allele_freq`
+        input. Through this modification, rarer variants will have larger effect sizes
+        compared with other common variants.
+        
+        :param num_causal: Number of causal sites
+        :type num_causal: int or array_like(int)[int]
+        :param allele_freq: Allele frequency of causal mutation
+        :type allele_freq: float or array_like(float)[int]
+        :param rng: Random generator that will be used to simulate effect size
+        :type rng: class `np.random.Generator`
+        :return: Simulated effect size of a causal mutation
+        :rtype: float        
         """ 
         beta = super().sim_effect_size(num_causal, allele_freq, rng)
         if allele_freq >= 1 or allele_freq <= 0:
@@ -64,7 +138,22 @@ class TraitModelAllele(TraitModel):
         return beta
     
 class TraitModelLDAK(TraitModel):
-# LDAK model (Effect size will be affected by allele frequency and alpha parameter)
+    """LDAK trait model class
+    
+    In constrast to the allele frequency trait model class, this model can modify the
+    alpha parameter to change the relative emphasis placed on rarer variants to simulate
+    the effect sizes of causal mutations. The same results as the additive trait model
+    can be determined by setting the alpha parameter to be zero, and the similar
+    results as the allele frequency trait model class can be determined by setting the
+    alpha parameter to be minus one.
+
+    :param trait_mean: Mean value of the simulated traits
+    :type trait_mean: float or array_like(float)[int]
+    :param trait_sd: Standard deviation of the simulated traits
+    :type trait_sd: float or array_like(float)[int]
+    :param alpha: Parameter that determines the relative weight on rarer variants
+    :type alpha: float or array_like(float)[int]
+    """
     def __init__(self, trait_mean, trait_sd, alpha):  
         super().__init__('ldak', trait_mean, trait_sd)
         if not isinstance(alpha, numbers.Number):
@@ -73,7 +162,28 @@ class TraitModelLDAK(TraitModel):
     
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        Simulates an effecet size from the LDAK model
+        Simulates an effect size of a causal mutation, assuming that it follows a
+        normal distribution. The mean value is the `trait_mean` attribute of the class
+        `tskit.TraitModelLDAK` object, and the standard deviation is the
+        `trait_sd` attribute of the `tskit.TraitModelAdditive` object divided by the
+        square-root of the number of causal sites, which is given by the `num_causal`
+        input.
+        
+        After the effect size gets simulated from the normal distribution, it will be
+        multiplied by a constant that depends on `allele_freq` and `alpha` input of
+        the method. Negative `alpha` value can increase the effect size of rarer
+        variants, and greater emphasis on rarer variants can be given by decreasing
+        the `alpha` value. The effects of allele frequency on simulating effect size
+        can be ignored by setting `alpha` to be zero.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int or array_like(int)[int]
+        :param allele_freq: Allele frequency of causal mutation
+        :type allele_freq: float or array_like(float)[int]
+        :param rng: Random generator that will be used to simulate effect size
+        :type rng: class `np.random.Generator`
+        :return: Simulated effect size of a causal mutation
+        :rtype: float   
         """
         beta = super().sim_effect_size(num_causal, allele_freq, rng)
         if allele_freq >= 1 or allele_freq <= 0:

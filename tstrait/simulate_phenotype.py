@@ -2,7 +2,6 @@ import msprime
 import numbers
 import numpy as np
 import tskit
-import pandas as pd
 from numba import jit
 import collections
 from dataclasses import dataclass
@@ -63,9 +62,9 @@ class PhenotypeSimulator:
     :param ts: Tree sequence data with mutation
     :type ts: tskit.TreeSequence
     :param num_causal: Number of causal sites associated with a trait
-    :type num_causal: int
+    :type num_causal: int or array_like(int)[int]
     :param h2: Narrow-sense heritability of a trait
-    :type h2: float
+    :type h2: float or array_like(float)[int]
     :param model: Mutation model in simulation
     :type model: class `tstrait.TraitModel`
     """
@@ -81,13 +80,6 @@ class PhenotypeSimulator:
         Obtain site ID based on their position (site IDs are aligned
         based on their positions in tree sequence data requirement)
         """
-        num_sites = self.ts.num_sites
-        if num_sites == 0:
-            raise ValueError("No mutation in the provided data")
-        if self.num_causal > num_sites:
-            raise ValueError(
-                "There are less number of sites in the tree sequence than the inputted number of causal sites"
-            )
         site_id = self.rng.choice(range(num_sites), size=self.num_causal, replace=False)
         site_id = np.sort(site_id)
 
@@ -145,7 +137,7 @@ class PhenotypeSimulator:
         
         This method randomly chooses the causal sites and the corresponding causal state based
         on the `num_causal` input. Afterwards, this computes the allele frequency of causal state,
-        and simulates the effect size of each causal mutation based on the mutation model given by
+        and simulates the effect size of each causal mutation based on the trait model given by
         the `model` input.
         
         The genetic value of individuals are computed by using the simulated effect size of
@@ -260,15 +252,21 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     :param ts: Tree sequence data with mutation
     :type ts: tskit.TreeSequence
     :param num_causal: Number of causal sites associated with a trait
-    :type num_causal: int or array_like(int)[ints]
-    :param model: Mutation model in simulation
+    :type num_causal: int or array_like(int)[int]
+    :param model: Trait model in simulation
     :type model: class `tstrait.TraitModel`
     :param h2: Narrow-sense heritability of a trait
-    :type h2: float or array_like(float)[ints]
+    :type h2: float or array_like(float)[int]
     :param random_seed: The random seed value used to generate the `np.random.Generator`
         object
-    :type random_seed: None or int or array_like(int or None)[ints] or SeedSequence or
+    :type random_seed: None or int or array_like(int or None)[int] or SeedSequence or
         BitGenerator or Generator
+    :raises TypeError: Input should be a tree sequence data
+    :raises ValueError: Number of causal sites should be a positive integer
+    :raises ValueError: Heritability should be 0 <= h2 <= 1
+    :raises ValueError: No mutation in the provided data
+    :raises ValueError: There are less number of sites in the tree sequence than the
+        inputted number of causal sites
     :return: Returns the class `tstrait.PhenotypeResult` object to describe the simulated
         phenotypes and the class `tstrait.GeneticValueResult` object to describe the
         simulated genetic information
@@ -282,11 +280,18 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     if int(num_causal) != num_causal or num_causal <= 0:
         raise ValueError("Number of causal sites should be a positive integer")
     if not isinstance(model, trait_model.TraitModel):
-        raise TypeError("Mutation model must be an instance of TraitModel")
+        raise TypeError("Trait model must be an instance of TraitModel")
     if not isinstance(h2, numbers.Number):
         raise TypeError("Heritability should be a number")
     if h2 > 1 or h2 < 0:
         raise ValueError("Heritability should be 0 <= h2 <= 1")
+    num_sites = ts.num_sites
+    if num_sites == 0:
+        raise ValueError("No mutation in the provided data")
+    if num_causal > num_sites:
+        raise ValueError(
+            "There are less number of sites in the tree sequence than the inputtednumber of causal sites"
+        )
     
     simulator = PhenotypeSimulator(ts = ts, num_causal = num_causal, h2 = h2,
                                    model = model, random_seed = random_seed)

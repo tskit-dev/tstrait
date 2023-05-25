@@ -131,7 +131,7 @@ class Test_sim_phenotype_input:
     def test_model(self, model):
         ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=2)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=2)
-        with pytest.raises(TypeError, match="Mutation model must be an instance of TraitModel"):
+        with pytest.raises(TypeError, match="Trait model must be an instance of TraitModel"):
             phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(ts, 3, model, 0.3, 2)
 
     @pytest.mark.parametrize("h2", ["0", "a", [1,1]])
