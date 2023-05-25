@@ -2,3 +2,6 @@ msprime
 numpy
 pytest
 tskit
+numba
+collections
+dataclasses
