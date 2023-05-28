@@ -2,7 +2,8 @@ import msprime
 import numbers
 import numpy as np
 import tskit
-from numba import jit
+import numba
+from numba.typed import List
 import collections
 from dataclasses import dataclass
 import tstrait.trait_model as trait_model
@@ -25,7 +26,6 @@ class PhenotypeResult:
     :param genetic_value: Simulated genetic value of individuals
     :type genetic_value: np.ndarray(float)
     """
-    # Phenotype result class
     individual_id: np.ndarray
     phenotype: np.ndarray
     environment_noise: np.ndarray
@@ -55,6 +55,32 @@ class GeneticValueResult:
     effect_size: np.ndarray
     allele_frequency: np.ndarray
 
+@numba.njit
+def _traversal_genotype(nodes_individual, left_child_array, right_sib_array,
+                        stack, has_mutation, num_individuals, num_nodes):
+    """
+    Numba to speed up the tree traversal algorithm to determine the genotype of
+    individuals
+    Stack has to be Typed List in numba to use numba
+    """
+    
+    genotype = np.zeros(num_individuals)
+    while len(stack) > 0:
+        parent_node_id = stack.pop()
+        if parent_node_id == num_nodes:
+            individual_id = -1
+        else:
+            individual_id = nodes_individual[parent_node_id]
+        if individual_id > -1:
+            genotype[individual_id] += 1
+        else:
+            child_node_id = left_child_array[parent_node_id]
+            while child_node_id != -1:
+                if not has_mutation[child_node_id]:
+                    stack.append(child_node_id)
+                child_node_id = right_sib_array[child_node_id]
+
+    return genotype
 
 class PhenotypeSimulator:
     """Simulator class of phenotypes
@@ -80,7 +106,7 @@ class PhenotypeSimulator:
         Obtain site ID based on their position (site IDs are aligned
         based on their positions in tree sequence data requirement)
         """
-        site_id = self.rng.choice(range(num_sites), size=self.num_causal, replace=False)
+        site_id = self.rng.choice(range(self.ts.num_sites), size=self.num_causal, replace=False)
         site_id = np.sort(site_id)
 
         return site_id
@@ -107,29 +133,28 @@ class PhenotypeSimulator:
             del counts[site.ancestral_state]
         return counts
 
-    def _individual_genotype(self, tree, site, causal_state):
+    def _individual_genotype(self, tree, site, causal_state, num_nodes):
         """
         Returns a numpy array that describes the number of causal mutation in an individual
+        stack has to be Typed List to use numba
         """
-        has_mutation = np.zeros(self.ts.num_nodes + 1, dtype=bool)
+        has_mutation = np.zeros(num_nodes + 1, dtype=bool)
         state_transitions = {tree.virtual_root: site.ancestral_state}
         for m in site.mutations:
             state_transitions[m.node] = m.derived_state
             has_mutation[m.node] = True
-        stack = []
+        stack = numba.typed.List()
         for node, state in state_transitions.items():
             if state == causal_state:
                 stack.append(node)
-
-        genotype = np.zeros(self.ts.num_individuals)
-        while len(stack) > 0:
-            u = stack.pop()
-            j = self.ts.nodes_individual[u]
-            if j > -1:
-                genotype[j] += 1
-            for v in tree.children(u):
-                if not has_mutation[v]:
-                    stack.append(v)
+        
+        genotype = _traversal_genotype(nodes_individual = self.ts.nodes_individual,
+                                       left_child_array = tree.left_child_array,
+                                       right_sib_array = tree.right_sib_array,
+                                       stack = stack, has_mutation = has_mutation,
+                                       num_individuals = self.ts.num_individuals,
+                                       num_nodes = num_nodes)
+        
         return genotype
 
     def sim_genetic_value(self):
@@ -154,8 +179,9 @@ class PhenotypeSimulator:
         """
         tree = tskit.Tree(self.ts)
         causal_site_array = self._choose_causal_site()
+        num_nodes = self.ts.num_nodes
 
-        individual_genetic_value = np.zeros(self.ts.num_individuals)
+        individual_genetic_array = np.zeros(self.ts.num_individuals)
         causal_state_array = np.zeros(self.num_causal, dtype=object)
         beta_array = np.zeros(self.num_causal)
         allele_frequency = np.zeros(self.num_causal)
@@ -166,39 +192,40 @@ class PhenotypeSimulator:
             counts = self._obtain_allele_frequency(tree, site)
             causal_state_array[i] = self.rng.choice(list(counts))
             individual_genotype = self._individual_genotype(tree = tree, site = site,
-                                                            causal_state = causal_state_array[i])
+                                                            causal_state = causal_state_array[i],
+                                                            num_nodes = num_nodes)
             allele_frequency[i] = np.sum(individual_genotype) / (2 * len(individual_genotype))
             beta_array[i] = self.model.sim_effect_size(
                 self.num_causal, allele_frequency[i], self.rng
             )
-            individual_genetic_value += individual_genotype * beta_array[i]
+            individual_genetic_array += individual_genotype * beta_array[i]
 
-        genotypic_effect_sizes = GeneticValueResult(
+        genotypic_effect_data = GeneticValueResult(
             site_id = causal_site_array, causal_state = causal_state_array,
             effect_size = beta_array, allele_frequency= allele_frequency
         )
 
-        return genotypic_effect_sizes, individual_genetic_value
+        return genotypic_effect_data, individual_genetic_array
 
-    def _sim_environment_noise(self, individual_genetic_value):
+    def _sim_environment_noise(self, individual_genetic_array):
         """
         Add environmental noise to the genetic value of individuals given the genetic value
         of individuals. The simulation assumes the additive model.
         """
         trait_sd = self.model.trait_sd
-        num_ind = len(individual_genetic_value)
+        num_ind = len(individual_genetic_array)
         if self.h2 == 1:
             E = np.zeros(num_ind)
-            phenotype = individual_genetic_value
+            phenotype = individual_genetic_array
         elif self.h2 == 0:
             E = self.rng.normal(loc=0.0, scale=trait_sd, size=num_ind)
             phenotype = E
         else:
             env_std = np.sqrt(
-                (1 - self.h2) / self.h2 * np.var(individual_genetic_value)
+                (1 - self.h2) / self.h2 * np.var(individual_genetic_array)
             )
             E = self.rng.normal(loc=0.0, scale=env_std, size=num_ind)
-            phenotype = individual_genetic_value + E
+            phenotype = individual_genetic_array + E
 
         return phenotype, E
 
@@ -295,6 +322,6 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     
     simulator = PhenotypeSimulator(ts = ts, num_causal = num_causal, h2 = h2,
                                    model = model, random_seed = random_seed)
-    genotypic_effect_sizes, individual_genetic_value = simulator.sim_genetic_value()
-    phenotype_individuals = simulator.sim_environment(individual_genetic_value)
-    return phenotype_individuals, genotypic_effect_sizes
+    genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
+    phenotype_data = simulator.sim_environment(individual_genetic_array)
+    return phenotype_data, genotypic_effect_data
