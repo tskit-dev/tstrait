@@ -11,7 +11,7 @@ import tstrait.trait_model as trait_model
 
 @dataclass
 class PhenotypeResult:
-    """Data class that contains simulated phenotypic information of individuals
+    """Data class that contains simulated phenotypic information of individuals.
     
     For each individual in the tree sequence data, this data class oject returns the
     simulated value of phenotype, environmental noise and genetic value, which are
@@ -34,7 +34,7 @@ class PhenotypeResult:
 
 @dataclass
 class GeneticValueResult:
-    """Data class that contains simulated genetic information
+    """Data class that contains simulated genetic information.
     
     For each randomly chosen causal site inside the simulation model, this data class
     object returns the randomly chosen causal state, the allele frequency of the causal
@@ -60,8 +60,8 @@ def _traversal_genotype(nodes_individual, left_child_array, right_sib_array,
                         stack, has_mutation, num_individuals, num_nodes):
     """
     Numba to speed up the tree traversal algorithm to determine the genotype of
-    individuals
-    Stack has to be Typed List in numba to use numba
+    individuals.
+    Stack has to be Typed List in numba to use numba.
     """
     
     genotype = np.zeros(num_individuals)
@@ -73,25 +73,24 @@ def _traversal_genotype(nodes_individual, left_child_array, right_sib_array,
             individual_id = nodes_individual[parent_node_id]
         if individual_id > -1:
             genotype[individual_id] += 1
-        else:
-            child_node_id = left_child_array[parent_node_id]
-            while child_node_id != -1:
-                if not has_mutation[child_node_id]:
-                    stack.append(child_node_id)
-                child_node_id = right_sib_array[child_node_id]
+        child_node_id = left_child_array[parent_node_id]
+        while child_node_id != -1:
+            if not has_mutation[child_node_id]:
+                stack.append(child_node_id)
+            child_node_id = right_sib_array[child_node_id]
 
     return genotype
 
 class PhenotypeSimulator:
-    """Simulator class of phenotypes
+    """Simulator class of phenotypes.
     
     :param ts: Tree sequence data with mutation
     :type ts: tskit.TreeSequence
     :param num_causal: Number of causal sites associated with a trait
-    :type num_causal: int or array_like(int)[int]
+    :type num_causal: int
     :param h2: Narrow-sense heritability of a trait
-    :type h2: float or array_like(float)[int]
-    :param model: Mutation model in simulation
+    :type h2: float
+    :param model: Trait model in simulation
     :type model: class `tstrait.TraitModel`
     """
     def __init__(self, ts, num_causal, h2, model, random_seed):
@@ -104,7 +103,7 @@ class PhenotypeSimulator:
     def _choose_causal_site(self):
         """
         Obtain site ID based on their position (site IDs are aligned
-        based on their positions in tree sequence data requirement)
+        based on their positions in tree sequence data requirement).
         """
         site_id = self.rng.choice(range(self.ts.num_sites), size=self.num_causal, replace=False)
         site_id = np.sort(site_id)
@@ -114,9 +113,9 @@ class PhenotypeSimulator:
     def _obtain_allele_frequency(self, tree, site):
         """
         Obtain a dictionary of allele frequency counts, excluding the ancestral state
-        Input is the tree sequence site (ts.site(ID))
-        Remove sites from dictionary having no items
-        If only the ancestral state exists, don't delete the ancestral state
+        Input is the tree sequence site (ts.site(ID)).
+        Remove sites from dictionary having no items.
+        If only the ancestral state exists, don't delete the ancestral state.
         """
         counts = collections.Counter({site.ancestral_state: self.ts.num_samples})
         for m in site.mutations:
@@ -128,15 +127,15 @@ class PhenotypeSimulator:
                 num_samples = tree.num_samples(m.node)
                 counts[m.derived_state] += num_samples
                 counts[current_state] -= num_samples
+        del counts[site.ancestral_state]
         counts = {x: y for x, y in counts.items() if y != 0}
-        if len(counts) > 1:
-            del counts[site.ancestral_state]
+        if len(counts) == 0:
+            counts = {site.ancestral_state: self.ts.num_samples}
         return counts
 
     def _individual_genotype(self, tree, site, causal_state, num_nodes):
         """
-        Returns a numpy array that describes the number of causal mutation in an individual
-        stack has to be Typed List to use numba
+        Returns a numpy array that describes the number of causal mutation in an individual.
         """
         has_mutation = np.zeros(num_nodes + 1, dtype=bool)
         state_transitions = {tree.virtual_root: site.ancestral_state}
@@ -158,7 +157,7 @@ class PhenotypeSimulator:
         return genotype
 
     def sim_genetic_value(self):
-        """Simulates the genetic value of individuals
+        """Simulates the genetic value of individuals.
         
         This method randomly chooses the causal sites and the corresponding causal state based
         on the `num_causal` input. Afterwards, this computes the allele frequency of causal state,
@@ -177,9 +176,9 @@ class PhenotypeSimulator:
             are aligned by individual IDs
         :rtype: (class `tstrait.GeneticValueResult`, np.ndarray)
         """
-        tree = tskit.Tree(self.ts)
         causal_site_array = self._choose_causal_site()
         num_nodes = self.ts.num_nodes
+        tree = tskit.Tree(self.ts)
 
         individual_genetic_array = np.zeros(self.ts.num_individuals)
         causal_state_array = np.zeros(self.num_causal, dtype=object)
@@ -230,7 +229,7 @@ class PhenotypeSimulator:
         return phenotype, E
 
     def sim_environment(self, individual_genetic_value):
-        """Simulates environmental noise of individuals and return the phenotype
+        """Simulates environmental noise of individuals and return the phenotype.
         
         This method simulates the environmental noise of individuals based on their
         genetic values. The inputted narrow-sense heritability will be used to simulate
@@ -257,7 +256,7 @@ class PhenotypeSimulator:
 
 def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     """Simulates phenotypes of individuals based on the inputted tree sequence data with
-    mutation
+    mutation.
     
     The input of the function will be number of causal sites, narrow-sense heritability,
     and the model from class `tstrait.TraitModel`. Model will be used to simulate the
@@ -279,11 +278,11 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     :param ts: Tree sequence data with mutation
     :type ts: tskit.TreeSequence
     :param num_causal: Number of causal sites associated with a trait
-    :type num_causal: int or array_like(int)[int]
+    :type num_causal: int
     :param model: Trait model in simulation
     :type model: class `tstrait.TraitModel`
     :param h2: Narrow-sense heritability of a trait
-    :type h2: float or array_like(float)[int]
+    :type h2: float
     :param random_seed: The random seed value used to generate the `np.random.Generator`
         object
     :type random_seed: None or int or array_like(int or None)[int] or SeedSequence or

@@ -218,9 +218,9 @@ class Test_site_genotypes:
         #     ┊ ┃ ┃ ┏┻┓  ┊
         # 0.00 0 1 2 3
         #
-        ts = tskit.Tree.generate_comb(4, span=10).tree_sequence
+        ts = tskit.Tree.generate_comb(4, span=15).tree_sequence
         tables = ts.dump_tables()
-        for j in range(10):
+        for j in range(12):
             tables.sites.add_row(j, "A")
 
         tables.individuals.add_row()
@@ -260,6 +260,12 @@ class Test_site_genotypes:
         tables.mutations.add_row(site=8, node=4, derived_state="T", parent=18)
         
         tables.mutations.add_row(site=9, node=6, derived_state="A")
+        
+        tables.mutations.add_row(site=10, node=6, derived_state="C")
+        
+        tables.mutations.add_row(site=11, node=5, derived_state="C")
+        tables.mutations.add_row(site=11, node=0, derived_state="T")
+        
         ts = tables.tree_sequence()
 
         model = trait_model.TraitModelAdditive(0,1)
@@ -277,6 +283,8 @@ class Test_site_genotypes:
         g8 = simulator._individual_genotype(tree, ts.site(7), "T", ts.num_nodes)
         g9 = simulator._individual_genotype(tree, ts.site(8), "T", ts.num_nodes)
         g10 = simulator._individual_genotype(tree, ts.site(9), "A", ts.num_nodes)
+        g11 = simulator._individual_genotype(tree, ts.site(10), "C", ts.num_nodes)
+        g12 = simulator._individual_genotype(tree, ts.site(11), "C", ts.num_nodes)
 
         c1 = simulator._obtain_allele_frequency(tree, ts.site(0))
         c2 = simulator._obtain_allele_frequency(tree, ts.site(1))
@@ -287,6 +295,8 @@ class Test_site_genotypes:
         c7 = simulator._obtain_allele_frequency(tree, ts.site(6))
         c8 = simulator._obtain_allele_frequency(tree, ts.site(7))
         c9 = simulator._obtain_allele_frequency(tree, ts.site(8))
+        c10 = simulator._obtain_allele_frequency(tree, ts.site(10))
+        c11 = simulator._obtain_allele_frequency(tree, ts.site(11))
 
         assert np.array_equal(g1, np.array([1,0]))
         assert np.array_equal(g2, np.array([0,2]))
@@ -298,6 +308,8 @@ class Test_site_genotypes:
         assert np.array_equal(g8, np.array([1,0]))
         assert np.array_equal(g9, np.array([1,2]))
         assert np.array_equal(g10, np.array([2,2]))
+        assert np.array_equal(g11, np.array([2,2]))
+        assert np.array_equal(g12, np.array([1,2]))
 
         assert c1 == {"T": 1}
         assert c2 == {"T": 2}
@@ -308,6 +320,8 @@ class Test_site_genotypes:
         assert c7 == {"C": 1}
         assert c8 == {"T": 1, "C": 2}
         assert c9 == {"T": 3}
+        assert c10 == {"C": 4}
+        assert c11 == {"C": 3, "T": 1}
 
     def test_binary_tree_different_individual(self):
         #  3.00   6
@@ -404,6 +418,63 @@ class Test_site_genotypes:
         assert c7 == {"C": 1}
         assert c8 == {"T": 1, "C": 2}
         assert c9 == {"T": 3}
+
+    def test_binary_tree_internal_node(self):
+        ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
+        
+        tables = ts.dump_tables()
+        for j in range(3):
+            tables.sites.add_row(j, "A")
+
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        individuals = tables.nodes.individual
+        individuals[0] = 1
+        individuals[1] = 1
+        individuals[2] = 2
+        individuals[3] = 2
+        individuals[4] = 0
+        individuals[5] = 0
+        tables.nodes.individual = individuals
+
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=5, derived_state="G")
+        
+        tables.mutations.add_row(site=1, node=4, derived_state="T")
+        tables.mutations.add_row(site=1, node=0, derived_state="A", parent = 2)
+        tables.mutations.add_row(site=1, node=5, derived_state="T")
+        tables.mutations.add_row(site=1, node=5, derived_state="G", parent = 4)
+        
+        tables.mutations.add_row(site=2, node=4, derived_state="T")
+        tables.mutations.add_row(site=2, node=0, derived_state="G", parent = 6)
+        tables.mutations.add_row(site=2, node=1, derived_state="C", parent = 6)
+
+        ts = tables.tree_sequence()
+
+        model = trait_model.TraitModelAdditive(0,1)
+        rng = np.random.default_rng(1)
+        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        tree = ts.first()
+
+        g1 = simulator._individual_genotype(tree, ts.site(0), "G", ts.num_nodes)
+        g2 = simulator._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
+        g3 = simulator._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
+        g4 = simulator._individual_genotype(tree, ts.site(2), "G", ts.num_nodes)
+        
+        c1 = simulator._obtain_allele_frequency(tree, ts.site(0))
+        c2 = simulator._obtain_allele_frequency(tree, ts.site(1))
+        c3 = simulator._obtain_allele_frequency(tree, ts.site(2))
+
+        assert np.array_equal(g1, np.array([1,0,2]))
+        assert np.array_equal(g2, np.array([1,1,0]))
+        assert np.array_equal(g3, np.array([1,0,0]))
+        assert np.array_equal(g4, np.array([0,1,0]))
+                
+        assert c1 == {"G": 3, "T": 1}
+        assert c2 == {"A": 1, "T" : 2, "G" : 3}
+        assert c3 == {"T": 1, "G": 1, "C": 1}
+        
 
     def test_non_binary_tree(self):
         # 2.00      7

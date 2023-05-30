@@ -10,9 +10,9 @@ class TraitModel:
     :param model_name: Name of the trait model
     :type model_name: str
     :param trait_mean: Mean value of the simulated traits
-    :type trait_mean: float or array_like(float)[int]
+    :type trait_mean: float
     :param trait_sd: Standard deviation of the simulated traits
-    :type trait_sd: float or array_like(float)[int]
+    :type trait_sd: float
     """
     def __init__(self, model_name, trait_mean, trait_sd):
         if not isinstance(trait_mean, numbers.Number):
@@ -36,9 +36,9 @@ class TraitModel:
         is not used in the simulation process.
 
         :param num_causal: Number of causal sites
-        :type num_causal: int or array_like(int)[int]
+        :type num_causal: int
         :param allele_freq: Allele frequency of the causal mutation
-        :type allele_freq: float or array_like(float)[int]
+        :type allele_freq: float
         :param rng: Random generator that will be used to simulate effect size
         :type rng: class `np.random.Generator`
         :return: Simulated effect size of a causal mutation
@@ -84,9 +84,9 @@ class TraitModelAdditive(TraitModel):
         input. The `allele_freq` input is not used in the simulation process.
 
         :param num_causal: Number of causal sites
-        :type num_causal: int or array_like(int)[int]
+        :type num_causal: int
         :param allele_freq: Allele frequency of causal mutation
-        :type allele_freq: float or array_like(float)[int]
+        :type allele_freq: float
         :param rng: Random generator that will be used to simulate effect size
         :type rng: class `np.random.Generator`
         :return: Simulated effect size of a causal mutation
@@ -100,9 +100,9 @@ class TraitModelAllele(TraitModel):
     depends on allele frequency.
 
     :param trait_mean: Mean value of the simulated traits
-    :type trait_mean: float or array_like(float)[int]
+    :type trait_mean: float
     :param trait_sd: Standard deviation of the simulated traits
-    :type trait_sd: float or array_like(float)[int]
+    :type trait_sd: float
     """
     def __init__(self, trait_mean, trait_sd):
         super().__init__('allele', trait_mean, trait_sd) 
@@ -177,9 +177,9 @@ class TraitModelLDAK(TraitModel):
         can be ignored by setting `alpha` to be zero.
 
         :param num_causal: Number of causal sites
-        :type num_causal: int or array_like(int)[int]
+        :type num_causal: int
         :param allele_freq: Allele frequency of causal mutation
-        :type allele_freq: float or array_like(float)[int]
+        :type allele_freq: float
         :param rng: Random generator that will be used to simulate effect size
         :type rng: class `np.random.Generator`
         :return: Simulated effect size of a causal mutation
@@ -188,5 +188,5 @@ class TraitModelLDAK(TraitModel):
         beta = super().sim_effect_size(num_causal, allele_freq, rng)
         if allele_freq >= 1 or allele_freq <= 0:
             raise ValueError("Allele frequency should be 0 < Allele frequency < 1")
-        beta *= pow(allele_freq * (1 - allele_freq), self.alpha)
+        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
         return beta
