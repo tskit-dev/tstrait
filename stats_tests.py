@@ -1,21 +1,36 @@
-import msprime
-import numpy as np
 import tskit
-import pandas as pd
-
-import argparse
-import inspect
-import scipy
+import tstrait.simulate_phenotype as simulate_phenotype
+import tstrait.trait_model as trait_model
 import matplotlib.pyplot as plt
-import matplotlib
+import numpy as np
+import statsmodels.api as sm
+import scipy.stats as stats
+
+import inspect
 import pathlib
 import sys
-from tqdm import tqdm
 
-matplotlib.use("Agg")
-import statsmodels.api as sm
+ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
 
-import treeGWAS.sim_phenotypes as sim_pheno
+tables = ts.dump_tables()
+for j in range(2):
+    tables.sites.add_row(j, "A")
+
+tables.individuals.add_row()
+tables.individuals.add_row()
+tables.individuals.add_row()
+individuals = tables.nodes.individual
+individuals[0] = 0
+individuals[1] = 0
+individuals[2] = 1
+individuals[3] = 1
+individuals[4] = 2
+individuals[5] = 2
+tables.nodes.individual = individuals
+tables.mutations.add_row(site=0, node=8, derived_state="T")
+tables.mutations.add_row(site=0, node=4, derived_state="A", parent = 0)
+tables.mutations.add_row(site=1, node=5, derived_state="T")
+ts = tables.tree_sequence()
 
 class Test:
     def __init__(self, basedir, cl_name):
@@ -49,115 +64,96 @@ class Test:
     def _build_filename(self, filename, extension=".png"):
         return self.output_dir / (filename + extension)
 
-    def plot_qq(self, v1, v2, x_label, y_label, filename, info=""):
-        sm.graphics.qqplot(v1)
+    def plot_qq_compare(self, v1, v2, x_label, y_label, filename, title=""):
         sm.qqplot_2samples(v1, v2, x_label, y_label, line="45")
-        #plt.xlabel(x_label)
-        #plt.ylabel(y_label)
-        plt.title(info)
+        plt.title(title)
+        f = self._build_filename(filename)
+        plt.savefig(f, dpi=72)
+        plt.close("all")
+        
+    def plot_qq_normal(self, data, loc, scale, filename, title = ""):
+        sm.qqplot(data, stats.norm, loc=loc, scale=scale, line="45")
+        plt.title(title)
         f = self._build_filename(filename)
         plt.savefig(f, dpi=72)
         plt.close("all")
 
-    def get_seeds(self, num_replicates, seed=None):
-        rng = np.random.default_rng(seed)
-        max_seed = 2**16
-        return rng.integers(1, max_seed, size=num_replicates)
-
-    def run_msprime(self, n, seq, seed):
-        ts = msprime.sim_ancestry(samples = n, sequence_length=seq, recombination_rate=1e-8, population_size=10**4, random_seed=seed)
-        ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=seed, model="binary", discrete_genome=False)
-            
-        return ts
-
-    def log_run(self, filename, info_labels, info_array):
-        with open(filename, "w") as logfile:
-            print(
-                "\t".join(l for l in info_labels),
-                file=logfile,
-            )
-            for line in info_array:
-                print(
-                    "\t".join(str(entry) for entry in line),
-                    file=logfile,
-                )
-
-class TestPhenotypeSim(Test):
+class TestGenetic(Test):
     def test_normal(self):
         n = 1000
-        seq = 1_000_000
-        num_replicates = 5
-        seeds = self.get_seeds(num_replicates)
-        num_causal_list = np.array([100, 500, 1000, 2000])
-        for seed in tqdm(seeds, desc="Phenotype Test"):
-            for num_causal in num_causal_list:
-                ts = self.run_msprime(n, seq, seed)
-                pheno_df, gene_df = sim_pheno.phenotype_sim(ts, num_causal=num_causal)
-                G = pheno_df["Genotype"]
-                meanG = np.mean(G)
-                stdG = np.std(G)
-                # Compare against normal distribution
-                normalG = np.random.normal(loc=meanG, scale=stdG, size=n)
-                self.plot_qq(
-                    G, normalG, "Genotype", "Normal", f"genotype_normal_qq_n{n}", info=f"Genotype Q-Q plot, num_causal = {num_causal}"
-                )
-                
-                pheno = pheno_df["Phenotype"]
-                meanP = np.mean(pheno)
-                stdP = np.std(pheno)
-                
-                normalP = np.random.normal(loc=meanP, scale=stdP, size=n)
-                self.plot_qq(
-                    pheno, normalP, "Phenotype", "Normal", f"penotype_normal_qq_n{n}", info=f"Penotype Q-Q plot, num_causal = {num_causal}"
-                )
-                
-                n += 1
-
-
-# The bottom two tests might not be necessary
-
-class TestBeta(Test):
-    def test_beta_normal(self):
-        n = 0
-        num_mutations = 1_000_000
-        num_causal_list = np.array([100, 500, 1000, 2000])
-        trait_sd_list = np.array([0.1, 0.5, 1, 2])
-        for trait_sd in trait_sd_list:
-            for num_causal in num_causal_list:
-                rng = np.random.default_rng(np.random.randint(10000))
-                mutation_id, beta = sim_pheno.choose_causal(num_mutations, num_causal, trait_sd, rng)
+        rng = np.random.default_rng(1)
+        alpha_array = np.array([0, -0.3])
+        trait_mean_array = np.array([0, 1])
+        trait_sd_array = np.array([1, 2])
+        h2_array = np.array([0.3, 0.8])
         
-                # Compare against normal distribution
-                normal = np.random.normal(loc=0, scale=trait_sd/ np.sqrt(num_causal), size=num_causal)
-                
-                self.plot_qq(
-                    beta, normal, "Beta", "Normal", f"beta_normal_qq_n{n}", info=f"Beta Q-Q plot, num_causal = {num_causal}, trait_sd = {trait_sd}"
-                )
-                n += 1
+        count = 0
+        
+        for alpha in alpha_array:
+            for trait_mean in trait_mean_array:
+                for trait_sd in trait_sd_array:
+                    for h2 in h2_array:
+                        model = trait_model.TraitModelLDAK(trait_mean, trait_sd, alpha)
+                        genetic0 = np.zeros(1000)
+                        genetic1 = np.zeros(1000)
+                        genetic2 = np.zeros(1000)
+                        
+                        environment0 = np.zeros(1000)
+                        environment1 = np.zeros(1000)
+                        environment2 = np.zeros(1000)
+                        
+                        for i in range(1000):
+                            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(ts, num_causal = 2,model = model, h2 = h2, random_seed = i)
+                            genetic0[i] = phenotype_result.genetic_value[0]
+                            genetic1[i] = phenotype_result.genetic_value[1]
+                            genetic2[i] = phenotype_result.genetic_value[2]
 
-class TestEnvironment(Test):
-    def test_environment_normal(self):
-        n = 0
-        num_ind_list = np.array([1000, 5000, 10000, 20000])
-        h2_list = np.array([0.01, 0.1, 0.5, 0.7, 0.99])
-        for num_ind in num_ind_list:
-            for h2 in h2_list:
-                G = np.random.normal(size = num_ind)
-                phenotype, E = sim_pheno.environment(G, h2)
-                
-                # Compare against normal distribution
-                normal = np.random.normal(loc=0, scale=np.sqrt((1-h2)/h2 * np.var(G)), size=num_ind)
-                
-                self.plot_qq(
-                    E, normal, "Beta", "Normal", f"environment_normal_qq_n{n}", info=f"Environment Q-Q plot, num_individual = {num_ind}, h2 = {h2}"
-                )
-                n += 1
-                
-        
-        
-        
-    
+                            environment0[i] = phenotype_result.environment_noise[0]
+                            environment1[i] = phenotype_result.environment_noise[1]
+                            environment2[i] = phenotype_result.environment_noise[2]
+                        
+                        assert np.array_equal(genetic0, np.zeros(1000))
+                        
+                        effect_size_sd0 = trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+                        effect_size_sd1 = trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1/6 * (1 - 1/6), alpha))
+                        
+                        ind_sd1 = effect_size_sd0 * 2
+                        ind_sd2 = np.sqrt((effect_size_sd0 ** 2) + (effect_size_sd1 ** 2))
+                        
+                        self.plot_qq_normal(data=genetic1, loc=2 * trait_mean, scale=ind_sd1,
+                                            filename=f"ind_1_genetic_{count}",
+                                            title = f"Individual 1 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}")
+                        self.plot_qq_normal(data=genetic2, loc=2 * trait_mean, scale=ind_sd2,
+                                            filename=f"ind_2_genetic_{count}",
+                                            title = f"Individual 2 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}")
+                        
+                        genetic_sim = np.zeros(3)
+                        env_sim = np.zeros(1000)
 
+                        for i in range(1000):
+                            x1 = rng.normal(loc = trait_mean, scale = effect_size_sd0)
+                            x2 = rng.normal(loc = trait_mean, scale = effect_size_sd1)
+                            genetic_sim[0] = 0
+                            genetic_sim[1] = 2 * x1
+                            genetic_sim[2] = x1 + x2
+                            env_std = np.sqrt((1 - h2) / h2 * np.var(genetic_sim))
+                            env_sim[i] = rng.normal(loc = 0, scale = env_std)
+                        
+                        self.plot_qq_compare(v1=environment0, v2=env_sim, x_label="Individual 0 Environment",
+                                             y_label = "Simulated values",
+                                             filename=f"ind_0_env_{count}",
+                                             title=f"Individual 0 Env, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}")
+                        self.plot_qq_compare(v1=environment1, v2=env_sim, x_label="Individual 1 Environment",
+                                             y_label = "Simulated values",
+                                             filename=f"ind_1_env_{count}",
+                                             title=f"Individual 1 Env, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}")
+                        self.plot_qq_compare(v1=environment2, v2=env_sim, x_label="Individual 2 Environment",
+                                             y_label = "Simulated values",
+                                             filename=f"ind_2_env_{count}",
+                                             title=f"Individual 2 Env, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}")
+                        
+                        count += 1
+                        
 
 def run_tests(suite, output_dir):
     print(f"[+] Test suite contains {len(suite)} tests.")
@@ -165,35 +161,5 @@ def run_tests(suite, output_dir):
         instance = getattr(sys.modules[__name__], cl_name)(output_dir, cl_name)
         instance._run_tests()
 
-def main():
-    parser = argparse.ArgumentParser()
-    choices = [
-        "TestPhenotypeSim",
-        "TestBeta",
-        "TestEnvironment"
-    ]
-
-    parser.add_argument(
-        "--test-class",
-        "-c",
-        nargs="*",
-        default=choices,
-        choices=choices,
-        help="Run all tests for specified test class",
-    )
-
-    parser.add_argument(
-        "--output-dir",
-        "-d",
-        type=str,
-        default="_output/stats_tests_output",
-        help="specify the base output directory",
-    )
-
-    args = parser.parse_args()
-
-    run_tests(args.test_class, args.output_dir)
-
-
 if __name__ == "__main__":
-    main()
+    run_tests(["TestGenetic"], "_output/stats_tests_output")
