@@ -1,7 +1,6 @@
+jupyter-book
 msprime
+numba
 numpy
 pytest
 tskit
-numba
-collections
-dataclasses
