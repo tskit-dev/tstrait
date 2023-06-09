@@ -562,7 +562,7 @@ class Test_site_genotypes:
         assert c2 == {"T": 1}
         assert c3 == {"C": 2, "T": 1}
 
-    def multiple_node_individual(self):
+    def test_multiple_node_individual(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
         for j in range(5):
@@ -608,13 +608,13 @@ class Test_site_genotypes:
         g4 = simulator._individual_genotype(tree, ts.site(3), "C", ts.num_nodes)
         g5 = simulator._individual_genotype(tree, ts.site(4), "A", ts.num_nodes)
 
-        assert np.array_equal(g1, np.array([1, 2]))
+        assert np.array_equal(g1, np.array([2, 1]))
         assert np.array_equal(g2, np.array([3, 3]))
         assert np.array_equal(g3, np.array([2, 2]))
-        assert np.array_equal(g4, np.array([1, 0]))
+        assert np.array_equal(g4, np.array([0, 1]))
         assert np.array_equal(g5, np.array([3, 3]))
 
-    def individual_single_node(self):
+    def test_individual_single_node(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
         for j in range(5):
@@ -726,7 +726,7 @@ class Test_obtain_allele_frequency:
 
 
 class Test_sim_genetic_value:
-    def tree_sequence(self):
+    def test_tree_sequence(self):
         ts = all_trees_ts(4)
         tables = ts.dump_tables()
 
@@ -761,13 +761,12 @@ class Test_sim_genetic_value:
 
         ts = tables.tree_sequence()
         model = trait_model.TraitModelAdditive(trait_mean=2, trait_sd=0)
-        rng = np.random.default_rng(1)
         simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, num_causal=6, h2=0, model=model, rng=rng
+            ts, num_causal=6, h2=0, model=model, random_seed=1
         )
         genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
 
-        assert np.array_equal(individual_genetic_array, np.array([10, 10]))
+        assert np.array_equal(individual_genetic_array, np.array([4, 16]))
         assert np.array_equal(genotypic_effect_data.site_id, np.arange(6))
         assert np.array_equal(
             genotypic_effect_data.effect_size, np.array([2, 2, 2, 2, 2, 2])
@@ -779,3 +778,50 @@ class Test_sim_genetic_value:
             genotypic_effect_data.allele_frequency,
             np.array([0.5, 0.75, 0.25, 0.25, 0.25, 0.5]),
         )
+
+class Test_tree_sequence_input:
+    def test_internal_node(self):
+        ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
+
+        tables = ts.dump_tables()
+
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        individuals = tables.nodes.individual
+        individuals[0] = 1
+        individuals[1] = 1
+        individuals[2] = 2
+        individuals[3] = 2
+        individuals[4] = 0
+        individuals[5] = 0
+        tables.nodes.individual = individuals
+        
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=4, derived_state="T")
+        ts = tables.tree_sequence()
+        model = trait_model.TraitModelAdditive(0, 1)
+        with pytest.raises(ValueError, match="All individuals must be associated with sample nodes"):
+            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+                ts, 1, model, 0.3, 1
+            )
+            
+    def test_sample_node(self):
+        ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
+
+        tables = ts.dump_tables()
+
+        tables.individuals.add_row()
+        individuals = tables.nodes.individual
+        individuals[0] = 0
+        individuals[1] = 0
+        tables.nodes.individual = individuals
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=4, derived_state="T")        
+        ts = tables.tree_sequence()
+        model = trait_model.TraitModelAdditive(0, 1)
+        with pytest.raises(ValueError, match="All samples must be associated with an individual"):
+            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+                ts, 1, model, 0.3, 1
+            )
+        
