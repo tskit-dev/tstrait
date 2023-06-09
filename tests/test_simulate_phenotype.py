@@ -465,6 +465,13 @@ class Test_site_genotypes:
         individuals[4] = 0
         individuals[5] = 0
         tables.nodes.individual = individuals
+        
+        flags = tables.nodes.flags
+        # Set nodes to be samples
+        flags[:] = 0
+        flags[:6] = tskit.NODE_IS_SAMPLE
+        
+        tables.nodes.flags = flags
 
         tables.mutations.add_row(site=0, node=0, derived_state="T")
         tables.mutations.add_row(site=0, node=5, derived_state="G")
@@ -498,12 +505,10 @@ class Test_site_genotypes:
         assert np.array_equal(g2, np.array([1, 1, 0]))
         assert np.array_equal(g3, np.array([1, 0, 0]))
         assert np.array_equal(g4, np.array([0, 1, 0]))
-
-        """                
+               
         assert c1 == {"G": 3, "T": 1}
-        assert c2 == {"A": 1, "T" : 2, "G" : 3}
+        assert c2 == {"T" : 2, "G" : 3}
         assert c3 == {"T": 1, "G": 1, "C": 1}
-        """
 
     def test_non_binary_tree(self):
         # 2.00      7

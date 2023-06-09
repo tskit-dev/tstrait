@@ -344,6 +344,13 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
         raise ValueError(
             "There are less number of sites in the tree sequence than the inputted number of causal sites"
         )
+    samples = ts.samples()
+    if np.any(ts.nodes_individual[samples] == -1):
+        raise ValueError("All samples must be associated with an individual")
+    # This is potentially a bottleneck of the algorithm
+    referenced_individuals = np.bincount(ts.nodes_individual[ts.nodes_individual != -1], minlength=ts.num_individuals)
+    if np.any(referenced_individuals == 0):
+        raise ValueError("All individuals must be associated with sample nodes")
 
     simulator = PhenotypeSimulator(
         ts=ts, num_causal=num_causal, h2=h2, model=model, random_seed=random_seed
