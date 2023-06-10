@@ -31,6 +31,6 @@ simulates quantitative traits of individuals in `ts` tree sequence data from the
 
 The example usage of `tstrait` is shown in [quickstart](quickstart.md).
 
-# Output
+## Output
 
 The outputs of the `sim_phenotypes()` function are two dataclass objects, `PhenotypeResult` and `GeneticValueResult`. The first output is a `PhenotypeResult` object, and it includes the individual ID, simulated value of phenotype, genetic value and environmental noise. The second output is a `GeneticValueResult` object, and it includes the site ID, causal allele, effect size and causal allele frequency.

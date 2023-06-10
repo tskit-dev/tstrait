@@ -3,7 +3,7 @@
 # If you wish to continue using _config.yml, make edits to that file and
 # re-generate this one.
 ###############################################################################
-author = 'tskit developers'
+author = 'Daiki Tagami'
 autodoc_member_order = 'bysource'
 bibtex_bibfiles = ['references.bib']
 bibtex_reference_style = 'author_year'
