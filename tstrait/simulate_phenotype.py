@@ -266,7 +266,7 @@ class PhenotypeSimulator:
         :param individual_genetic_value: Genetic value of individuals
         :type individual_genetic_value: np.ndarray(float)
         :return: Returns the class `tstrait.PhenotypeResult` object to describe the
-        simulated phenotypes
+            simulated phenotypes
         :rtype: class `tstrait.PhenotypeResult`
         """
         phenotype, E = self._sim_environment_noise(individual_genetic_value)
