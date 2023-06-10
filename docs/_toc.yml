@@ -5,6 +5,7 @@ parts:
   chapters:
   - file: installation
   - file: quickstart
+  - file: output
 - caption: Interface
   chapters:
   - file: simulation

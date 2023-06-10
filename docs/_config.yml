@@ -21,6 +21,7 @@ sphinx:
   - sphinx.ext.autosummary
   - sphinx.ext.todo
   - sphinx.ext.viewcode
+  - jupyter_sphinx
 
   config:
     myst_enable_extensions:
