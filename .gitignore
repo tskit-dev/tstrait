@@ -98,7 +98,7 @@ tmp__NOBACKUP__
 .vscode
 
 # Statistical tests
-._output
+._output/
 
 # Jupyter Notebook
-.ipynb
+*.ipynb
