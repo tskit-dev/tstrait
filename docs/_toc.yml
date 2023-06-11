@@ -3,8 +3,8 @@ root: intro
 parts:
 - caption: Getting started
   chapters:
-  - file: installation
-  - file: quickstart
+  - file: installation   
+  - file: quickstart 
   - file: output
 - caption: Interface
   chapters:
