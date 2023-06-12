@@ -1,7 +1,17 @@
-title: tstrait manual
-author: Daiki Tagami
+# Book settings
+# Learn more at https://jupyterbook.org/customize/config.html
+
+title: Tstrait manual
+author: Tskit Developers
 copyright: "2023"
 only_build_toc_files: true
+#logo: logo.svg
+
+execute:
+  execute_notebooks: cache
+
+launch_buttons:
+  binderhub_url: ""
 
 repository:
   url: https://github.com/daikitag/tstrait
@@ -9,30 +19,61 @@ repository:
   path_to_book: docs
 
 html:
-  use_repository_button: true
   use_issues_button: true
-
-bibtex_bibfiles:
-    - references.bib
+  use_repository_button: true
+  use_edit_page_button: true
+  # Do not edit this - the version placeholder is replaced by the
+  # current version during a distribution build in the Makefile
+  #extra_navbar: __TSKIT_VERSION__
+  #extra_footer: __TSKIT_VERSION__
 
 sphinx:
-  extra_extensions:
-  - sphinx.ext.autodoc
-  - sphinx.ext.autosummary
-  - sphinx.ext.todo
-  - sphinx.ext.viewcode
-  - jupyter_sphinx
+    extra_extensions:
+    - breathe
+    - sphinx.ext.autodoc
+    - sphinx_autodoc_typehints
+    - sphinx.ext.autosummary
+    - sphinx.ext.todo
+    - sphinx.ext.viewcode
+    - sphinx.ext.intersphinx
+    - sphinx_issues
+    - sphinxarg.ext
+    - IPython.sphinxext.ipython_console_highlighting
+    #- sphinxcontrib.prettyspecialmethods
 
-  config:
-    myst_enable_extensions:
-    - colon_fence
-    - deflist
-    - dollarmath
-    
-    todo_include_todos: true
+    config:
+      html_theme: tskit_book_theme
+      pygments_style: monokai
+      myst_enable_extensions:
+      - colon_fence
+      - deflist
+      - dollarmath
+      - substitution
+      issues_github_path: daikitag/tstrait
+      todo_include_todos: true
+      intersphinx_mapping:
+        python: ["https://docs.python.org/3/", null]
+        tskit: ["https://tskit.dev/tskit/docs/stable/", null]
+        tskit-tutorials: ["https://tskit.dev/tutorials/", null]
+        msprime: ["https://tskit.dev/msprime/docs/stable/", null]
+        numpy: ["https://numpy.org/doc/stable/", null]
 
-    nitpicky: true
-    
-    autodoc_member_order: bysource
+      breathe_projects: {"tstrait": "doxygen/xml"}
+      breathe_default_project: "tstrait"
+      breathe_domain_by_extension: {"h": "c"}
+      breathe_show_define_initializer: True
 
-    bibtex_reference_style: author_year
+      # Note we have to use the regex version here because of
+      # https://github.com/sphinx-doc/sphinx/issues/9748
+      nitpick_ignore_regex: [
+          ["py:class", "array_like"],
+          ["py:class", "dtype=np.ndarray"],
+      ]
+
+      autodoc_member_order: bysource
+
+      # Without this option, autodoc tries to put links for all return types
+      # in terms of the fully-qualified classnames which we don't want, and also
+      # leads to broken links and nitpick failures. So, until we tackle
+      # typehints fully, this is the simplest approach.
+      autodoc_typehints: none

@@ -1,6 +1,19 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # Simulation Model
 
-The definitions of some key terms in this documentation are indicated [here](https://tskit.dev/tskit/docs/stable/glossary.html#sec-data-model-definitions).
+The definitions of some key terms in this documentation are indicated {ref}`here <tskit:sec_glossary>`.
 
 **tstrait** assumes that the individual's phenotypes are obtained from the following additive model,
 
@@ -22,7 +35,7 @@ where $Var(G)$ is the variance of the simulated genetic values and $h^2$ is the 
 
 It is possible for the user to set $h^2=0$ or $h^2=1$. When $h^2=0$, the phenotypic values will be exactly the same as the environmental noise, and when $h^2=1$, the environmental noise $\epsilon$ will be a vector of zeros.
 
-The number of causal sites $m$ and the narrow-sense heritability $h^2$ of the simulation model are specified in `num_causal` and `h2` arguments in `sim_phenotypes()` function. For example,
+The number of causal sites $m$ and the narrow-sense heritability $h^2$ of the simulation model are specified in `num_causal` and `h2` arguments in {func}`.sim_phenotypes` function. For example,
 
 ```Python
 tstrait.sim_phenotypes(ts, num_causal = 5, h2 = 0.3, model = model)

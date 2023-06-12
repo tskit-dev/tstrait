@@ -4,8 +4,8 @@
 
 There are a number of resources to learn about tree sequence and **msprime**:
 
-- The [msprime manual](https://tskit.dev/msprime/docs/stable/intro.html) explains how genetic simulations can be conducted by using **msprime**.
-- The [tskit tutorials](https://tskit.dev/tutorials) site contains tutorials on how to analyze simulated tree sequences by using **tskit**.
+- The {ref}`msprime manual <msprime:sec_intro>` explains how genetic simulations can be conducted by using **msprime**.
+- The {ref}`tskit tutorials <tskit-tutorials:sec_intro>` site contains tutorials on how to analyze simulated tree sequences by using **tskit**.
 
 If you use **tstrait** in your work, please cite
 

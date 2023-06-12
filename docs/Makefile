@@ -1,4 +1,3 @@
-
 # Need to set PYTHONPATH so that we pick up the local tstrait
 PYPATH=${PWD}/..
 MSP_VERSION:=$(shell PYTHONPATH=${PYPATH} \

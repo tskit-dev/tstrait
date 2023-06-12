@@ -1,3 +1,16 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # Installing tstrait
 
 **tstrait** can be installed by using pip or [conda](https://conda.io/docs/). We recommend using `conda` for most users.
