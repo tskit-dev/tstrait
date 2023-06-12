@@ -1,5 +1,7 @@
+black
 breathe
 docutils==0.15
+flake8
 jupyter-book==0.13
 jsonschema[format-nongpl]
 msprime
