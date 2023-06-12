@@ -44,7 +44,7 @@ class TraitModel:
         :param allele_freq: Allele frequency of the causal mutation
         :type allele_freq: float
         :param rng: Random generator that will be used to simulate effect size
-        :type rng: class `np.random.Generator`
+        :type rng: numpy.random.Generator
         :return: Simulated effect size of a causal mutation
         :rtype: float
         """
@@ -97,7 +97,7 @@ class TraitModelAdditive(TraitModel):
         :param allele_freq: Allele frequency of causal mutation
         :type allele_freq: float
         :param rng: Random generator that will be used to simulate effect size
-        :type rng: class `np.random.Generator`
+        :type rng: numpy.random.Generator
         :return: Simulated effect size of a causal mutation
         :rtype: float
         """
@@ -144,11 +144,11 @@ class TraitModelAllele(TraitModel):
         can be ignored by setting `alpha` to be zero.
 
         :param num_causal: Number of causal sites
-        :type num_causal: int or array_like(int)[int]
+        :type num_causal: int
         :param allele_freq: Allele frequency of causal mutation
-        :type allele_freq: float or array_like(float)[int]
+        :type allele_freq: float
         :param rng: Random generator that will be used to simulate effect size
-        :type rng: class `np.random.Generator`
+        :type rng: numpy.random.Generator
         :return: Simulated effect size of a causal mutation
         :rtype: float
         """
