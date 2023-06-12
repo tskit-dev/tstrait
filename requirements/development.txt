@@ -5,6 +5,7 @@ jsonschema[format-nongpl]
 msprime
 numba
 numpy
+pre-commit
 pytest
 sphinx==4.5
 sphinx-argparse
