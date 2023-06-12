@@ -13,26 +13,11 @@ kernelspec:
 
 # Quickstart
 
-This page provides an example of how to use **tstrait** to simulate quantitative traits of individuals in the tree sequence data. We will be using **msprime** to simulate tree sequence data, and users who are interested in the details of **msprime** should consult {ref}`msprime manual <msprime:sec_intro>`.
-
-See the [Installation](installation.md) page for instructions on installing **tstrait**.
-
-## Trait Model
-
-**tstrait** supports simulation of quantitative traits assuming that they are all additive. As a beginning, we need to specify the trait model to determine how effect sizes of genes are being simulated. The details of the model are indicated in [trait model](model.md) page.
-
-It would be necessary for the user to set the mean and standard deviation of the genetic effect sizes when they define the trait model. For example,
-
-```Python
-import tstrait
-model = tstrait.TraitModelAllele(trait_mean = 0, trait_sd = 1, alpha = -0.3)
-```
-
-sets a trait model {class}`.TraitModelAllele`, where the mean value of traits is 0 and the standard deviation is 1. We will then be using this `model` in {func}`.sim_phenotype` to simulate quantitative traits of individuals in the tree sequence data.
+This page provides an example of how to use **tstrait** to simulate quantitative traits of individuals in the tree sequence data. See the [Installation](installation.md) page for instructions on installing **tstrait**.
 
 ## Example
 
-In the following example, we will be using **msprime** to simulate a tree sequence dataset, and simulate quantitative traits of simulated individuals having 1Mb chromosome. The simulation will be conducted by using human-like parameters. We will be setting a trait model {class}`.TraitModelAllele`, and simulating quantitative traits of individuals in {func}`.sim_phenotype`.
+In the following example, we will be using {ref}`msprime <msprime:sec_intro>` to simulate genetic information of 500 individuals with 1Mb chromosome by using human-like parameters for mutation and recombination rate. We will then be using **tstrait** to simulate quantitative traits of those simulated individuals, assuming that there are 1000 causal sites. We will be setting a trait model {class}`.TraitModelAllele`, and simulating quantitative traits of individuals in {func}`.sim_phenotype`. Afterwards, the results will be visualized by using [matplotlib](https://matplotlib.org/) package.
 
 ```{code-cell} ipython3
 import msprime
@@ -45,13 +30,13 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
 model = tstrait.TraitModelAllele(trait_mean = 0, trait_sd = 1, alpha = -0.3)
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts,num_causal = 1000, model = model,
+phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal = 1000, model = model,
                                                          h2 = 0.3, random_seed = 1)
 ```
 
-The example above simulates tree sequence data with 500 individuals and then simulates quantitative traits of those individuals with 1000 causal sites. The narrow sense heritability `h2` is used to determine the environmental noise. We also set the `random_seed` to ensure that the output of the simulation model is the same.
+In the above quantitative trait simulation, we set the narrow-sense heritability $h^2$ to be `0.3`, the trait mean to be `0` and the trait standard deviation to be `1`. The parameters of the model are described in detail in [Simulation Model](simulation.md) and [Trait Model](model.md) page. We set the `random_seed` to ensure that the output of the simulation model is the same.
 
-The distribution of simulated phenotype of 500 individuals is shown below.
+The distribution of simulated phenotype of 500 individuals is shown in the histogram below.
 
 ```{code-cell} ipython3
 plt.hist(phenotype_result.phenotype)
@@ -59,7 +44,7 @@ plt.xlabel("Phenotype")
 plt.show()
 ```
 
-The relationship between allele frequency and SNP effect sizes is shown below.
+The relationship between allele frequency and SNP effect sizes is shown in the scatter plot below.
 
 ```{code-cell} ipython3
 plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
@@ -69,4 +54,4 @@ plt.axhline(y = 0, color = 'r', linestyle = '-')
 plt.show()
 ```
 
-The detailed explanation of the output of {func}`.sim_phenotype` is described in [Output](output.md) page.
+The output of {func}`.sim_phenotype` is described in detail in [Output](output.md) page.

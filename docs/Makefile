@@ -8,3 +8,19 @@ dev:
 
 clean:
 	rm -fR _build
+
+## tskit has some sentences regarding dOxygen. Is it necessary?
+
+#DOXYGEN_XML=doxygen/xml
+#
+#all: ${DOXYGEN_XML} dev
+#
+#${DOXYGEN_XML}: ../c/tskit/*.h
+#	cd doxygen && doxygen
+#
+#DOXYGEN_XML=doxygen/xml
+#
+#all: ${DOXYGEN_XML} dev
+#
+#${DOXYGEN_XML}: ../c/tskit/*.h
+#	cd doxygen && doxygen

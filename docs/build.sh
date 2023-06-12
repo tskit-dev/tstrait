@@ -4,6 +4,8 @@
 # saved reports, which makes it difficult to debug the reasons for 
 # build failures in CI. This is a simple wrapper to handle that.
 
+## I just took the same one from tskit github. Is it fine?
+
 REPORTDIR=_build/html/reports
 
 jupyter-book build -nW --keep-going .

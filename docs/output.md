@@ -13,9 +13,11 @@ kernelspec:
 
 # Output
 
-The outputs of the {func}`.sim_phenotype` function are two dataclass objects. The first output is a {class}`.PhenotypeResult` object, which includes information regarding the simulated individuals. It includes the individual ID, simulated value of phenotype, genetic value and environmental noise. The second output is a {class}`.GeneticValueResult` object, and it includes the site ID, causal allele, effect size and causal allele frequency.
+The outputs of the {func}`.sim_phenotype` function are two dataclass objects. The first output is a {class}`.PhenotypeResult` object, which includes the simulated information regarding the individuals. The second output is a {class}`.GeneticValueResult` object, which includes simulated information regarding the causal sites.
 
-To ensure that the output of the example is the same, we set a `random_seed`. In the below example, we will be simulating 5 individuals with 3 causal sites from {class}`.TraitModelAllele` model. The other simulation parameters are set to be the same as the example in the [Quickstart](quickstart.md) page.
+Randomness is controlled in **tstrait** through `random_seed`. It is used to generate [numpy.random.Generator](https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator) object, such that the simulation output will be the same when the `random_seed` is set to be the same value.
+
+In the below example, we will be simulating 5 individuals with 3 causal sites from {class}`.TraitModelAllele` model. The other simulation parameters are set to be the same as the example in the [Quickstart](quickstart.md) page.
 
 ```{code-cell} ipython3
 import msprime
@@ -31,7 +33,7 @@ phenotype_result, genetic_result = tstrait.sim_phenotype(ts,num_causal = 3, mode
                                                             h2 = 0.3, random_seed = 1)
 ```
 
-We will show how we can extract information from `phenotype_result`. It is an object of {class}`.PhenotypeResult` and it includes information regarding the simulated individuals.
+We now extract information from `phenotype_result`.
 
 ```{code-cell} ipython3
 print("Individual ID:", phenotype_result.individual_id)
@@ -40,9 +42,9 @@ print("Environmental Noise:", phenotype_result.environment_noise)
 print("Genetic Value:", phenotype_result.genetic_value)
 ```
 
-In the above output, phenotype, environmental noise and genetic value are aligned based on individual IDs. Since we assume an additive model, phenotype is the sum of environmental noise and genetic value.
+In the above output, phenotype, environmental noise and genetic value are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects, which are aligned based on individual IDs. Since we assume an additive model, phenotype is the sum of environmental noise and genetic value.
 
-We will next show how we can extract information from `genetic_result`. It is an object of {class}`.GeneticValueResult` and it includes information regarding the causal sites inside the simulation model.
+Next, we extract information from `genetic_result`.
 
 ```{code-cell} ipython3
 print("Causal Site ID:", genetic_result.site_id)
@@ -51,6 +53,6 @@ print("Effect Size:", genetic_result.effect_size)
 print("Allele Frequency:", genetic_result.allele_frequency)
 ```
 
-In the above output, causal allele, effect size and allele frequency are aligned based on causal site IDs. Causal allele is randomly selected among the mutations inside the side, and the allele frequency represents the frequency of the causal allele inside the site.
+In the above output, causal allele, effect size and allele frequency are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects, which are aligned based on causal site IDs. Causal allele is randomly selected among the mutations in the side, and the allele frequency represents the frequency of the causal allele.
 
-Detailed information regarding the site and individual, such as ancestral state, genomic position and relatedness of individuals, can be obtained by using {ref}`tskit <tskit>` package.
+Detailed information regarding the site and individual, such as ancestral state, genomic position and relatedness of individuals, can be obtained by using {ref}`tskit <tskit:sec_introduction>` package.

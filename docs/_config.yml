@@ -5,6 +5,8 @@ title: Tstrait manual
 author: Tskit Developers
 copyright: "2023"
 only_build_toc_files: true
+
+## How can we create logo like tskit, tsinfer, tsdate, etc?
 #logo: logo.svg
 
 execute:
@@ -22,8 +24,8 @@ html:
   use_issues_button: true
   use_repository_button: true
   use_edit_page_button: true
-  # Do not edit this - the version placeholder is replaced by the
-  # current version during a distribution build in the Makefile
+  
+  ## How do I set this for my package?
   #extra_navbar: __TSKIT_VERSION__
   #extra_footer: __TSKIT_VERSION__
 
@@ -56,19 +58,15 @@ sphinx:
         tskit: ["https://tskit.dev/tskit/docs/stable/", null]
         tskit-tutorials: ["https://tskit.dev/tutorials/", null]
         msprime: ["https://tskit.dev/msprime/docs/stable/", null]
-        numpy: ["https://numpy.org/doc/stable/", null]
+        stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
 
+      
+      ## Do I need these sentences? ##
       breathe_projects: {"tstrait": "doxygen/xml"}
       breathe_default_project: "tstrait"
       breathe_domain_by_extension: {"h": "c"}
       breathe_show_define_initializer: True
-
-      # Note we have to use the regex version here because of
-      # https://github.com/sphinx-doc/sphinx/issues/9748
-      nitpick_ignore_regex: [
-          ["py:class", "array_like"],
-          ["py:class", "dtype=np.ndarray"],
-      ]
+      #####
 
       autodoc_member_order: bysource
 
