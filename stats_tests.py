@@ -12,6 +12,7 @@ import inspect
 import pathlib
 import sys
 
+
 def sim_tree_seq():
     ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
 
@@ -96,9 +97,11 @@ class TestGenetic(Test):
         ts = sim_tree_seq()
 
         count = 0
-        
-        prod = itertools.product(alpha_array, trait_mean_array, trait_sd_array, h2_array)
-        
+
+        prod = itertools.product(
+            alpha_array, trait_mean_array, trait_sd_array, h2_array
+        )
+
         for element in prod:
             alpha = element[0]
             trait_mean = element[1]
@@ -112,11 +115,11 @@ class TestGenetic(Test):
             environment0 = np.zeros(1000)
             environment1 = np.zeros(1000)
             environment2 = np.zeros(1000)
-            
+
             for i in range(1000):
                 phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
-                                ts, num_causal=2, model=model, h2=h2, random_seed=i
-                            )
+                    ts, num_causal=2, model=model, h2=h2, random_seed=i
+                )
                 genetic0[i] = phenotype_result.genetic_value[0]
                 genetic1[i] = phenotype_result.genetic_value[1]
                 genetic2[i] = phenotype_result.genetic_value[2]

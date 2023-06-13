@@ -27,7 +27,7 @@ model = tstrait.TraitModelAllele(trait_mean = 0, trait_sd = 1, alpha = -1)
 
 sets the {class}`.TraitModelAllele` model with $\mu=0$, $\sigma=0$ and $\alpha=-1$.
 
-The distribution of the effect size in the {class}`.TraitModelAllele` model depends on the allele frequency, as it has been suggested that negative selection can lead to rare variants having effect sizes with larger magnitude compared with common variants. Negative $\alpha$ value can increase the magnitude of effect sizes on rare variants. The detailed descriptions of the relationship between $\alpha$ and the predictability of human traits are indicated in [Schoech et al. (2019)](https://doi.org/10.1038/s41467-019-08424-6) and [Speed et al. (2017)](https://doi.org/10.1038/ng.3865).
+The distribution of the effect size in the {class}`.TraitModelAllele` model depends on the allele frequency, as it has been suggested that negative selection can lead to rare variants having effect sizes with larger magnitude compared with common variants. Negative $\alpha$ value can increase the magnitude of effect sizes on rare variants. The relationship between $\alpha$ and the predictability of human traits are indicated in [Schoech et al. (2019)](https://doi.org/10.1038/s41467-019-08424-6) and [Speed et al. (2017)](https://doi.org/10.1038/ng.3865).
 
 Two trait models are supported in **tstrait**:
 
@@ -35,4 +35,4 @@ Two trait models are supported in **tstrait**:
 - {class}`.TraitModelAllele`
 
 
-The effect size simulation in {class}`.TraitModelAdditive` model does not depend on allele frequency, and it is a special case of the {class}`.TraitModelAllele` model with $\alpha = 0$. Only $\mu$ and $\sigma$ parameters need to be defined in {class}`.TraitModelAllele` model.
+The effect size simulation in {class}`.TraitModelAdditive` model does not depend on allele frequency, and it is a special case of {class}`.TraitModelAllele` model with $\alpha = 0$. Only $\mu$ and $\sigma$ need to be defined in {class}`.TraitModelAllele` model.

@@ -1,4 +1,5 @@
 black
+blacken-docs
 breathe
 docutils==0.15
 flake8

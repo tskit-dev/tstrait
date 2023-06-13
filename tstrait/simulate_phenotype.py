@@ -1,9 +1,7 @@
-import msprime
 import numbers
 import numpy as np
 import tskit
 import numba
-from numba.typed import List
 import collections
 from dataclasses import dataclass
 import tstrait.trait_model as trait_model
@@ -345,7 +343,9 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     if np.any(ts.nodes_individual[samples] == -1):
         raise ValueError("All samples must be associated with an individual")
     # This is potentially a bottleneck of the algorithm
-    referenced_individuals = np.bincount(ts.nodes_individual[samples], minlength=ts.num_individuals)
+    referenced_individuals = np.bincount(
+        ts.nodes_individual[samples], minlength=ts.num_individuals
+    )
     if np.any(referenced_individuals == 0):
         raise ValueError("All individuals must be associated with sample nodes")
 

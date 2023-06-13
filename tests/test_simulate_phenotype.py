@@ -465,12 +465,12 @@ class Test_site_genotypes:
         individuals[4] = 0
         individuals[5] = 0
         tables.nodes.individual = individuals
-        
+
         flags = tables.nodes.flags
         # Set nodes to be samples
         flags[:] = 0
         flags[:6] = tskit.NODE_IS_SAMPLE
-        
+
         tables.nodes.flags = flags
 
         tables.mutations.add_row(site=0, node=0, derived_state="T")
@@ -505,9 +505,9 @@ class Test_site_genotypes:
         assert np.array_equal(g2, np.array([1, 1, 0]))
         assert np.array_equal(g3, np.array([1, 0, 0]))
         assert np.array_equal(g4, np.array([0, 1, 0]))
-               
+
         assert c1 == {"G": 3, "T": 1}
-        assert c2 == {"T" : 2, "G" : 3}
+        assert c2 == {"T": 2, "G": 3}
         assert c3 == {"T": 1, "G": 1, "C": 1}
 
     def test_non_binary_tree(self):
@@ -772,12 +772,14 @@ class Test_sim_genetic_value:
             genotypic_effect_data.effect_size, np.array([2, 2, 2, 2, 2, 2])
         )
         assert np.array_equal(
-            genotypic_effect_data.causal_allele, np.array(["T", "T", "C", "T", "C", "C"])
+            genotypic_effect_data.causal_allele,
+            np.array(["T", "T", "C", "T", "C", "C"]),
         )
         assert np.allclose(
             genotypic_effect_data.allele_frequency,
             np.array([0.5, 0.75, 0.25, 0.25, 0.25, 0.5]),
         )
+
 
 class Test_tree_sequence_input:
     def test_internal_node(self):
@@ -796,16 +798,18 @@ class Test_tree_sequence_input:
         individuals[4] = 0
         individuals[5] = 0
         tables.nodes.individual = individuals
-        
+
         tables.sites.add_row(0, "A")
         tables.mutations.add_row(site=0, node=4, derived_state="T")
         ts = tables.tree_sequence()
         model = trait_model.TraitModelAdditive(0, 1)
-        with pytest.raises(ValueError, match="All individuals must be associated with sample nodes"):
+        with pytest.raises(
+            ValueError, match="All individuals must be associated with sample nodes"
+        ):
             phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
                 ts, 1, model, 0.3, 1
             )
-            
+
     def test_sample_node(self):
         ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
 
@@ -817,11 +821,12 @@ class Test_tree_sequence_input:
         individuals[1] = 0
         tables.nodes.individual = individuals
         tables.sites.add_row(0, "A")
-        tables.mutations.add_row(site=0, node=4, derived_state="T")        
+        tables.mutations.add_row(site=0, node=4, derived_state="T")
         ts = tables.tree_sequence()
         model = trait_model.TraitModelAdditive(0, 1)
-        with pytest.raises(ValueError, match="All samples must be associated with an individual"):
+        with pytest.raises(
+            ValueError, match="All samples must be associated with an individual"
+        ):
             phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
                 ts, 1, model, 0.3, 1
             )
-        
