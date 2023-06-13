@@ -13,7 +13,7 @@ kernelspec:
 
 # Output
 
-The outputs of the {func}`.sim_phenotype` function are two dataclass objects. The first output is a {class}`.PhenotypeResult` object, which includes the simulated information regarding the individuals. The second output is a {class}`.GeneticValueResult` object, which includes simulated information regarding the causal sites.
+The outputs of the {func}`.sim_phenotype` function are two dataclass objects. The first output is a {class}`.PhenotypeResult` object, which includes simulated information regarding the individuals. The second output is a {class}`.GeneticValueResult` object, which includes simulated information regarding the causal sites.
 
 Randomness is controlled in **tstrait** through `random_seed`. It is used to generate [numpy.random.Generator](https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator) object, such that the simulation output will be the same when the `random_seed` is set to be the same value.
 
