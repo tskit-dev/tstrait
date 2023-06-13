@@ -59,6 +59,7 @@ sphinx:
         tskit-tutorials: ["https://tskit.dev/tutorials/", null]
         msprime: ["https://tskit.dev/msprime/docs/stable/", null]
         stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
+        numpy: ["https://numpy.org/doc/stable/", null]
 
       
       ## Do I need these sentences? ##
