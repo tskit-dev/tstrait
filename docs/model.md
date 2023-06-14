@@ -57,11 +57,11 @@ The distribution of effect size does not depend on allele frequency.
 ```{code-cell} ipython3
 model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
 phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                        h2=0.3, random_seed=1)
+                                                         h2=0.3, random_seed=1)
 plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
-plt.axhline(y = 0, color = 'r', linestyle = '-')
+plt.axhline(y=0, color='r', linestyle='-')
 plt.title("TraitModelAdditive")
 plt.show()
 ```
@@ -73,11 +73,11 @@ The simulation model puts some emphasis on effect sizes from rarer variants.
 ```{code-cell} ipython3
 model = tstrait.TraitModelAllele(trait_mean=0, trait_sd=1, alpha=-0.3)
 phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                        h2=0.3, random_seed=1)
+                                                         h2=0.3, random_seed=1)
 plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
-plt.axhline(y = 0, color = 'r', linestyle = '-')
+plt.axhline(y=0, color='r', linestyle='-')
 plt.title("TraitModelAllele, alpha = -0.3")
 plt.show()
 ```
@@ -89,11 +89,11 @@ The simulation model puts greater emphasis on effect sizes from rarer variants c
 ```{code-cell} ipython3
 model = tstrait.TraitModelAllele(trait_mean=0, trait_sd=1, alpha=-0.6)
 phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                        h2=0.3, random_seed=1)
+                                                         h2=0.3, random_seed=1)
 plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
-plt.axhline(y = 0, color = 'r', linestyle = '-')
+plt.axhline(y=0, color='r', linestyle='-')
 plt.title("TraitModelAllele, alpha = -0.6")
 plt.show()
 ```
