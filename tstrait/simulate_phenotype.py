@@ -11,17 +11,17 @@ import tstrait.trait_model as trait_model
 class PhenotypeResult:
     """Data class that contains simulated phenotypic information of individuals.
 
-    For each individual in the tree sequence data, this data class oject returns the
-    simulated value of phenotype, environmental noise and genetic value, which are
-    aligned based on the individual IDs.
+    For each individual in the tree sequence data, this data class object returns the
+    simulated value of quantitative traits, environmental noise and genetic value, which
+    are aligned based on individual IDs.
 
-    :param individual_id: Numpy array of individual IDs
+    :param individual_id: Individual IDs
     :type individual_id: numpy.ndarray(int)
-    :param phenotype: Simulated phenotypes of individuals
+    :param phenotype: Simulated quantitative trait
     :type phenotype: numpy.ndarray(float)
-    :param environment_noise: Simulated environmental noise of individuals
+    :param environment_noise: Simulated environmental noise
     :type environment_noise: numpy.ndarray(float)
-    :param genetic_value: Simulated genetic value of individuals
+    :param genetic_value: Simulated genetic values
     :type genetic_value: numpy.ndarray(float)
     """
 
@@ -35,18 +35,17 @@ class PhenotypeResult:
 class GeneticValueResult:
     """Data class that contains simulated genetic information.
 
-    For each randomly chosen causal site inside the simulation model, this data class
-    object returns the randomly chosen causal allele, the allele frequency of the causal
-    state, and the simulated value of effect size, which are aligned based on the
-    site IDs.
+    For each randomly chosen causal site, this data class object returns causal allele,
+    frequency of the causal allele, and simulated effect size, which are aligned based
+    on site IDs.
 
-    :param site_id: Numpy array of site IDs that were randomly chosen to be causal
+    :param site_id: Causal site IDs
     :type site_id: numpy.ndarray(int)
-    :param causal_allele: Numpy array of causal allele inside each causal site
+    :param causal_allele: Causal allele
     :type causal_allele: numpy.ndarray(object)
-    :param effect_size: Effect size of causal mutation
+    :param effect_size: Effect size
     :type effect_size: numpy.ndarray(float)
-    :param allele_frequency: Frequency of causal mutation
+    :param allele_frequency: Frequency of causal allele
     :type allele_frequency: numpy.ndarray(float)
     """
 
@@ -91,15 +90,15 @@ def _traversal_genotype(
 
 
 class PhenotypeSimulator:
-    """Simulator class of phenotypes.
+    """Simulator class to simulate quantitative traits of individuals.
 
     :param ts: Tree sequence data with mutation
     :type ts: tskit.TreeSequence
-    :param num_causal: Number of causal sites associated with a trait
+    :param num_causal: Number of causal sites
     :type num_causal: int
-    :param h2: Narrow-sense heritability of a trait
+    :param h2: Narrow-sense heritability
     :type h2: float
-    :param model: Trait model in simulation
+    :param model: Trait model
     :type model: TraitModel
     """
 
@@ -172,23 +171,23 @@ class PhenotypeSimulator:
         return genotype
 
     def sim_genetic_value(self):
-        """Simulates the genetic value of individuals.
+        """Simulates genetic values of individuals.
 
-        This method randomly chooses the causal sites and the corresponding causal state based
-        on the `num_causal` input. Afterwards, this computes the allele frequency of causal state,
-        and simulates the effect size of each causal mutation based on the trait model given by
-        the `model` input.
+        This method randomly chooses causal sites and the corresponding causal state
+        based on the `num_causal` input. Afterwards, effect size of each causal site
+        is simulated based on the trait model given by the `model` input. Genetic
+        values are computed by using the simulated effect sizes and mutation
+        information of individuals.
 
-        The genetic value of individuals are computed by using the simulated effect size of
-        causal mutation.
+        The results of this method are returned through a :class:`GeneticValueResult`
+        dataclass object and a numpy array object. The first output includes simulated
+        genetic information of each causal site. The second output includes simulated
+        genetic values, which will be used to simulate quantitative traits of
+        individuals.
 
-        The results of this method are returned through the dataclass `tstrait.GeneticValueResult`
-        object and includes simulated results of each causal site. The method also returns the
-        simulated genetic value of indviduals, which will be used to simulate the phenotypes.
-
-        :return: Returns `GeneticValueResult` object to indicate the simulated results of each
-            causal site, and the simulated genetic value of individuals which are aligned by
-            individual IDs
+        :return: Returns a :class:`GeneticValueResult` object that includes simulated
+            genetic information of each causal site, and a numpy array of simulated
+            genetic values.
         :rtype: (GeneticValueResult, numpy.ndarray(float))
         """
         causal_site_array = self._choose_causal_site()
@@ -251,19 +250,21 @@ class PhenotypeSimulator:
         return phenotype, E
 
     def sim_environment(self, individual_genetic_value):
-        """Simulates environmental noise of individuals and return the phenotype.
+        """Simulates environmental noise of individuals and returns the phenotype.
 
         This method simulates the environmental noise of individuals based on their
-        genetic values. The inputted narrow-sense heritability will be used to simulate
-        environmental noise assuming the additive model.
+        genetic values that are passed into the method. The narrow-sense heritability
+        in :class:`PhenotypeSimulator` object will be used to simulate environmental
+        noise assuming the additive model.
 
         The simulated environmental noise and phenotype will be returned by using the
-        `PhenotypeResult` object, which includes individual IDs, phenotype,
+        :class:`PhenotypeResult` object, which includes individual ID, phenotype,
         environmental noise and genetic value.
 
         :param individual_genetic_value: Genetic value of individuals
         :type individual_genetic_value: numpy.ndarray(float)
-        :return: Returns the `PhenotypeResult` object to describe the simulated phenotypes
+        :return: Returns the :class:`PhenotypeResult` object to describe the simulated
+            phenotypes
         :rtype: PhenotypeResult
         """
         phenotype, E = self._sim_environment_noise(individual_genetic_value)
@@ -278,34 +279,29 @@ class PhenotypeSimulator:
 
 
 def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
-    """Simulates phenotypes of individuals based on the inputted tree sequence data with
-    mutation.
+    """Simulates quantitative traits of individuals based on the inputted tree sequence
+    data with mutation.
 
     The input of the function will be number of causal sites, narrow-sense heritability,
-    and the model from `TraitModel`. Model will be used to simulate the effect sizes of
-    randomly chosen causal mutation, and environmental noise will be simulated by using
-    the narrow-sense heritability. The random seed will be used to produce a
-    `numpy.random.Generator` object to conduct the simulation.
+    and trait model from :class:`TraitModel` class. The inputted model will be used to
+    simulate effect sizes of randomly chosen causal mutation, and narrow-sense heritability
+    will be used to simulate environmental noise. The random seed will be used to produce a
+    `numpy.random.Generator` object to control the output of the simulation.
 
-    The simulated phenotypes of individuals will be returned by using the
-    `PhenotypeResult` object, and it includes the simulated value of phenotype, genetic
-    value and environmental noise, which are aligned based on the individual IDs. Since
-    we are considering the additive model in simulation, the phenotype value will be a
-    sum of genetic value and environmental noise.
-
-    The simulated genetic information will be returned by using the `GeneticValueResult`
-    object, and it includes the causal allele, the allele frequency of the causal allele,
-    and the simulated value of effect size, which are aligned based on the site IDs.
+    The outputs of this function are two dataclass objects. The first output is a
+    :class:`PhenotypeResult` object, which includes simulated information regarding the
+    individuals. The second output is a :class:`GeneticValueResult` object, which includes
+    simulated information regarding the causal sites.
 
     :param ts: Tree sequence data with mutation
     :type ts: tskit.TreeSequence
-    :param num_causal: Number of causal sites associated with a trait
+    :param num_causal: Number of causal sites
     :type num_causal: int
-    :param model: Trait model in simulation
+    :param model: Trait model
     :type model: TraitModel
-    :param h2: Narrow-sense heritability of a trait
+    :param h2: Narrow-sense heritability
     :type h2: float
-    :param random_seed: The random seed value used to generate the `numpy.random.Generator`
+    :param random_seed: Random seed value used to generate the `numpy.random.Generator`
         object
     :type random_seed: None or int
     :raises TypeError: Input should be a tree sequence data
@@ -314,8 +310,8 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     :raises ValueError: No mutation in the provided data
     :raises ValueError: There are less number of sites in the tree sequence than the
         inputted number of causal sites
-    :return: Returns the `PhenotypeResult` object to describe the simulated
-        phenotypes and the `GeneticValueResult` object to describe the
+    :return: Returns the :class:`PhenotypeResult` object to describe the simulated
+        phenotypes and the :class:`GeneticValueResult` object to describe the
         simulated genetic information
     :rtype: (PhenotypeResult, GeneticValueResult)
     """
@@ -337,7 +333,8 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
         raise ValueError("No mutation in the provided data")
     if num_causal > num_sites:
         raise ValueError(
-            "There are less number of sites in the tree sequence than the inputted number of causal sites"
+            "There are less number of sites in the tree sequence than the inputted"
+            "number of causal sites"
         )
     samples = ts.samples()
     if np.any(ts.nodes_individual[samples] == -1):

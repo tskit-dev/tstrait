@@ -3,10 +3,7 @@ import numbers
 
 
 class TraitModel:
-    """Superclass of the trait model
-
-    This class can be used to create a trait model that simulates effect sizes with
-    custom distributions.
+    """Superclass of the trait model.
 
     :param model_name: Name of the trait model
     :type model_name: str
@@ -32,12 +29,8 @@ class TraitModel:
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
         This method simulates an effect size of a causal mutation assuming that it
-        follows a normal distribution with a constant standard deviation. The mean
-        of the normal distrbution is the `trait_mean` attribute of the class
-        `tstrait.TraitModel` object, and the standard deviation is the `trait_sd`
-        attribute of the class `trait.TraitModel` object divided by the square-root
-        of the number of causal sites given by `num_causal`. The `allele_freq` input
-        is not used in the simulation process.
+        follows a normal distribution with a constant standard deviation. The
+        `allele_freq` input is not used to simulate an effect size.
 
         :param num_causal: Number of causal sites
         :type num_causal: int
@@ -67,6 +60,9 @@ class TraitModel:
 
     @property
     def name(self):
+        """
+        Name of the trait model.
+        """
         return self._model_name
 
 
@@ -85,12 +81,8 @@ class TraitModelAdditive(TraitModel):
 
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        Simulates an effect size of a causal mutation, assuming that it follows a
-        normal distribution. The mean value is the `trait_mean` attribute of the class
-        `tskit.TraitModelAdditive` object, and the standard deviation is the
-        `trait_sd` attribute of the `tskit.TraitModelAdditive` object divided by the
-        square-root of the number of causal sites, which is given by the `num_causal`
-        input. The `allele_freq` input is not used in the simulation process.
+        This method uses :func:`TraitModel.sim_effect_size` to simulate an effect size
+        of a causal mutation.
 
         :param num_causal: Number of causal sites
         :type num_causal: int
@@ -109,9 +101,10 @@ class TraitModelAllele(TraitModel):
     """Allele frequency trait model class, where the distribution of effect size
     depends on allele frequency.
 
-    The alpha parameter modifies the relative emphasis placed on rarer variants to
-    simulate the effect sizes of causal mutations. The same results as the additive
-    trait model can be determined by setting the alpha parameter to be zero.
+    The `alpha` parameter modifies the relative emphasis placed on rarer variants to
+    simulate the effect sizes of causal mutations. The same results as the
+    :class:`TraitModelAdditive` model can be determined by setting the `alpha`
+    parameter to be zero.
 
     :param trait_mean: Mean value of the simulated traits
     :type trait_mean: float
@@ -129,19 +122,12 @@ class TraitModelAllele(TraitModel):
 
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        Simulates an effect size of a causal mutation, assuming that it follows a
-        normal distribution. The mean value is the `trait_mean` attribute of the class
-        `tskit.TraitModelAllele` object, and the standard deviation is the
-        `trait_sd` attribute of the `tskit.TraitModelAllele` object divided by the
-        square-root of the number of causal sites, which is given by the `num_causal`
-        input.
-
-        After the effect size gets simulated from the normal distribution, it will be
-        multiplied by a constant that depends on `allele_freq` and `alpha` input of
-        the method. Negative `alpha` value can increase the effect size of rarer
-        variants, and greater emphasis on rarer variants can be given by decreasing
-        the `alpha` value. The effects of allele frequency on simulating effect size
-        can be ignored by setting `alpha` to be zero.
+        This method initially simulates an effect size from
+        :func:`TraitModel.sim_effect_size`. Afterwards, it will be multiplied by a
+        constant that depends on `allele_freq` and `alpha` input of
+        :class:`TraitModelAllele`. Negative `alpha` value can increase the magnitude
+        of effect sizes coming from rarer variants. The effects of allele frequency
+        on simulating effect size can be ignored by setting `alpha` to be zero.
 
         :param num_causal: Number of causal sites
         :type num_causal: int
