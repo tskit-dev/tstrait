@@ -5,15 +5,50 @@ import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
 import scipy.stats as stats
-
 import itertools
-
 import inspect
 import pathlib
 import sys
 
 
 def sim_tree_seq():
+    """
+    The following tree sequence will be generated:
+      10
+    ┏━┻┓
+    ┃  9
+    ┃ ┏┻━┓
+    ┃ ┃   8
+    ┃ ┃  ┏┻━┓
+    ┃ ┃  ┃  7
+    ┃ ┃  ┃ ┏┻━┓
+    ┃ ┃  ┃ ┃  6
+    ┃ ┃  ┃ ┃ ┏┻━┓
+    0 1  2 3 4  5
+
+    Individual 0: Node 0 and 1
+    Individual 1: Node 2 and 3
+    Individual 3: Node 4 and 5
+
+    Site 0 Ancestral State: "A"
+        Causal Mutation: Node 8
+        Reverse Mutation: Node 4
+
+    Site 1 Ancestral State: "A"
+        Causal Mutation: Node 5
+
+    Site 0 Genotype:
+        [A, A, T, T, A, T]
+        Individual 0: 0 causal
+        Individual 1: 2 causal
+        Individual 2: 1 causal
+
+    Site 1 Genotype:
+        [A, A, A, A, A, T]
+        Individual 0: 0 causal
+        Individual 1: 0 causal
+        Individual 2: 1 causal
+    """
     ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
 
     tables = ts.dump_tables()
@@ -86,8 +121,36 @@ class Test:
 
 
 class TestGenetic(Test):
+    """
+    Genotype of individuals:
+
+    Site 0 Genotype:
+        [A, A, T, T, A, T]
+        Ancestral state: A
+        Causal allele freq: 0.5
+        Individual 0: 0 causal
+        Individual 1: 2 causal
+        Individual 2: 1 causal
+
+    Site 1 Genotype:
+        [A, A, A, A, A, T]
+        Ancestral state: T
+        Causal allele freq: 1/6
+        Individual 0: 0 causal
+        Individual 1: 0 causal
+        Individual 2: 1 causal
+
+    Effect size distribution:
+
+    SD Formula:
+        trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
+        sqrt(2) from 2 causal sites
+
+    Environmental noise is simulated from a normal distribution where standard
+    deviation depends on the variance of the simulated genetic values
+    """
+
     def test_normal(self):
-        n = 1000
         rng = np.random.default_rng(1)
         alpha_array = np.array([0, -0.3])
         trait_mean_array = np.array([0, 1])
