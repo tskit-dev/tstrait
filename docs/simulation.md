@@ -39,8 +39,58 @@ The number of causal sites $m$ and the narrow-sense heritability $h^2$ of the si
 
 ```Python
 import tstrait
-tstrait.sim_phenotype(ts, num_causal = 5, h2 = 0.3, model = model)
+tstrait.sim_phenotype(ts, num_causal=1000, h2=0.3, model=model)
 ```
-simulates quantitative traits of individuals in `ts` tree sequence data from the trait model `model` with 5 causal sites and narrow-sense heritability being 0.3.
+simulates quantitative traits of individuals in `ts` tree sequence data from `model` trait model with 1000 causal sites and narrow-sense heritability being 0.3.
 
-The example usage of `tstrait` is shown in [quickstart](quickstart.md).
+In the below example, we will be simulating quantitative traits by using the same simulated tree sequence data to show how narrow-sense heritability influences the relationship between genetic values and phenotype.
+
+```{code-cell} ipython3
+import msprime
+import tstrait
+import matplotlib.pyplot as plt
+
+num_ind = 500
+ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate=1e-8,
+                          population_size=10**4, random_seed=1)
+ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
+model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
+```
+
+1\. $h^2=0.1$
+
+When narrow-sense heritability is set to be a low number, most of phenotypic variation is coming from environmental variance.
+
+```{code-cell} ipython3
+phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
+                                                        h2=0.1, random_seed=1)
+
+fig, (ax1, ax2) = plt.subplots(1,2)
+fig.suptitle('Narrow-sense heritability = 0.1')
+ax1.hist(phenotype_result.environment_noise, bins=20)
+ax1.set_xlabel("Environmental Noise")
+ax1.set_xlim([-4,4])
+ax2.hist(phenotype_result.phenotype, bins=20)
+ax2.set_xlabel("Phenotype")
+ax2.set_xlim([-4,4])
+plt.show()
+```
+
+2\. $h^2=0.9$
+
+When narrow-sense heritability is set to a high number, most of phenotypic variation is coming from additive genetic values, and environmental variance is smaller compared with phenotypic variance.
+
+```{code-cell} ipython3
+phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
+                                                        h2=0.9, random_seed=1)
+
+fig, (ax1, ax2) = plt.subplots(1,2)
+fig.suptitle('Narrow-sense heritability = 0.9')
+ax1.hist(phenotype_result.environment_noise, bins=20)
+ax1.set_xlabel("Environmental Noise")
+ax1.set_xlim([-1.5,1.5])
+ax2.hist(phenotype_result.phenotype, bins=20)
+ax2.set_xlabel("Phenotype")
+ax2.set_xlim([-1.5,1.5])
+plt.show()
+```
