@@ -17,7 +17,7 @@ This page provides an example of how to use **tstrait** to simulate quantitative
 
 ## Example
 
-In the following example, we will be using {ref}`msprime <msprime:sec_intro>` to simulate genetic information of 2000 individuals with 1Mb chromosome by using human-like parameters for mutation and recombination rate. We will then be using **tstrait** to simulate quantitative traits of those simulated individuals, assuming that there are 1000 causal sites. We will be setting a trait model {class}`.TraitModelAllele`, and simulating quantitative traits of individuals in {func}`.sim_phenotype`. Afterwards, the results will be visualized by using [matplotlib](https://matplotlib.org/) package.
+In the following example, we will be using {ref}`msprime <msprime:sec_intro>` to simulate genetic information of 2000 individuals with 1Mb chromosome by using human-like parameters for mutation and recombination rate. We will then be using **tstrait** to simulate quantitative traits of those simulated individuals, assuming that there are 1000 causal sites. We will be setting a trait model {class}`.TraitModelAlleleFrequency`, and simulating quantitative traits of individuals in {func}`.sim_phenotype`. Afterwards, the results will be visualized by using [matplotlib](https://matplotlib.org/) package.
 
 ```{code-cell} ipython3
 import msprime
@@ -29,7 +29,7 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
                           population_size=10**4, random_seed=1)
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
-model = tstrait.TraitModelAllele(trait_mean=0, trait_sd=1, alpha=-0.3)
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
 phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
                                                          h2=0.3, random_seed=1)
 ```

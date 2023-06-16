@@ -75,7 +75,7 @@ class Test_TraitModelAdditive:
             model.sim_effect_size(5, 0.5, rng)
 
 
-class Test_TraitModelAllele:
+class Test_TraitModelAlleleFrequency:
     @pytest.mark.parametrize("trait_mean", [1, 1.1, -1, np.array([0])[0]])
     @pytest.mark.parametrize("trait_sd", [0.1, 1, np.array([1])[0]])
     @pytest.mark.parametrize("num_causal", [1, 5])
@@ -85,7 +85,7 @@ class Test_TraitModelAllele:
     def test_pass_condition(
         self, trait_mean, trait_sd, num_causal, allele_freq, alpha, random_seed
     ):
-        model = trait_model.TraitModelAllele(trait_mean, trait_sd, alpha)
+        model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, alpha)
         assert model.name == "allele"
 
         rng = np.random.default_rng(random_seed)
@@ -99,7 +99,7 @@ class Test_TraitModelAllele:
             ValueError,
             match="Standard deviation of traits should be a non-negative number",
         ):
-            trait_model.TraitModelAllele(0, trait_sd, -1)
+            trait_model.TraitModelAlleleFrequency(0, trait_sd, -1)
 
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1])
     @pytest.mark.parametrize("num_causal", [1, 5])
@@ -107,7 +107,7 @@ class Test_TraitModelAllele:
     @pytest.mark.parametrize("allele_freq", [0.1, 0.99])
     @pytest.mark.parametrize("alpha", [0, 1, 1.1, -1, -1.1])
     def test_zero_sd(self, trait_mean, num_causal, allele_freq, alpha, random_seed):
-        model = trait_model.TraitModelAllele(trait_mean, 0, alpha)
+        model = trait_model.TraitModelAlleleFrequency(trait_mean, 0, alpha)
         assert model.name == "allele"
 
         rng = np.random.default_rng(random_seed)
@@ -118,7 +118,7 @@ class Test_TraitModelAllele:
 
     @pytest.mark.parametrize("num_causal", [0.1, -1.0])
     def test_num_causal_value(self, num_causal):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
         rng = np.random.default_rng(1)
         with pytest.raises(
             ValueError, match="Number of causal sites should be a positive integer"
@@ -127,7 +127,7 @@ class Test_TraitModelAllele:
 
     @pytest.mark.parametrize("num_causal", ["a", "1", None])
     def test_num_causal_type(self, num_causal):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
         rng = np.random.default_rng(1)
         with pytest.raises(
             TypeError, match="Number of causal sites should be a number"
@@ -136,7 +136,7 @@ class Test_TraitModelAllele:
 
     @pytest.mark.parametrize("num_causal", [0, -1])
     def test_num_causal_negative(self, num_causal):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
         rng = np.random.default_rng(3)
         with pytest.raises(
             ValueError, match="Number of causal sites should be a positive integer"
@@ -145,14 +145,14 @@ class Test_TraitModelAllele:
 
     @pytest.mark.parametrize("rng", [1, 1.1, "a"])
     def test_rng(self, rng):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
 
         with pytest.raises(TypeError, match="rng should be a numpy random generator"):
             model.sim_effect_size(5, 0.5, rng)
 
     @pytest.mark.parametrize("allele_freq", [0.0, 1.0, -0.1, 1.01])
     def test_allele_freq_value_value(self, allele_freq):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
         rng = np.random.default_rng(1)
 
         with pytest.raises(
@@ -162,7 +162,7 @@ class Test_TraitModelAllele:
 
     @pytest.mark.parametrize("allele_freq", ["a", [1, 1]])
     def test_allele_freq_value_type(self, allele_freq):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
         rng = np.random.default_rng(1)
 
         with pytest.raises(TypeError, match="Allele frequency should be a number"):
@@ -171,7 +171,7 @@ class Test_TraitModelAllele:
     @pytest.mark.parametrize("alpha", [[1, 1], "a", {"alpha": 1}, None])
     def test_alpha_type(self, alpha):
         with pytest.raises(TypeError, match="Alpha should be a number"):
-            trait_model.TraitModelAllele(0, 1, alpha)
+            trait_model.TraitModelAlleleFrequency(0, 1, alpha)
 
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1])
     @pytest.mark.parametrize("trait_sd", [0.1, 1])
@@ -181,7 +181,7 @@ class Test_TraitModelAllele:
     def test_alpha_zero(
         self, trait_mean, trait_sd, num_causal, allele_freq, random_seed
     ):
-        model1 = trait_model.TraitModelAllele(trait_mean, trait_sd, 0)
+        model1 = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, 0)
         model2 = trait_model.TraitModelAdditive(trait_mean, trait_sd)
         assert model1.name == "allele"
         assert model2.name == "additive"

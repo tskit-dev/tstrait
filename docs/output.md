@@ -17,7 +17,7 @@ The outputs of the {func}`.sim_phenotype` function are two dataclass objects. Th
 
 Randomness is controlled in **tstrait** through `random_seed`. It is used to generate [numpy.random.Generator](https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator) object, such that the simulation output will be the same when the `random_seed` is set to be the same value.
 
-In the below example, we will be simulating 5 individuals with 3 causal sites from {class}`.TraitModelAllele` model. The other simulation parameters are set to be the same as the example in the [Quickstart](quickstart.md) page.
+In the below example, we will be simulating 5 individuals with 3 causal sites from {class}`.TraitModelAlleleFrequency` model. The other simulation parameters are set to be the same as the example in the [Quickstart](quickstart.md) page.
 
 ```{code-cell} ipython3
 import msprime
@@ -28,7 +28,7 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
                           population_size=10**4, random_seed=1)
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
-model = tstrait.TraitModelAllele(trait_mean=0, trait_sd=1, alpha=-0.3)
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
 phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=3, model=model,
                                                          h2=0.3, random_seed=1)
 ```

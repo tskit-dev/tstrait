@@ -97,7 +97,7 @@ class TraitModelAdditive(TraitModel):
         return beta
 
 
-class TraitModelAllele(TraitModel):
+class TraitModelAlleleFrequency(TraitModel):
     """Allele frequency trait model class, where the distribution of effect size
     depends on allele frequency.
 

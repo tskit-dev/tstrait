@@ -45,7 +45,7 @@ This lists the detailed documentation for the tstrait Python API.
 ```
 
 ```{eval-rst}
-.. autoclass:: tstrait.TraitModelAllele
+.. autoclass:: tstrait.TraitModelAlleleFrequency
     :members: sim_effect_size
 ```
 

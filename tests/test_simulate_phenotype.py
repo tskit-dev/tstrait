@@ -97,7 +97,7 @@ class Test_sim_phenotype_output_dim:
     @pytest.mark.parametrize("h2", [0.1, 0.5])
     @pytest.mark.parametrize("random_seed", [1, 2])
     def test_output_dim_Allele(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model.TraitModelAllele(0, 1, -1)
+        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )

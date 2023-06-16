@@ -5,7 +5,7 @@ from tstrait.simulate_phenotype import (
     PhenotypeResult,
 )
 
-from tstrait.trait_model import TraitModel, TraitModelAdditive, TraitModelAllele
+from tstrait.trait_model import TraitModel, TraitModelAdditive, TraitModelAlleleFrequency
 
 __all__ = [
     "sim_phenotype",
@@ -14,5 +14,5 @@ __all__ = [
     "PhenotypeResult",
     "TraitModel",
     "TraitModelAdditive",
-    "TraitModelAllele",
+    "TraitModelAlleleFrequency",
 ]
