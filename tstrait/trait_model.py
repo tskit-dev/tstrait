@@ -125,9 +125,10 @@ class TraitModelAlleleFrequency(TraitModel):
         This method initially simulates an effect size from
         :func:`TraitModel.sim_effect_size`. Afterwards, it will be multiplied by a
         constant that depends on `allele_freq` and `alpha` input of
-        :class:`TraitModelAllele`. Negative `alpha` value can increase the magnitude
-        of effect sizes coming from rarer variants. The effects of allele frequency
-        on simulating effect size can be ignored by setting `alpha` to be zero.
+        :class:`TraitModelAlleleFrequency`. Negative `alpha` value can increase the
+        magnitude of effect sizes coming from rarer variants. The effects of allele
+        frequency on simulating effect size can be ignored by setting `alpha` to be
+        zero.
 
         :param num_causal: Number of causal sites
         :type num_causal: int
