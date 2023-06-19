@@ -73,6 +73,63 @@ def sim_tree_seq():
     return ts
 
 
+def sim_tree_internal():
+    """
+    The following tree sequence will be generated:
+
+        6
+     4━━┻━━5
+    ┏┻━┓  ┏┻━┓
+    0  1  2  3
+
+    Individual 0: Node 4 and 5
+    Individual 1: Node 2 and 3
+    Individual 3: Node 4 and 5
+
+    Site 0 Ancestral State: "A"
+        Causal Mutation: Node 4
+
+    Site 1 Ancestral State: "A"
+        Causal Mutation: Node 2
+
+    Site 0 Genotype:
+        [T, T, A, A, T, A]
+        Individual 0: 1 causal
+        Individual 1: 2 causal
+        Individual 2: 0 causal
+
+    Site 1 Genotype:
+        [A, A, T, A, A, A]
+        Individual 0: 0 causal
+        Individual 1: 0 causal
+        Individual 2: 1 causal
+    """
+    ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
+
+    tables = ts.dump_tables()
+    for j in range(2):
+        tables.sites.add_row(j, "A")
+
+    tables.individuals.add_row()
+    tables.individuals.add_row()
+    tables.individuals.add_row()
+    individuals = tables.nodes.individual
+    individuals[0] = 1
+    individuals[1] = 1
+    individuals[2] = 2
+    individuals[3] = 2
+    individuals[4] = 0
+    individuals[5] = 0
+    tables.nodes.individual = individuals
+
+    tables.mutations.add_row(site=0, node=4, derived_state="T")
+    tables.mutations.add_row(site=1, node=2, derived_state="T")
+
+    ts = tables.tree_sequence()
+
+    return ts
+
+
 class Test:
     def __init__(self, basedir, cl_name):
         self.basedir = basedir
@@ -121,36 +178,35 @@ class Test:
 
 
 class TestGenetic(Test):
-    """
-    Genotype of individuals:
-
-    Site 0 Genotype:
-        [A, A, T, T, A, T]
-        Ancestral state: A
-        Causal allele freq: 0.5
-        Individual 0: 0 causal
-        Individual 1: 2 causal
-        Individual 2: 1 causal
-
-    Site 1 Genotype:
-        [A, A, A, A, A, T]
-        Ancestral state: T
-        Causal allele freq: 1/6
-        Individual 0: 0 causal
-        Individual 1: 0 causal
-        Individual 2: 1 causal
-
-    Effect size distribution:
-
-    SD Formula:
-        trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
-        sqrt(2) from 2 causal sites
-
-    Environmental noise is simulated from a normal distribution where standard
-    deviation depends on the variance of the simulated genetic values
-    """
-
     def test_normal(self):
+        """
+        Genotype of individuals:
+
+        Site 0 Genotype:
+            [A, A, T, T, A, T]
+            Ancestral state: A
+            Causal allele freq: 0.5
+            Individual 0: 0 causal
+            Individual 1: 2 causal
+            Individual 2: 1 causal
+
+        Site 1 Genotype:
+            [A, A, A, A, A, T]
+            Ancestral state: T
+            Causal allele freq: 1/6
+            Individual 0: 0 causal
+            Individual 1: 0 causal
+            Individual 2: 1 causal
+
+        Effect size distribution:
+
+        SD Formula:
+            trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
+            sqrt(2) from 2 causal sites
+
+        Environmental noise is simulated from a normal distribution where standard
+        deviation depends on the variance of the simulated genetic values
+        """
         rng = np.random.default_rng(1)
         alpha_array = np.array([0, -0.3])
         trait_mean_array = np.array([0, 1])
@@ -170,7 +226,7 @@ class TestGenetic(Test):
             trait_mean = element[1]
             trait_sd = element[2]
             h2 = element[3]
-            model = trait_model.TraitModelAllele(trait_mean, trait_sd, alpha)
+            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, alpha)
             genetic0 = np.zeros(1000)
             genetic1 = np.zeros(1000)
             genetic2 = np.zeros(1000)
@@ -199,19 +255,24 @@ class TestGenetic(Test):
                 trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
             )
 
+            effect_size_mean0 = trait_mean * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+            effect_size_mean1 = trait_mean * np.sqrt(
+                pow(2 * 1 / 6 * (1 - 1 / 6), alpha)
+            )
+
             ind_sd1 = effect_size_sd0 * 2
             ind_sd2 = np.sqrt((effect_size_sd0**2) + (effect_size_sd1**2))
 
             self.plot_qq_normal(
                 data=genetic1,
-                loc=2 * trait_mean,
+                loc=2 * effect_size_mean0,
                 scale=ind_sd1,
                 filename=f"ind_1_genetic_{count}",
                 title=f"Individual 1 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
             )
             self.plot_qq_normal(
                 data=genetic2,
-                loc=2 * trait_mean,
+                loc=effect_size_mean0 + effect_size_mean1,
                 scale=ind_sd2,
                 filename=f"ind_2_genetic_{count}",
                 title=f"Individual 2 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
@@ -221,8 +282,8 @@ class TestGenetic(Test):
             env_sim = np.zeros(1000)
 
             for i in range(1000):
-                x1 = rng.normal(loc=trait_mean, scale=effect_size_sd0)
-                x2 = rng.normal(loc=trait_mean, scale=effect_size_sd1)
+                x1 = rng.normal(loc=effect_size_mean0, scale=effect_size_sd0)
+                x2 = rng.normal(loc=effect_size_mean1, scale=effect_size_sd1)
                 genetic_sim[0] = 0
                 genetic_sim[1] = 2 * x1
                 genetic_sim[2] = x1 + x2
@@ -257,6 +318,104 @@ class TestGenetic(Test):
             count += 1
 
 
+class TestInternal(Test):
+    def test_internal(self):
+        """
+        Genotype of individuals:
+
+        Site 0 Genotype:
+            [T, T, A, A, T, A]
+            Ancestral state: A
+            Causal allele freq: 0.5
+            Individual 0: 1 causal
+            Individual 1: 2 causal
+            Individual 2: 0 causal
+
+        Site 1 Genotype:
+            [A, A, T, A, A, A]
+            Ancestral state: A
+            Causal allele freq: 1/6
+            Individual 0: 0 causal
+            Individual 1: 0 causal
+            Individual 2: 1 causal
+
+        Effect size distribution:
+
+        SD Formula:
+            trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
+            sqrt(2) from 2 causal sites
+
+        Environmental noise is simulated from a normal distribution where standard
+        deviation depends on the variance of the simulated genetic values
+        """
+
+        ts = sim_tree_internal()
+
+        alpha_array = np.array([0, -1])
+        trait_mean_array = np.array([0, 1])
+        trait_sd_array = np.array([1, 2])
+        h2_array = np.array([0.3, 0.8])
+
+        count = 0
+
+        prod = itertools.product(
+            alpha_array, trait_mean_array, trait_sd_array, h2_array
+        )
+
+        for element in prod:
+            alpha = element[0]
+            trait_mean = element[1]
+            trait_sd = element[2]
+            h2 = element[3]
+            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, alpha)
+            genetic0 = np.zeros(1000)
+            genetic1 = np.zeros(1000)
+            genetic2 = np.zeros(1000)
+
+            for i in range(1000):
+                phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+                    ts, num_causal=2, model=model, h2=h2, random_seed=i
+                )
+                genetic0[i] = phenotype_result.genetic_value[0]
+                genetic1[i] = phenotype_result.genetic_value[1]
+                genetic2[i] = phenotype_result.genetic_value[2]
+
+            effect_size_sd0 = (
+                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+            )
+            effect_size_sd1 = (
+                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
+            )
+            effect_size_mean0 = trait_mean * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+            effect_size_mean1 = trait_mean * np.sqrt(
+                pow(2 * 1 / 6 * (1 - 1 / 6), alpha)
+            )
+
+            self.plot_qq_normal(
+                data=genetic0,
+                loc=effect_size_mean0,
+                scale=effect_size_sd0,
+                filename=f"internal_ind_0_genetic_{count}",
+                title=f"Individual 0 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+            )
+            self.plot_qq_normal(
+                data=genetic1,
+                loc=2 * effect_size_mean0,
+                scale=2 * effect_size_sd0,
+                filename=f"internal_ind_1_genetic_{count}",
+                title=f"Individual 1 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+            )
+            self.plot_qq_normal(
+                data=genetic2,
+                loc=effect_size_mean1,
+                scale=effect_size_sd1,
+                filename=f"internal_ind_2_genetic_{count}",
+                title=f"Individual 2 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+            )
+
+            count += 1
+
+
 def run_tests(suite, output_dir):
     print(f"[+] Test suite contains {len(suite)} tests.")
     for cl_name in suite:
@@ -265,4 +424,4 @@ def run_tests(suite, output_dir):
 
 
 if __name__ == "__main__":
-    run_tests(["TestGenetic"], "_output/stats_tests_output")
+    run_tests(["TestGenetic", "TestInternal"], "_output/stats_tests_output")
