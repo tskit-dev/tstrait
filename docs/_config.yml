@@ -61,14 +61,6 @@ sphinx:
         stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
         numpy: ["https://numpy.org/doc/stable/", null]
 
-      
-      ## Do I need these sentences? ##
-      breathe_projects: {"tstrait": "doxygen/xml"}
-      breathe_default_project: "tstrait"
-      breathe_domain_by_extension: {"h": "c"}
-      breathe_show_define_initializer: True
-      #####
-
       autodoc_member_order: bysource
 
       # Without this option, autodoc tries to put links for all return types
