@@ -3,13 +3,14 @@ import numbers
 
 
 class TraitModel:
-    """Superclass of the trait model.
+    """Superclass of the trait model. See the :ref:`sec_trait_model` section for
+    more details on the available models and examples.
 
-    :param model_name: Name of the trait model
+    :param model_name: Name of the trait model.
     :type model_name: str
-    :param trait_mean: Mean value of the simulated traits
+    :param trait_mean: Mean value of the simulated effect sizes.
     :type trait_mean: float
-    :param trait_sd: Standard deviation of the simulated traits
+    :param trait_sd: Standard deviation of the simulated effect sizes.
     :type trait_sd: float
     """
 
@@ -32,13 +33,13 @@ class TraitModel:
         follows a normal distribution with a constant standard deviation. The
         `allele_freq` input is not used to simulate an effect size.
 
-        :param num_causal: Number of causal sites
+        :param num_causal: Number of causal sites.
         :type num_causal: int
-        :param allele_freq: Allele frequency of the causal mutation
+        :param allele_freq: Allele frequency of the causal mutation.
         :type allele_freq: float
-        :param rng: Random generator that will be used to simulate effect size
+        :param rng: Random generator that will be used to simulate effect size.
         :type rng: numpy.random.Generator
-        :return: Simulated effect size of a causal mutation
+        :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
         if not isinstance(num_causal, numbers.Number):
@@ -68,11 +69,13 @@ class TraitModel:
 
 class TraitModelAdditive(TraitModel):
     """Additive trait model class, where the distribution of effect size does not
-    depend on allele frequency.
+    depend on allele frequency. The effect size will be simulated from a normal
+    distribution. See the :ref:`sec_trait_model_additive` section for more details on
+    this model.
 
-    :param trait_mean: Mean value of the simulated traits
+    :param trait_mean: Mean value of the simulated effect sizes.
     :type trait_mean: float
-    :param trait_sd: Standard deviation of the simulated traits
+    :param trait_sd: Standard deviation of the simulated effect sizes.
     :type trait_sd: float
     """
 
@@ -81,16 +84,16 @@ class TraitModelAdditive(TraitModel):
 
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
-        This method uses :func:`TraitModel.sim_effect_size` to simulate an effect size
+        This method uses `sim_effect_size` from `TraitModel` to simulate an effect size
         of a causal mutation.
 
-        :param num_causal: Number of causal sites
+        :param num_causal: Number of causal sites.
         :type num_causal: int
-        :param allele_freq: Allele frequency of causal mutation
+        :param allele_freq: Allele frequency of causal mutation.
         :type allele_freq: float
-        :param rng: Random generator that will be used to simulate effect size
+        :param rng: Random generator that will be used to simulate effect size.
         :type rng: numpy.random.Generator
-        :return: Simulated effect size of a causal mutation
+        :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
         beta = super().sim_effect_size(num_causal, allele_freq, rng)
@@ -104,13 +107,17 @@ class TraitModelAlleleFrequency(TraitModel):
     The `alpha` parameter modifies the relative emphasis placed on rarer variants to
     simulate the effect sizes of causal mutations. The same results as the
     :class:`TraitModelAdditive` model can be determined by setting the `alpha`
-    parameter to be zero.
+    parameter to be zero. See the :ref:`sec_trait_model_allele` section for more details
+    on the model.
 
-    :param trait_mean: Mean value of the simulated traits
+    :param trait_mean: Mean value of the simulated traits.
     :type trait_mean: float
-    :param trait_sd: Standard deviation of the simulated traits
+    :param trait_sd: Standard deviation of the simulated traits.
     :type trait_sd: float
-    :param alpha: Parameter that determines the relative weight on rarer variants
+    :param alpha: Parameter that determines the relative weight on rarer variants.
+        Negative `alpha` value can increase the magnitude of effect sizes coming
+        from rarer variants. The effects of allele frequency on effect size
+        simulation can be ignored by setting `alpha` to be zero.
     :type alpha: float
     """
 
