@@ -11,11 +11,11 @@ kernelspec:
   name: python3
 ---
 
+(sec_output)=
+
 # Output
 
 The outputs of the {func}`.sim_phenotype` function are two dataclass objects. The first output is a {class}`.PhenotypeResult` object, which includes simulated information regarding the individuals. The second output is a {class}`.GeneticValueResult` object, which includes simulated information regarding the causal sites.
-
-Randomness is controlled in **tstrait** through `random_seed`. It is used to generate [numpy.random.Generator](https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator) object, such that the simulation output will be the same when the `random_seed` is set to be the same value.
 
 In the below example, we will be simulating 5 individuals with 3 causal sites from {class}`.TraitModelAlleleFrequency` model. The other simulation parameters are set to be the same as the example in the [Quickstart](quickstart.md) page.
 
@@ -33,7 +33,11 @@ phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=3, model
                                                          h2=0.3, random_seed=1)
 ```
 
-We now extract information from `phenotype_result`.
+(sec_output_phenotype)=
+
+## Individual
+
+In the below code, we extract information from `phenotype_result`, which is a {class}`.PhenotypeResult` object that includes information regarding the individuals.
 
 ```{code-cell} ipython3
 print("Individual ID:", phenotype_result.individual_id)
@@ -42,9 +46,19 @@ print("Environmental Noise:", phenotype_result.environment_noise)
 print("Genetic Value:", phenotype_result.genetic_value)
 ```
 
-In the above output, phenotype, environmental noise and genetic value are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects, which are aligned based on individual IDs. Since we assume an additive model, phenotype is the sum of environmental noise and genetic value.
+In the above output, phenotype, environmental noise and genetic value are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects. Their length is the number of individuals in the input tree sequence data, and the elements are aligned based on individual IDs. The $i$th entry of each array represents the value associated with the $i$th individual. Further information regarding the individuals can be accessed by using the {ref}`Individual Table<tskit:sec_individual_table_definition>` in the tree sequence data through the individual IDs in `phenotype_result.individual_id`.
 
-Next, we extract information from `genetic_result`.
+For example, information regarding the first individual in the output can be obtained as following,
+
+```{code-cell} ipython3
+ts.individual(phenotype_result.individual_id[0])
+```
+
+(sec_output_genetic)=
+
+## Causal Site
+
+Next, we extract information from `genetic_result`, which is a {class}`.GeneticValueResult` object that includes information regarding the causal sites.
 
 ```{code-cell} ipython3
 print("Causal Site ID:", genetic_result.site_id)
@@ -53,6 +67,10 @@ print("Effect Size:", genetic_result.effect_size)
 print("Allele Frequency:", genetic_result.allele_frequency)
 ```
 
-In the above output, causal allele, effect size and allele frequency are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects, which are aligned based on causal site IDs. Causal allele is randomly selected among the mutations in the side, and the allele frequency represents the frequency of the causal allele.
+In the above output, causal allele, effect size and allele frequency are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects. Their length is the number of causal sites in the simulation model, and the elements are aligned based on causal site IDs. The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele is randomly selected among the mutations in the causal side, and the allele frequency represents the frequency of the causal allele. Further information regarding the causal sites can be accessed by using the {ref}`Site Table<tskit:sec_site_table_definition>` in the tree sequence data through the site IDs in `genetic_result.site_id`.
 
-Detailed information regarding the site and individual, such as ancestral state, genomic position and relatedness of individuals, can be obtained by using {ref}`tskit <tskit:sec_introduction>` package.
+For example, information regarding the first causal site in the output can be obtained as following,
+
+```{code-cell} ipython3
+ts.site(genetic_result.site_id[0])
+```
