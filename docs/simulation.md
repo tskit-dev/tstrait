@@ -11,9 +11,13 @@ kernelspec:
   name: python3
 ---
 
-# Simulation Model
+(sec_simulation)=
 
-The definitions of some key terms in this documentation are indicated {ref}`here <tskit:sec_glossary>`.
+# Running Simulation
+
+This model describes how simulations are performed by using **tstrait**. The definitions of some key terms in this documentation are indicated {ref}`here <tskit:sec_glossary>`.
+
+## Phenotype Model
 
 **tstrait** assumes that the individual's phenotypes are obtained from the following additive model,
 
@@ -44,7 +48,84 @@ tstrait.sim_phenotype(ts, num_causal=1000, h2=0.3, model=model)
 
 simulates quantitative traits of individuals in `ts` tree sequence data from `model` trait model with 1000 causal sites and narrow-sense heritability being 0.3.
 
-In the below example, we will be simulating quantitative traits by using the same simulated tree sequence data to show how narrow-sense heritability influences the relationship between genetic values and phenotype.
+(sec_output)=
+
+## Output
+
+We will now be showing the output of **tstrait**. Simulation results in **tstrait** are given by using the {class}`.Result` object. It includes two dataclasses:
+
+- {class}`.PhenotypeResult`: Includes simulated phenotypic information of individuals
+- {class}`.GenotypeResult`: Includes simulated genotypic information of causal sites
+
+To show how the output can be obtained, we will be simulating 5 individuals with 3 causal sites from {class}`.TraitModelAlleleFrequency` model. The other simulation parameters are set to be the same as the example in the [Quickstart](quickstart.md) page.
+
+```{code-cell} ipython3
+import msprime
+import tstrait
+
+num_ind = 5
+ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate=1e-8,
+                          population_size=10**4, random_seed=1)
+ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
+
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
+sim_result = tstrait.sim_phenotype(ts, num_causal=3, model=model, h2=0.3, random_seed=1)
+```
+
+(sec_output_phenotype)=
+
+### Phenotype
+
+In the below code, we extract information from `sim_result.phenotype`, which is a {class}`.PhenotypeResult` object that includes information regarding the individuals.
+
+```{code-cell} ipython3
+print(sim_result.phenotype)
+```
+
+In the above output, phenotype, environmental noise and genetic value are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects. Their length is the number of individuals in the input tree sequence data, and the elements are aligned based on individual IDs. The $i$th entry of each array represents the value associated with the $i$th individual. We can obtain the array of each element as in the following output:
+
+```{code-cell} ipython3
+phenotype_result = sim_result.phenotype
+print(phenotype_result.individual_id)
+```
+
+Further information regarding the individuals can be accessed by using the {ref}`Individual Table<tskit:sec_individual_table_definition>` in the tree sequence data through the individual IDs in `phenotype_result.individual_id`.
+
+For example, information regarding the first individual in the output can be obtained as following,
+
+```{code-cell} ipython3
+ts.individual(phenotype_result.individual_id[0])
+```
+
+(sec_output_genotype)=
+
+### Genotype
+
+Next, we extract information from `sim_result.genotype`, which is a {class}`.GenotypeResult` object that includes information regarding the causal sites.
+
+```{code-cell} ipython3
+print(sim_result.genotype)
+```
+
+In the above output, causal allele, effect size and allele frequency are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects. Their length is the number of causal sites in the simulation model, and the elements are aligned based on causal site IDs. The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele is randomly selected among the mutations in the causal side, and the allele frequency represents the frequency of the causal allele. We can obtain the array of each element as in the following output:
+
+```{code-cell} ipython3
+genotype_result = sim_result.genotype
+print(sim_result.genotype.site_id)
+```
+
+
+Further information regarding the causal sites can be accessed by using the {ref}`Site Table<tskit:sec_site_table_definition>` in the tree sequence data through the site IDs in `genetic_result.site_id`.
+
+For example, information regarding the first causal site in the output can be obtained as following,
+
+```{code-cell} ipython3
+ts.site(genotype_result.site_id[0])
+```
+
+## Heritability
+
+Narrow-sense heritability in **tstrait** controls the variance of the simulated environmental noise. In the below example, we will be simulating quantitative traits by using the simulated tree sequence data to show how narrow-sense heritability influences the relationship between genetic values and phenotype.
 
 ```{code-cell} ipython3
 import msprime
@@ -58,13 +139,13 @@ ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
 ```
 
-1\. $h^2=0.1$
+### Example with $h^2=0.1$
 
 When narrow-sense heritability is set to be a low number, most of phenotypic variation is coming from environmental variance.
 
 ```{code-cell} ipython3
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                         h2=0.1, random_seed=1)
+sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.1, random_seed=1)
+phenotype_result = sim_result.phenotype
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 fig.suptitle('Narrow-sense heritability = 0.1')
@@ -77,13 +158,13 @@ ax2.set_xlim([-4, 4])
 plt.show()
 ```
 
-2\. $h^2=0.9$
+### Example with $h^2=0.9$
 
 When narrow-sense heritability is set to a high number, most of phenotypic variation is coming from additive genetic values, and environmental variance is smaller compared with phenotypic variance.
 
 ```{code-cell} ipython3
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                         h2=0.9, random_seed=1)
+sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.9, random_seed=1)
+phenotype_result = sim_result.phenotype
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 fig.suptitle('Narrow-sense heritability = 0.9')

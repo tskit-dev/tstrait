@@ -27,16 +27,7 @@ This lists the detailed documentation for the tstrait Python API.
 .. autofunction:: tstrait.sim_phenotype
 ```
 
-```{eval-rst}
-.. autoclass:: tstrait.PhenotypeSimulator
-    :members: sim_genetic_value, sim_environment
-```
-
 ### Trait Model
-
-```{eval-rst}
-.. autoclass:: tstrait.TraitModel
-```
 
 ```{eval-rst}
 .. autoclass:: tstrait.TraitModelAdditive
@@ -49,9 +40,13 @@ This lists the detailed documentation for the tstrait Python API.
 ### Result
 
 ```{eval-rst}
+.. autoclass:: tstrait.Result
+```
+
+```{eval-rst}
 .. autoclass:: tstrait.PhenotypeResult
 ```
 
 ```{eval-rst}
-.. autoclass:: tstrait.GeneticValueResult
+.. autoclass:: tstrait.GenotypeResult
 ```

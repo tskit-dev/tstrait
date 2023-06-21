@@ -30,8 +30,10 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                         h2=0.3, random_seed=1)
+sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
+
+phenotype_result = sim_result.phenotype
+genotype_result = sim_result.genotype
 ```
 
 In the above quantitative trait simulation, we set the narrow-sense heritability $h^2$ to be `0.3`, the trait mean to be `0` and the trait standard deviation to be `1`. The parameters of the model are described in detail in [Simulation Model](simulation.md) and [Trait Model](model.md) page. We set the `random_seed` to ensure that the output of the simulation model is the same.
@@ -47,11 +49,11 @@ plt.show()
 The relationship between allele frequency and SNP effect sizes is shown in the scatter plot below.
 
 ```{code-cell} ipython3
-plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
+plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
 plt.show()
 ```
 
-The output of {func}`.sim_phenotype` is described in detail in [Output](output.md) page.
+The output of {func}`.sim_phenotype` is described in detail in {ref}`sec_output` page.

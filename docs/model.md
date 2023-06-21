@@ -15,7 +15,7 @@ kernelspec:
 
 # Trait Model
 
-Trait model determines how SNP effect sizes are simulated. `tstrait` currently supports two trait models, {ref}`sec_trait_model_additive` and {ref}`sec_trait_model_allele`. Trait model is specified in `model` parameter of {func}`.sim_phenotype` in `tstrait`.
+Trait model determines how SNP effect sizes are simulated. **tstrait** currently supports two trait models, {ref}`sec_trait_model_additive` and {ref}`sec_trait_model_allele`. Trait model is specified in `model` parameter of {func}`.sim_phenotype` in **tstrait**.
 
 (sec_trait_model_additive)=
 
@@ -30,10 +30,12 @@ $$
 where $m$ is the number of causal sites inside the model, and $\mu$ and $\sigma$ are specified in `trait_mean` and `trait_sd` arguments when we set the trait model in the simulation. For example,
 
 ```Python
-model = tstrait.TraitModelAddotove(trait_mean=0, trait_sd=1)
+model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
 ```
 
 sets the {class}`.TraitModelAdditive` model with $\mu=0$ and $\sigma=1$.
+
+### Example
 
 In the below example, we will be simulating quantitative traits from {class}`.TraitModelAdditive` by using the simulated tree sequence data to show the relationship between allele frequency and effect size. The distribution of effect size does not depend on the allele frequency.
 
@@ -48,9 +50,12 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
 model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                         h2=0.3, random_seed=1)
-plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
+sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
+
+phenotype_result = sim_result.phenotype
+genotype_result = sim_result.genotype
+
+plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
@@ -80,15 +85,17 @@ The distribution of the effect size in the {class}`.TraitModelAlleleFrequency` m
 
 In the below example, we will be simulating quantitative traits by using the same simulated tree sequence data that was used above to show the relationship between effect sizes and the `alpha` parameter.
 
-1\. Simulation from {class}`.TraitModelAlleleFrequency` with $\alpha$=-0.3:
+### Example with $\alpha$=-0.3:
 
 The simulation model puts some emphasis on effect sizes from rarer variants.
 
 ```{code-cell} ipython3
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                         h2=0.3, random_seed=1)
-plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
+sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
+phenotype_result = sim_result.phenotype
+genotype_result = sim_result.genotype
+
+plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
@@ -98,15 +105,17 @@ plt.show()
 
 We see that effect sizes coming from rarer variants are larger compared with effect sizes from common variants.
 
-2\. Simulation from {class}`.TraitModelAlleleFrequency` with $\alpha$=-0.6:
+### Example with $\alpha$=-0.6:
 
 The simulation model puts greater emphasis on effect sizes from rarer variants compared with the previous model.
 
 ```{code-cell} ipython3
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.6)
-phenotype_result, genetic_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model,
-                                                         h2=0.3, random_seed=1)
-plt.scatter(genetic_result.allele_frequency, genetic_result.effect_size)
+sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
+phenotype_result = sim_result.phenotype
+genotype_result = sim_result.genotype
+
+plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
