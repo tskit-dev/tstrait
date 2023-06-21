@@ -43,11 +43,11 @@ class PhenotypeResult:
 
 @dataclass
 class GenotypeResult:
-    """Data class that contains simulated genotypic information.
+    """Data class that contains simulated genotypic information of causal sites.
 
     For each randomly chosen causal site, this data class object returns causal allele,
     frequency of the causal allele, and simulated effect size, which are aligned based
-    on site IDs. See the :ref:`sec_output_genetic` section for more details on the
+    on site IDs. See the :ref:`sec_output_genotype` section for more details on the
     output of this object.
 
     :param site_id: Causal site IDs
@@ -77,7 +77,8 @@ class GenotypeResult:
 
 @dataclass
 class Result:
-    """Data class that contains the simulated result. See the ...
+    """Data class that contains the simulated result. See the :ref:`sec_output`
+    section for more details on obtaining simulation results from this object.
 
     :param phenotype: A :class:`PhenotypeResult` object that contains simulated
         phenotypic information of individuals.
