@@ -1,7 +1,8 @@
 from tstrait.simulate_phenotype import (
     sim_phenotype,
     PhenotypeSimulator,
-    GeneticValueResult,
+    GenotypeResult,
+    Result,
     PhenotypeResult,
 )
 
@@ -14,7 +15,8 @@ from tstrait.trait_model import (
 __all__ = [
     "sim_phenotype",
     "PhenotypeSimulator",
-    "GeneticValueResult",
+    "Result"
+    "GenotypeResult",
     "PhenotypeResult",
     "TraitModel",
     "TraitModelAdditive",
