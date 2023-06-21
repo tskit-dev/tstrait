@@ -236,9 +236,10 @@ class TestGenetic(Test):
             environment2 = np.zeros(1000)
 
             for i in range(1000):
-                phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+                sim_result = simulate_phenotype.sim_phenotype(
                     ts, num_causal=2, model=model, h2=h2, random_seed=i
                 )
+                phenotype_result = sim_result.phenotype
                 genetic0[i] = phenotype_result.genetic_value[0]
                 genetic1[i] = phenotype_result.genetic_value[1]
                 genetic2[i] = phenotype_result.genetic_value[2]
@@ -373,9 +374,10 @@ class TestInternal(Test):
             genetic2 = np.zeros(1000)
 
             for i in range(1000):
-                phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+                sim_result = simulate_phenotype.sim_phenotype(
                     ts, num_causal=2, model=model, h2=h2, random_seed=i
                 )
+                phenotype_result = sim_result.phenotype
                 genetic0[i] = phenotype_result.genetic_value[0]
                 genetic1[i] = phenotype_result.genetic_value[1]
                 genetic2[i] = phenotype_result.genetic_value[2]

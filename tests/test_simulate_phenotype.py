@@ -46,10 +46,12 @@ class Test_sim_phenotype_output_dim:
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+        sim_result = simulate_phenotype.sim_phenotype(
             ts, num_causal, model, h2, random_seed
         )
-
+        phenotype_result = sim_result.phenotype
+        genetic_result = sim_result.genotype
+        
         assert len(phenotype_result.__dict__) == 4
         assert len(genetic_result.__dict__) == 4
 
@@ -75,9 +77,12 @@ class Test_sim_phenotype_output_dim:
         ts = msprime.sim_mutations(
             ts, rate=0.01, random_seed=random_seed, model="binary"
         )
-        phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+        sim_result = simulate_phenotype.sim_phenotype(
             ts, num_causal, model, h2, random_seed
         )
+        
+        phenotype_result = sim_result.phenotype
+        genetic_result = sim_result.genotype
 
         assert len(phenotype_result.__dict__) == 4
         assert len(genetic_result.__dict__) == 4
@@ -102,9 +107,12 @@ class Test_sim_phenotype_output_dim:
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+        sim_result = simulate_phenotype.sim_phenotype(
             ts, num_causal, model, h2, random_seed
         )
+        
+        phenotype_result = sim_result.phenotype
+        genetic_result = sim_result.genotype
 
         assert len(phenotype_result.__dict__) == 4
         assert len(genetic_result.__dict__) == 4
@@ -129,7 +137,7 @@ class Test_sim_phenotype_input:
     def test_ts(self, ts):
         model = trait_model.TraitModelAdditive(0, 1)
         with pytest.raises(TypeError, match="Input should be a tree sequence data"):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, 2, model, 0.3, 1
             )
 
@@ -143,7 +151,7 @@ class Test_sim_phenotype_input:
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         with pytest.raises(ValueError, match="No mutation in the provided data"):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, num_causal, model, h2, random_seed
             )
 
@@ -154,7 +162,7 @@ class Test_sim_phenotype_input:
         with pytest.raises(
             TypeError, match="Trait model must be an instance of TraitModel"
         ):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, 3, model, 0.3, 2
             )
 
@@ -164,7 +172,7 @@ class Test_sim_phenotype_input:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         model = trait_model.TraitModelAdditive(0, 1)
         with pytest.raises(TypeError, match="Heritability should be a number"):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, 2, model, h2, 1
             )
 
@@ -174,7 +182,7 @@ class Test_sim_phenotype_input:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         model = trait_model.TraitModelAdditive(0, 1)
         with pytest.raises(ValueError, match="Heritability should be 0 <= h2 <= 1"):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, 2, model, h2, 1
             )
 
@@ -187,10 +195,11 @@ class Test_sim_phenotype_input:
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+        sim_result = simulate_phenotype.sim_phenotype(
             ts, num_causal, model, 0, random_seed
         )
-
+        phenotype_result = sim_result.phenotype
+        
         assert np.allclose(
             phenotype_result.phenotype, phenotype_result.environment_noise
         )
@@ -204,10 +213,11 @@ class Test_sim_phenotype_input:
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+        sim_result = simulate_phenotype.sim_phenotype(
             ts, num_causal, model, 1, random_seed
         )
-
+        phenotype_result = sim_result.phenotype
+        
         assert np.allclose(phenotype_result.phenotype, phenotype_result.genetic_value)
         assert np.array_equiv(phenotype_result.environment_noise, np.zeros(num_ind))
 
@@ -219,7 +229,7 @@ class Test_sim_phenotype_input:
         with pytest.raises(
             TypeError, match="Number of causal sites should be an integer"
         ):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, num_causal, model, 0.3, 1
             )
 
@@ -231,7 +241,7 @@ class Test_sim_phenotype_input:
         with pytest.raises(
             ValueError, match="Number of causal sites should be a positive integer"
         ):
-            phenotype_result, genetic_result = simulate_phenotype.sim_phenotype(
+            simulate_phenotype.sim_phenotype(
                 ts, num_causal, model, 0.3, 1
             )
 
