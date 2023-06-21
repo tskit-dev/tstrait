@@ -72,7 +72,7 @@ class GenotypeResult:
             f"\neffect_size: {self.effect_size}"
             f"\nallele_frequency: {self.allele_frequency}"
         )
-        return output    
+        return output
 
 
 @dataclass
