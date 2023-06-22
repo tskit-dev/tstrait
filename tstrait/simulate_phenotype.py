@@ -1,9 +1,10 @@
+import collections
 import numbers
+from dataclasses import dataclass
+
+import numba
 import numpy as np
 import tskit
-import numba
-import collections
-from dataclasses import dataclass
 import tstrait.trait_model as trait_model
 
 
@@ -183,7 +184,8 @@ class PhenotypeSimulator:
 
     def _individual_genotype(self, tree, site, causal_state, num_nodes):
         """
-        Returns a numpy array that describes the number of causal mutation in an individual.
+        Returns a numpy array that describes the number of causal mutation in an
+        individual.
         """
         has_mutation = np.zeros(num_nodes + 1, dtype=bool)
         state_transitions = {tree.virtual_root: site.ancestral_state}
@@ -260,8 +262,8 @@ class PhenotypeSimulator:
 
     def _sim_environment_noise(self, individual_genetic_array):
         """
-        Add environmental noise to the genetic value of individuals given the genetic value
-        of individuals. The simulation assumes the additive model.
+        Add environmental noise to the genetic value of individuals given the genetic
+        value of individuals. The simulation assumes the additive model.
         """
         trait_sd = self.model.trait_sd
         num_ind = len(individual_genetic_array)
@@ -314,27 +316,28 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     and the specified trait model, and returns a :class:`Result` object. See the
     :ref:`sec_output` section for more details on the output of the simulation model.
 
-    :param ts: The tree sequence data that will be used in the quantitative trait simulation.
-        The tree sequence data must include a mutation.
+    :param ts: The tree sequence data that will be used in the quantitative trait
+        simulation. The tree sequence data must include a mutation.
     :type ts: tskit.TreeSequence
-    :param num_causal: Number of causal sites that will be chosen randomly. It should be a
-        positive integer that is greater than the number of sites in the tree sequence data.
+    :param num_causal: Number of causal sites that will be chosen randomly. It should
+        be a positive integer that is greater than the number of sites in the tree
+        sequence data.
     :type num_causal: int
-    :param model: Trait model from :class:`TraitModel` class, which will be used to simulate
-        effect sizes of causal sites. See the :ref:`sec_trait_model` section for more details
-        on the available models and examples.
+    :param model: Trait model from :class:`TraitModel` class, which will be used to
+        simulate effect sizes of causal sites. See the :ref:`sec_trait_model` section
+        for more details on the available models and examples.
     :type model: TraitModel
-    :param h2: Narrow-sense heritability, which will be used to simulate environmental noise.
-        Narrow-sense heritability must be between 0 and 1.
+    :param h2: Narrow-sense heritability, which will be used to simulate environmental
+        noise. Narrow-sense heritability must be between 0 and 1.
     :type h2: float
-    :param random_seed: The random seed. If this is not specified or None, simulation will
-        be done randomly.
+    :param random_seed: The random seed. If this is not specified or None, simulation
+        will be done randomly.
     :type random_seed: None or int
     :return: Returns the :class:`Result` object that includes the simulated information
-        obtained from `tstrait`. The :class:`Result` object includes :class:`PhenotypeResult`
-        object to describe the simulated information regarding the individuals, and the
-        :class:`GenotypeResult` object to describe the simulated information regarding the
-        causal sites.
+        obtained from `tstrait`. The :class:`Result` object includes
+        :class:`PhenotypeResult` object to describe the simulated information regarding
+        the individuals, and the :class:`GenotypeResult` object to describe the simulated
+        information regarding the causal sites.
     :rtype: Result
     """
 
@@ -355,8 +358,8 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
         raise ValueError("No mutation in the provided data")
     if num_causal > num_sites:
         raise ValueError(
-            "There are less number of sites in the tree sequence than the inputted number"
-            "of causal sites"
+            "There are less number of sites in the tree sequence than the inputted "
+            "number of causal sites"
         )
 
     individual_node = ts.nodes_individual[ts.nodes_individual > -1]

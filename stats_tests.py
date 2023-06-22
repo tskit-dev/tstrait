@@ -1,14 +1,16 @@
+import inspect
+import itertools
+import pathlib
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
+import statsmodels.api as sm
 import tskit
 import tstrait.simulate_phenotype as simulate_phenotype
 import tstrait.trait_model as trait_model
-import matplotlib.pyplot as plt
-import numpy as np
-import statsmodels.api as sm
-import scipy.stats as stats
-import itertools
-import inspect
-import pathlib
-import sys
+from tqdm import tqdm
 
 
 def sim_tree_seq():
@@ -221,7 +223,7 @@ class TestGenetic(Test):
             alpha_array, trait_mean_array, trait_sd_array, h2_array
         )
 
-        for element in prod:
+        for element in tqdm(prod, total=16):
             alpha = element[0]
             trait_mean = element[1]
             trait_sd = element[2]
@@ -269,14 +271,16 @@ class TestGenetic(Test):
                 loc=2 * effect_size_mean0,
                 scale=ind_sd1,
                 filename=f"ind_1_genetic_{count}",
-                title=f"Individual 1 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 1 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
             )
             self.plot_qq_normal(
                 data=genetic2,
                 loc=effect_size_mean0 + effect_size_mean1,
                 scale=ind_sd2,
                 filename=f"ind_2_genetic_{count}",
-                title=f"Individual 2 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 2 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
             )
 
             genetic_sim = np.zeros(3)
@@ -297,7 +301,8 @@ class TestGenetic(Test):
                 x_label="Individual 0 Environment",
                 y_label="Simulated values",
                 filename=f"ind_0_env_{count}",
-                title=f"Individual 0 Env, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 0 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
+                f"trait_sd = {trait_sd}, h2 = {h2}",
             )
             self.plot_qq_compare(
                 v1=environment1,
@@ -305,7 +310,8 @@ class TestGenetic(Test):
                 x_label="Individual 1 Environment",
                 y_label="Simulated values",
                 filename=f"ind_1_env_{count}",
-                title=f"Individual 1 Env, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 1 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
+                f"trait_sd = {trait_sd}, h2 = {h2}",
             )
             self.plot_qq_compare(
                 v1=environment2,
@@ -313,7 +319,8 @@ class TestGenetic(Test):
                 x_label="Individual 2 Environment",
                 y_label="Simulated values",
                 filename=f"ind_2_env_{count}",
-                title=f"Individual 2 Env, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 2 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
+                f"trait_sd = {trait_sd}, h2 = {h2}",
             )
 
             count += 1
@@ -363,7 +370,7 @@ class TestInternal(Test):
             alpha_array, trait_mean_array, trait_sd_array, h2_array
         )
 
-        for element in prod:
+        for element in tqdm(prod, total=16):
             alpha = element[0]
             trait_mean = element[1]
             trait_sd = element[2]
@@ -398,21 +405,24 @@ class TestInternal(Test):
                 loc=effect_size_mean0,
                 scale=effect_size_sd0,
                 filename=f"internal_ind_0_genetic_{count}",
-                title=f"Individual 0 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 0 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
             )
             self.plot_qq_normal(
                 data=genetic1,
                 loc=2 * effect_size_mean0,
                 scale=2 * effect_size_sd0,
                 filename=f"internal_ind_1_genetic_{count}",
-                title=f"Individual 1 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 1 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
             )
             self.plot_qq_normal(
                 data=genetic2,
                 loc=effect_size_mean1,
                 scale=effect_size_sd1,
                 filename=f"internal_ind_2_genetic_{count}",
-                title=f"Individual 2 Genetic, alpha = {alpha}, trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Individual 2 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
             )
 
             count += 1
