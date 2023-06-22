@@ -1,10 +1,11 @@
-import pytest
+import functools
+
 import msprime
 import numpy as np
+import pytest
 import tskit
 import tstrait.simulate_phenotype as simulate_phenotype
 import tstrait.trait_model as trait_model
-import functools
 
 
 @functools.lru_cache(maxsize=None)

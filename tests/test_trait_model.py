@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 import tstrait.trait_model as trait_model
 
 
