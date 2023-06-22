@@ -107,8 +107,8 @@ class TraitModelAlleleFrequency(TraitModel):
 
     The `alpha` parameter modifies the relative emphasis placed on rarer variants to
     simulate the effect sizes of causal mutations. The same results as the
-    :class:`TraitModelAdditive` model can be determined by setting the `alpha`
-    parameter to be zero. See the :ref:`sec_trait_model_allele` section for more details
+    :class:`TraitModelAdditive` model can be obtained by setting the `alpha` parameter
+    to be zero. See the :ref:`sec_trait_model_allele` section for more details
     on the model.
 
     :param trait_mean: Mean value of the simulated traits.
@@ -116,9 +116,9 @@ class TraitModelAlleleFrequency(TraitModel):
     :param trait_sd: Standard deviation of the simulated traits.
     :type trait_sd: float
     :param alpha: Parameter that determines the relative weight on rarer variants.
-        Negative `alpha` value can increase the magnitude of effect sizes coming
-        from rarer variants. The effects of allele frequency on effect size
-        simulation can be ignored by setting `alpha` to be zero.
+        A negative `alpha` value can increase the magnitude of effect sizes coming
+        from rarer variants. The frequency dependent architecture can be ignored by
+        setting `alpha` to be zero.
     :type alpha: float
     """
 
