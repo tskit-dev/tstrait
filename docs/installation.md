@@ -11,6 +11,8 @@ kernelspec:
   name: python3
 ---
 
+(sec_installation)=
+
 # Installing tstrait
 
 **tstrait** can be installed by using pip or [conda](https://conda.io/docs/). We recommend using `conda` for most users.

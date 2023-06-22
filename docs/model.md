@@ -37,7 +37,7 @@ sets the {class}`.TraitModelAdditive` model with $\mu=0$ and $\sigma=1$.
 
 ### Example
 
-In the below example, we will be simulating quantitative traits from {class}`.TraitModelAdditive` by using the simulated tree sequence data to show the relationship between allele frequency and effect size. The distribution of effect size does not depend on the allele frequency.
+In the below example, we will be simulating quantitative traits from {class}`.TraitModelAdditive` by using the simulated tree sequence data in {ref}`msprime <msprime:sec_intro>` to show the relationship between allele frequency and effect size. The distribution of effect size does not depend on the allele frequency.
 
 ```{code-cell} ipython3
 import msprime
@@ -73,21 +73,21 @@ $$
     \beta_j\sim N\left(\mu,[2p_j(1-p_j)]^\alpha\cdot \frac{\sigma^2}{m}\right).
 $$
 
-In the above equation, $m$ is the number of causal sites inside the model, which is set in {func}`.sim_phenotype` function. The parameters $\mu$, $\sigma$ and $\alpha$ are specified in `trait_mean`, `trait_sd` and `alpha` arguments when we set the trait model in the simulation. For example,
+In the above equation, $m$ is the number of causal sites inside the simulation model, and it is set in {func}`.sim_phenotype` function. The parameters $\mu$, $\sigma$ and $\alpha$ are specified in `trait_mean`, `trait_sd` and `alpha` arguments when we set the trait model in the simulation. For example,
 
 ```Python
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-1)
 ```
 
-sets the {class}`.TraitModelAlleleFrequency` model with $\mu=0$, $\sigma=0$ and $\alpha=-1$.
+sets the {class}`.TraitModelAlleleFrequency` model with $\mu=0$, $\sigma=1$ and $\alpha=-1$.
 
-The distribution of the effect size in the {class}`.TraitModelAlleleFrequency` model depends on the allele frequency, as it has been shown that rare variants have increased effect sizes compared with common variants. Many simulation studies employ the frequency dependent architecture above with a negative $\alpha$ value, as it increases the magnitude of effect sizes on rare variants. The relationship between $\alpha$ and the predictability of human traits are indicated in [Schoech et al. (2019)](https://doi.org/10.1038/s41467-019-08424-6) and [Speed et al. (2017)](https://doi.org/10.1038/ng.3865). The {ref}`sec_trait_model_additive` model is a special case of {ref}`sec_trait_model_allele` model with $\alpha=0$.
+The distribution of effect size in the {class}`.TraitModelAlleleFrequency` model depends on the allele frequency, as it has been shown that rare variants have increased effect sizes compared with common variants. Many simulation studies employ this frequency dependent architecture with a negative $\alpha$ value, as it increases the magnitude of effect sizes on rare variants. The details of the model and the relationship between $\alpha$ and the predictability of human traits are indicated in [Schoech et al. (2019)](https://doi.org/10.1038/s41467-019-08424-6) and [Speed et al. (2017)](https://doi.org/10.1038/ng.3865). The {ref}`sec_trait_model_additive` model is a special case of {ref}`sec_trait_model_allele` model with $\alpha=0$.
 
-In the below example, we will be simulating quantitative traits by using the same simulated tree sequence data that was used above to show the relationship between effect sizes and the `alpha` parameter.
+In the below example, we will be simulating quantitative traits by using the same simulated tree sequence data that was used in the {ref}`sec_trait_model_additive` example to show the relationship between effect sizes and the `alpha` parameter.
 
 ### Example with $\alpha$=-0.3:
 
-The simulation model puts some emphasis on effect sizes from rarer variants.
+The simulation model puts some emphasis on effect sizes from rarer variants when $\alpha$ is a negative number.
 
 ```{code-cell} ipython3
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
@@ -103,11 +103,9 @@ plt.title("TraitModelAlleleFrequency, alpha = -0.3")
 plt.show()
 ```
 
-We see that effect sizes coming from rarer variants are larger compared with effect sizes from common variants.
-
 ### Example with $\alpha$=-0.6:
 
-The simulation model puts greater emphasis on effect sizes from rarer variants compared with the previous model.
+When $\alpha$ is set to be a smaller number, the simulation model puts greater emphasis on effect sizes from rarer variants compared with the previous example.
 
 ```{code-cell} ipython3
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.6)
