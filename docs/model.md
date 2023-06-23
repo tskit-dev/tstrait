@@ -15,19 +15,19 @@ kernelspec:
 
 # Trait Model
 
-Trait model determines how SNP effect sizes are simulated. **tstrait** currently supports two trait models, {ref}`sec_trait_model_additive` and {ref}`sec_trait_model_allele`. Trait model is specified in `model` parameter of {func}`.sim_phenotype` in **tstrait**.
+The trait model determines how SNP effect sizes are simulated. **tstrait** currently supports two trait models, {ref}`sec_trait_model_additive` and {ref}`sec_trait_model_allele`.
 
 (sec_trait_model_additive)=
 
 ## TraitModelAdditive
 
-This is the trait model class defined in {class}`.TraitModelAdditive`. The effect size $\beta_j$ of SNP $j$ is simulated from a Gaussian distribution,
+With this model, the effect sizes $\beta_j$ of SNP $j$ is simulated from a Gaussian distribution:
 
 $$
 \beta_j\sim N\left(\mu, \frac{\sigma^2}{m}\right),
 $$
 
-where $m$ is the number of causal sites inside the model, and $\mu$ and $\sigma$ are specified in `trait_mean` and `trait_sd` arguments when we set the trait model in the simulation. For example,
+here $m$ is the user-defined number of causal sites, and $\mu$ and $\sigma$ are the specified `trait_mean` and `trait_sd` controlling the shape of the distribution. For example,
 
 ```Python
 model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)

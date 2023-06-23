@@ -1,8 +1,11 @@
 # Welcome!
 
-**tstrait** is a quantitative trait simulator of [tree sequence](https://tskit.dev/learn/) data. It supports the simulation of quantitative traits under the additive model and the allele frequency model, which are described in {ref}`sec_trait_model` page. The details of the simulation model are indicated in {ref}`sec_simulation` page. The input of the simulator will be the succinct tree sequence and the parameters that determine the nature of the simulation algorithm. The succinct tree sequence is a data structure that stores a biological structure known as ancestral recombination graph, and it is the output used in various software libraries, including {ref}`msprime <msprime:sec_intro>`, [SLiM](https://messerlab.org/slim/) and {ref}`stdpopsim <stdpopsim:sec_introduction>`. **tstrait** can simulate quantitative traits of individuals in a tree sequence data with a considerably faster computational speed compared with traditional techniques, as it uses a tree traversal algorithm to analyze tree sequence data.
+**tstrait** is a quantitative trait simulator that uses [tree sequence](https://tskit.dev/learn/) data as input. It supports the simulation of quantitative traits under the various additive models (see {ref}`sec_trait_model`). 
+The details of the simulation model are indicated in {ref}`sec_simulation` page. 
 
-There are a number of resources to learn about tree sequence:
+Succinct tree sequences provide a highly efficient way of storing a set of related DNA sequences by encoding their ancestral history as a set of correlated trees along the genome. This data format is used by various software libraries, including {ref}`msprime <msprime:sec_intro>`, [SLiM](https://messerlab.org/slim/) and {ref}`stdpopsim <stdpopsim:sec_introduction>`. By relying on the underlying tree structure **tstrait** can efficiently simulate quantitative traits for large datasets.
+
+Here is a list of resources to learn more about tree sequences:
 
 - The [tree sequence tutorial](https://tskit.dev/learn/) describes what tree sequences are, and includes tutorials, publications and videos on tree sequence.
 - The {ref}`msprime manual <msprime:sec_intro>` explains how genetic simulations can be conducted by using **msprime**.

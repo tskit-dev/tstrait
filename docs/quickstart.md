@@ -19,7 +19,8 @@ This page provides an example of how to use **tstrait** to simulate quantitative
 
 ## Example
 
-In the following example, we will be using {ref}`msprime <msprime:sec_intro>` to simulate genetic information of 2000 individuals with 1Mb chromosome by using human-like parameters for mutation and recombination rate. We will then be using **tstrait** to simulate quantitative traits of those simulated individuals, assuming that there are 1000 causal sites. We will be setting a trait model {ref}`sec_trait_model_allele`, and simulating quantitative traits of individuals by using the {func}`.sim_phenotype` function. Afterwards, the results will be visualized by using [matplotlib](https://matplotlib.org/) package.
+In the following example, we will use {ref}`msprime <msprime:sec_intro>` to simulate the ancestry of 2000 individuals with mutations, along a 1Mb chromosome. This generates a tree sequence which serves as the input of **tstrait** to simulate quantitative traits for all individuals in our simulated sample.
+
 
 ```{code-cell} ipython3
 import msprime
@@ -38,11 +39,11 @@ phenotype_result = sim_result.phenotype
 genotype_result = sim_result.genotype
 ```
 
-In the above quantitative trait simulation, we set the narrow-sense heritability $h^2$ to be `0.3`, the trait mean to be `0` and the trait standard deviation to be `1`. The parameters of the model are described in detail in {ref}`sec_simulation` and {ref}`sec_trait_model` page. We set the `random_seed` to ensure that the output of the simulation model is the same.
+We first specify {ref}`sec_trait_model_allele`. In this case the model specifies that the effect sizes for the random subset of a 1000 causal variants are a function of allele frequency. The model further requires us to set the narrow-sense heritability $h^2$ and a trait mean and standard deviation. The parameters required for each model are described in detail in {ref}`sec_simulation` and {ref}`sec_trait_model` page.
 
-The output of the {func}`.sim_phenotype` function is described in detail in {ref}`sec_simulation_output` section.
+The output of the {func}`.sim_phenotype` function is twofold. It returns both information on the random set of causal variants (`sim_result.genotype`) as well as the simulated `phenotypes`. All information in the output is described in detail in the {ref}`sec_simulation_output` section.
 
-The distribution of simulated phenotype of 500 individuals is shown in the histogram below.
+We can now visualize the results using [matplotlib](https://matplotlib.org/). The distribution of simulated phenotypes the 2000 individuals is shown in the histogram below.
 
 ```{code-cell} ipython3
 plt.hist(phenotype_result.phenotype, bins=20)

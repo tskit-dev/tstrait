@@ -13,23 +13,23 @@ kernelspec:
 
 (sec_simulation)=
 
-# Running Simulation
+# Running Simulations
 
-This page describes how simulations are performed by using **tstrait**. The definitions of some key terms in this documentation are indicated {ref}`here <tskit:sec_glossary>`.
+This page describes how simulations are performed by using **tstrait**. We refer to the tskit {ref}`docs <tskit:sec_glossary>` for the definition of some key terms in this documentation.
 
 ## Phenotype Model
 
-**tstrait** assumes that the individual's phenotypes are obtained from the following additive model,
+**tstrait** assumes that the vector describing the phenotypes of all individuals can be described by the following additive model,
 
 $$
 y=X\beta+\epsilon.
 $$
 
-In the above equation, $y$ is the vector of phenotypes, $X$ is the matrix that denotes the number of causal alleles inside the individual, $\beta$ is the vector of effect sizes, and $\epsilon$ is the vector of environmental noise.
+In the above equation, $y$ is the phenotype vector, $X$ is the matrix that denotes the absence or presence of the causal alleles for each individual, $\beta$ is the effect size vector, and $\epsilon$ is the environmental noise vector.
 
-The simulation model initially chooses $m$ causal sites at random among the sites in the tree sequence data, and causal allele for each causal site is chosen at random among the non-ancestral allele in the site. For each causal site $i$, **tstrait** simulates the effect size $\beta_i$ based on the inputted trait model. The details of the effect size simulation are described in {ref}`sec_trait_model` page.
+Depending on the specified number of causal sites, $m$ random sites are picked among those in the tree sequence. A causal allele for each causal site is then picked at random anong the non-ancestral alleles present at that site. For each causal site $i$, **tstrait** simulates an effect size $\beta_i$ based on the specified trait model. Details on the different trait models and how to specify them can be found here: {ref}`sec_trait_model`.
 
-After the genetic value, $G=X\beta$, is simulated from the tree sequence data, the environmental noise $\epsilon$ is simulated from
+In a last step, environmental noise $\epsilon$ is added to the genetic component $G=X\beta$. These values are drawn from a normal distribiution:
 
 $$
 \epsilon_j\sim N\left(0,Var(G)\cdot\frac{(1-h^2)}{h^2}\right),
@@ -37,29 +37,27 @@ $$
 
 where $Var(G)$ is the variance of the simulated genetic values and $h^2$ is the narrow-sense heritability which is defined by the user. The phenotypic values of individuals are determined by adding the genetic values and the environmental noise.
 
-It is possible for the user to set $h^2=0$ or $h^2=1$. When $h^2=0$, the phenotype will be exactly the same as the environmental noise, and when $h^2=1$, the environmental noise $\epsilon$ will be a vector of zeros.
+Heritability can be set to $h^2=0$ or $h^2=1$. When $h^2=0$, the phenotype will be exactly the same as the environmental noise, and when $h^2=1$, the environmental noise $\epsilon$ will be a vector of zeros.
 
-The number of causal sites $m$ and the narrow-sense heritability $h^2$ of the simulation model are specified in `num_causal` and `h2` arguments in {func}`.sim_phenotype` function. For example,
+The number of causal sites $m$ and the narrow-sense heritability $h^2$ are specified by the `num_causal` and `h2` arguments in {func}`.sim_phenotype` function. For example,
 
 ```Python
 import tstrait
 tstrait.sim_phenotype(ts, num_causal=1000, h2=0.3, model=model)
 ```
 
-simulates quantitative traits of individuals in `ts` tree sequence data from `model` trait model with 1000 causal sites and narrow-sense heritability being 0.3.
-
-The relationship between narrow-sense heritability and simulation result is shown in {ref}`sec_simulation_heritability` section.
+The relationship between narrow-sense heritability and the simulation result is shown here: {ref}`sec_simulation_heritability`.
 
 (sec_simulation_output)=
 
 ## Output
 
-We will now be showing how to extract simulation results from the output of **tstrait**. **tstrait** returns a {class}`.Result` object as an output, and  it includes two dataclasses:
+**tstrait** returns a {class}`.Result` object. This object consists of two dataclasses:
 
 - {class}`.PhenotypeResult`: Includes simulated phenotypic information of individuals
 - {class}`.GenotypeResult`: Includes simulated genotypic information of causal sites
 
-To show how the simulation results can be obtained from **tstrait**, we will be simulating quantitative traits of 5 individuals with 3 causal sites from {class}`.TraitModelAlleleFrequency` model. The other simulation parameters are set to be the same as the example in the {ref}`sec_quickstart` page, and individual genomes are simulated through {ref}`msprime <msprime:sec_intro>`.
+To show how the simulation results can be obtained from **tstrait**, we will be simulating quantitative traits of 5 individuals with 3 causal sites.
 
 ```{code-cell} ipython3
 import msprime
@@ -78,20 +76,20 @@ sim_result = tstrait.sim_phenotype(ts, num_causal=3, model=model, h2=0.3, random
 
 ### Phenotype Output
 
-In the below code, we extract information from `sim_result.phenotype`, which is a {class}`.PhenotypeResult` object that includes simulated information regarding the individuals.
+Each {class}`.PhenotypeResult` object contains four [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) of equal length (`TreeSequence.num_individuals`): the first three are the the phenotypes and its genetic and environmental components. The fourth array keeps track of the individual IDs.
 
 ```{code-cell} ipython3
 print(sim_result.phenotype)
 ```
 
-In the above output, phenotype, environmental noise and genetic value are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects. Their length is the number of individuals in the input tree sequence data, and the elements are aligned based on individual IDs. The $i$th entry of each array represents the value associated with the $i$th individual. We can obtain the array of each element as in the following output:
+All arrays are indexed based on the individual IDs. The $i$th entry of each array represents the value associated with the $i$th individual. We can obtain the array of individual ids
 
 ```{code-cell} ipython3
 phenotype_result = sim_result.phenotype
 print(phenotype_result.individual_id)
 ```
 
-Further information regarding the individuals can be accessed by using the {ref}`Individual Table<tskit:sec_individual_table_definition>` in the tree sequence data through the individual IDs in `phenotype_result.individual_id`.
+Further information regarding the individuals can be accessed by using the {ref}`Individual Table<tskit:sec_individual_table_definition>` in the tree sequence data through the individual IDs in `phenotype_result.individual_id`. Note that `phenotype_result.individual_id == np.array(list(ts.individuals()))`
 
 For example, information regarding the first individual in the output can be obtained as following:
 
@@ -103,19 +101,19 @@ ts.individual(phenotype_result.individual_id[0])
 
 ### Genotype Output
 
-Next, we extract information from `sim_result.genotype`, which is a {class}`.GenotypeResult` object that includes simulated information regarding the causal sites.
+Each {class}`.GenotypeResult` object also contains four [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) of equal length (`num_causal`): the first three provide information on the causal allele, its random effect size and its allele frequency. The fourth array keeps track of `site_id` of the causal alleles.
+
 
 ```{code-cell} ipython3
 print(sim_result.genotype)
 ```
 
-In the above output, causal allele, effect size and allele frequency are [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects. Their length is the number of causal sites in the simulation model, and the elements are aligned based on causal site IDs. The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele is randomly selected among the non-ancestral allele in the causal site, and the allele frequency represents the frequency of the causal allele. We can obtain the array of each element as in the following output:
+The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele were randomly selected among the non-ancestral alleles at the causal site, and the allele frequency represents the frequency of the causal allele. We can obtain the array of site ids by running the following code:
 
 ```{code-cell} ipython3
 genotype_result = sim_result.genotype
 print(sim_result.genotype.site_id)
 ```
-
 
 Further information regarding the causal sites can be accessed by using the {ref}`Site Table<tskit:sec_site_table_definition>` in the tree sequence data through the site IDs in `genetic_result.site_id`.
 
@@ -129,7 +127,7 @@ ts.site(genotype_result.site_id[0])
 
 ## Narrow-Sense Heritability
 
-Narrow-sense heritability in **tstrait** controls variance of the simulated environmental noise. In the below example, we will be simulating quantitative traits by using the simulated tree sequence data in {ref}`msprime <msprime:sec_intro>` to show how narrow-sense heritability influences the relationship between environmental noise and phenotype.
+Narrow-sense heritability in **tstrait** controls the variance of the simulated environmental noise. In the below example, we will be simulating quantitative traits by using the simulated tree sequence data in {ref}`msprime <msprime:sec_intro>` to show how narrow-sense heritability influences the relationship between environmental noise and phenotype.
 
 ```{code-cell} ipython3
 import msprime
@@ -145,7 +143,7 @@ model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
 
 ### Example with $h^2=0.1$
 
-When narrow-sense heritability is set to be a low number, most of the phenotypic variation is coming from the environmental variance.
+When the narrow-sense heritability is set to a low number, most of the phenotypic variation is coming from the environmental variance.
 
 ```{code-cell} ipython3
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.1, random_seed=1)
@@ -164,7 +162,7 @@ plt.show()
 
 ### Example with $h^2=0.9$
 
-When narrow-sense heritability is set to a high number, most of the phenotypic variation is coming from the additive genetic variance, and the environmental variance is much smaller compared with the phenotypic variance.
+When the narrow-sense heritability is set to a high number, most of the phenotypic variation is coming from the additive genetic variance, and the environmental variance is much smaller compared to the phenotypic variance.
 
 ```{code-cell} ipython3
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.9, random_seed=1)
