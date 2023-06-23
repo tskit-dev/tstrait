@@ -21,7 +21,7 @@ The trait model determines how SNP effect sizes are simulated. **tstrait** curre
 
 ## TraitModelAdditive
 
-With this model, the effect sizes $\beta_j$ of SNP $j$ is simulated from a Gaussian distribution:
+With this model, the effect size $\beta_j$ of SNP $j$ is simulated from a Gaussian distribution:
 
 $$
 \beta_j\sim N\left(\mu, \frac{\sigma^2}{m}\right),
