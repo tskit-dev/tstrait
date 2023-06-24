@@ -108,7 +108,7 @@ Each {class}`.GenotypeResult` object also contains four [numpy.ndarray](https://
 print(sim_result.genotype)
 ```
 
-The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele were randomly selected among the non-ancestral alleles at the causal site, and the allele frequency represents the frequency of the causal allele. We can obtain the array of site ids by running the following code:
+The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele is randomly selected among the non-ancestral alleles at the causal site, and the allele frequency represents the frequency of the causal allele. We can obtain the array of site ids by running the following code:
 
 ```{code-cell} ipython3
 genotype_result = sim_result.genotype
