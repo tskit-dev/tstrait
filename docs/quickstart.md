@@ -43,7 +43,7 @@ We first specify {ref}`sec_trait_model_allele`. In this case the model specifies
 
 The output of the {func}`.sim_phenotype` function is twofold. It returns both information on the random set of causal variants (`sim_result.genotype`) as well as the simulated phenotypes (`sim_result.phenotype`). All information in the output is described in detail in the {ref}`sec_simulation_output` section.
 
-We can now visualize the results using [matplotlib](https://matplotlib.org/). The distribution of simulated phenotypes the 2000 individuals is shown in the histogram below.
+We can now visualize the results using [matplotlib](https://matplotlib.org/). The distribution of simulated phenotypes of the 2000 individuals in the tree sequence data is shown in the histogram below.
 
 ```{code-cell} ipython3
 plt.hist(phenotype_result.phenotype, bins=20)
