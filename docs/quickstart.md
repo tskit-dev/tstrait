@@ -41,7 +41,7 @@ genotype_result = sim_result.genotype
 
 We first specify {ref}`sec_trait_model_allele`. In this case the model specifies that the effect sizes for the random subset of a 1000 causal variants are a function of allele frequency. The model further requires us to set the narrow-sense heritability $h^2$ and a trait mean and standard deviation. The parameters required for each model are described in detail in {ref}`sec_simulation` and {ref}`sec_trait_model` page.
 
-The output of the {func}`.sim_phenotype` function is twofold. It returns both information on the random set of causal variants (`sim_result.genotype`) as well as the simulated `phenotypes`. All information in the output is described in detail in the {ref}`sec_simulation_output` section.
+The output of the {func}`.sim_phenotype` function is twofold. It returns both information on the random set of causal variants (`sim_result.genotype`) as well as the simulated phenotypes (`sim_result.phenotype`). All information in the output is described in detail in the {ref}`sec_simulation_output` section.
 
 We can now visualize the results using [matplotlib](https://matplotlib.org/). The distribution of simulated phenotypes the 2000 individuals is shown in the histogram below.
 
