@@ -101,7 +101,7 @@ ts.individual(phenotype_result.individual_id[0])
 
 ### Genotype Output
 
-Each {class}`.GenotypeResult` object also contains four [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) of equal length (`num_causal`): the first three provide information on the causal allele, its random effect size and its allele frequency. The fourth array keeps track of `site_id` of the causal alleles.
+Each {class}`.GenotypeResult` object also contains four [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects of equal length (`num_causal`): the first three provide information on the causal allele, its random effect size and its allele frequency. The fourth array keeps track of `site_id` of the causal alleles.
 
 
 ```{code-cell} ipython3
