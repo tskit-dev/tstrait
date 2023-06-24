@@ -29,7 +29,7 @@ In the above equation, $y$ is the phenotype vector, $X$ is the matrix that denot
 
 Depending on the specified number of causal sites, $m$ random sites are picked among those in the tree sequence. A causal allele for each causal site is then picked at random anong the non-ancestral alleles present at that site. For each causal site $i$, **tstrait** simulates an effect size $\beta_i$ based on the specified trait model. Details on the different trait models and how to specify them can be found here: {ref}`sec_trait_model`.
 
-In a last step, environmental noise $\epsilon$ is added to the genetic component $G=X\beta$. These values are drawn from a normal distribiution:
+In the last step, environmental noise $\epsilon$ is added to the genetic component $G=X\beta$. These values are drawn from a normal distribiution:
 
 $$
 \epsilon_j\sim N\left(0,Var(G)\cdot\frac{(1-h^2)}{h^2}\right),
