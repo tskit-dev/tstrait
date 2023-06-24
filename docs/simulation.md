@@ -76,7 +76,7 @@ sim_result = tstrait.sim_phenotype(ts, num_causal=3, model=model, h2=0.3, random
 
 ### Phenotype Output
 
-Each {class}`.PhenotypeResult` object contains four [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) of equal length (`TreeSequence.num_individuals`): the first three are the the phenotypes and its genetic and environmental components. The fourth array keeps track of the individual IDs.
+Each {class}`.PhenotypeResult` object contains four [numpy.ndarray](https://numpy.org/doc/stable/reference/arrays.ndarray.html#arrays-ndarray) objects of equal length (`TreeSequence.num_individuals`): the first three are the the phenotypes and its genetic and environmental components. The fourth array keeps track of the individual IDs.
 
 ```{code-cell} ipython3
 print(sim_result.phenotype)
