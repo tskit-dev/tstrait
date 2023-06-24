@@ -25,7 +25,7 @@ $$
 y=X\beta+\epsilon.
 $$
 
-In the above equation, $y$ is the phenotype vector, $X$ is the matrix that denotes the absence or presence of the causal alleles for each individual, $\beta$ is the effect size vector, and $\epsilon$ is the environmental noise vector.
+In the above equation, $y$ is the phenotype vector, $X$ is the matrix that denotes the number of the causal alleles for each individual, $\beta$ is the effect size vector, and $\epsilon$ is the environmental noise vector.
 
 Depending on the specified number of causal sites, $m$ random sites are picked among those in the tree sequence. A causal allele for each causal site is then picked at random anong the non-ancestral alleles present at that site. For each causal site $i$, **tstrait** simulates an effect size $\beta_i$ based on the specified trait model. Details on the different trait models and how to specify them can be found here: {ref}`sec_trait_model`.
 
