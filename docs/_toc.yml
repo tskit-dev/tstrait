@@ -6,7 +6,9 @@ parts:
   - file: installation
   - file: quickstart
 - caption: Concepts
+  chapters:
   - file: simulation
   - file: model
 - caption: Interface
+  chapters:
   - file: api
