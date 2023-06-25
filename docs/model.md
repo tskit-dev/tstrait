@@ -21,13 +21,13 @@ The trait model determines how SNP effect sizes are simulated. **tstrait** curre
 
 ## TraitModelAdditive
 
-With this model, the effect size $\beta_j$ of SNP $j$ is simulated from a Gaussian distribution:
+With this model, the effect size $\beta_j$ of SNP $j$ is simulated from a Gaussian distribution,
 
 $$
-\beta_j\sim N\left(\mu, \frac{\sigma^2}{m}\right),
+\beta_j\sim N\left(\mu, \frac{\sigma^2}{m}\right).
 $$
 
-here $m$ is the user-defined number of causal sites, and $\mu$ and $\sigma$ are the specified `trait_mean` and `trait_sd` controlling the shape of the distribution. For example,
+Here $m$ is the user-defined number of causal sites, and $\mu$ and $\sigma$ are the specified `trait_mean` and `trait_sd` controlling the shape of the distribution. For example,
 
 ```Python
 model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
