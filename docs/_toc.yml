@@ -1,14 +1,8 @@
 format: jb-book
 root: intro
-parts:
-- caption: Getting started
-  chapters:
-  - file: installation
-  - file: quickstart
-- caption: Concepts
-  chapters:
-  - file: simulation
-  - file: model
-- caption: Interface
-  chapters:
-  - file: api
+chapters:
+- file: installation
+- file: quickstart
+- file: simulation
+- file: model
+- file: api
