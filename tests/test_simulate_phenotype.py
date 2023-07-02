@@ -232,6 +232,19 @@ class Test_sim_phenotype_input:
         ):
             simulate_phenotype.sim_phenotype(ts, num_causal, model, 0.3, 1)
 
+    @pytest.mark.parametrize("num_add", [1, 100])
+    def test_num_causal_value_more(self, num_add):
+        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        num_causal = num_add + ts.num_sites
+        model = trait_model.TraitModelAdditive(0, 1)
+        with pytest.raises(
+            ValueError,
+            match="There are less number of sites in the tree sequence than the "
+            "inputted number of causal sites",
+        ):
+            simulate_phenotype.sim_phenotype(ts, num_causal, model, 0.3, 1)
+
 
 class Test_site_genotypes:
     def test_binary_tree(self):
