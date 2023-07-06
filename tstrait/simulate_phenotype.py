@@ -235,11 +235,6 @@ class PhenotypeSimulator:
         beta_array = np.zeros(self.num_causal)
         allele_frequency = np.zeros(self.num_causal)
 
-        num_trait = len(self.model.trait_mean)
-        if num_trait > 1:
-            individual_genetic_array = np.zeros((self.ts.num_individuals, num_trait))
-            beta_array = np.zeros((self.num_causal, num_trait))
-
         for i, single_id in enumerate(causal_site_array):
             site = self.ts.site(single_id)
             tree.seek(site.position)
