@@ -136,9 +136,9 @@ class Test:
     def __init__(self, basedir, cl_name):
         self.basedir = basedir
         self.name = cl_name
-        self.set_output_dir(basedir, cl_name)
+        self.set_output_dir(cl_name)
 
-    def set_output_dir(self, basedir, cl_name):
+    def set_output_dir(self, cl_name):
         output_dir = pathlib.Path(self.basedir) / cl_name
         output_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir = output_dir
@@ -212,7 +212,7 @@ class TestGenetic(Test):
         rng = np.random.default_rng(1)
         alpha_array = np.array([0, -0.3])
         trait_mean_array = np.array([0, 1])
-        trait_sd_array = np.array([1, 2])
+        trait_var_array = np.array([1, 2])
         h2_array = np.array([0.3, 0.8])
 
         ts = sim_tree_seq()
@@ -220,15 +220,17 @@ class TestGenetic(Test):
         count = 0
 
         prod = itertools.product(
-            alpha_array, trait_mean_array, trait_sd_array, h2_array
+            alpha_array, trait_mean_array, trait_var_array, h2_array
         )
 
         for element in tqdm(prod, total=16):
             alpha = element[0]
             trait_mean = element[1]
-            trait_sd = element[2]
+            trait_var = element[2]
+            trait_sd = np.sqrt(trait_var)
             h2 = element[3]
-            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, alpha)
+            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_var, alpha)
+            trait_mean /= 2
             genetic0 = np.zeros(1000)
             genetic1 = np.zeros(1000)
             genetic2 = np.zeros(1000)
@@ -361,21 +363,23 @@ class TestInternal(Test):
 
         alpha_array = np.array([0, -1])
         trait_mean_array = np.array([0, 1])
-        trait_sd_array = np.array([1, 2])
+        trait_var_array = np.array([1, 2])
         h2_array = np.array([0.3, 0.8])
 
         count = 0
 
         prod = itertools.product(
-            alpha_array, trait_mean_array, trait_sd_array, h2_array
+            alpha_array, trait_mean_array, trait_var_array, h2_array
         )
 
         for element in tqdm(prod, total=16):
             alpha = element[0]
             trait_mean = element[1]
-            trait_sd = element[2]
+            trait_var = element[2]
+            trait_sd = np.sqrt(trait_var)
             h2 = element[3]
-            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, alpha)
+            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_var, alpha)
+            trait_mean /= 2
             genetic0 = np.zeros(1000)
             genetic1 = np.zeros(1000)
             genetic2 = np.zeros(1000)
