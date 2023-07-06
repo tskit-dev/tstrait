@@ -235,6 +235,11 @@ class PhenotypeSimulator:
         beta_array = np.zeros(self.num_causal)
         allele_frequency = np.zeros(self.num_causal)
 
+        num_trait = len(self.model.trait_mean)
+        if num_trait > 1:
+            individual_genetic_array = np.zeros((self.ts.num_individuals, num_trait))
+            beta_array = np.zeros((self.num_causal, num_trait))
+
         for i, single_id in enumerate(causal_site_array):
             site = self.ts.site(single_id)
             tree.seek(site.position)
@@ -268,7 +273,7 @@ class PhenotypeSimulator:
         Add environmental noise to the genetic value of individuals given the genetic
         value of individuals. The simulation assumes the additive model.
         """
-        trait_sd = self.model.trait_sd
+        trait_sd = np.sqrt(self.model.trait_var)
         num_ind = len(individual_genetic_array)
         if self.h2 == 1:
             E = np.zeros(num_ind)
@@ -367,13 +372,12 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
             "There are less number of sites in the tree sequence than the inputted "
             "number of causal sites"
         )
-
-    individual_node = ts.nodes_individual[ts.nodes_individual > -1]
-    individual_node_count = np.bincount(individual_node)
-    if len(individual_node_count) != ts.num_individuals:
-        raise ValueError("All samples must be associated with an individual")
-    if np.any(individual_node_count == 0):
-        raise ValueError("All individuals must be associated with sample nodes")
+    num_dim = len(model.trait_mean)
+    if num_dim != len(h2):
+        raise ValueError(
+            "The dimension of narrow-sense heritability does not match the dimension "
+            "of the trait mean"
+        )
 
     simulator = PhenotypeSimulator(
         ts=ts, num_causal=num_causal, h2=h2, model=model, random_seed=random_seed
