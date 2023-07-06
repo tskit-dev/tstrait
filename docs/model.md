@@ -27,13 +27,13 @@ $$
 \beta_j\sim N\left(\mu, \frac{\sigma^2}{m}\right).
 $$
 
-Here $m$ is the user-defined number of causal sites, and $\mu$ and $\sigma$ are the specified `trait_mean` and `trait_sd` controlling the shape of the distribution. For example,
+Here $m$ is the user-defined number of causal sites, and $\mu$ and $\sigma^2$ are the specified `trait_mean` and `trait_var` controlling the shape of the distribution. For example,
 
 ```Python
-model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
+model = tstrait.TraitModelAdditive(trait_mean=0, trait_var=1)
 ```
 
-sets the {class}`.TraitModelAdditive` model with $\mu=0$ and $\sigma=1$.
+sets the {class}`.TraitModelAdditive` model with $\mu=0$ and $\sigma^2=1$.
 
 ### Example
 
@@ -49,7 +49,7 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
                           population_size=10**4, random_seed=1)
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
-model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
+model = tstrait.TraitModelAdditive(trait_mean=0, trait_var=1)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
 
 plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)
@@ -70,15 +70,15 @@ $$
     \beta_j\sim N\left(\mu,[2p_j(1-p_j)]^\alpha\cdot \frac{\sigma^2}{m}\right).
 $$
 
-In the above equation, $m$ is the number of causal sites inside the simulation model, and it is set in {func}`.sim_phenotype` function. The parameters $\mu$, $\sigma$ and $\alpha$ are specified in `trait_mean`, `trait_sd` and `alpha` arguments when we set the trait model in the simulation. For example,
+In the above equation, $m$ is the number of causal sites inside the simulation model, and it is set in {func}`.sim_phenotype` function. The parameters $\mu$, $\sigma^2$ and $\alpha$ are specified in `trait_mean`, `trait_var` and `alpha` arguments when we set the trait model in the simulation. For example,
 
 ```Python
-model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-1)
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_var=1, alpha=-1)
 ```
 
-sets the {class}`.TraitModelAlleleFrequency` model with $\mu=0$, $\sigma=1$ and $\alpha=-1$.
+sets the {class}`.TraitModelAlleleFrequency` model with $\mu=0$, $\sigma^2=1$ and $\alpha=-1$.
 
-The distribution of effect size in the {class}`.TraitModelAlleleFrequency` model depends on the allele frequency, as it has been shown that rare variants have increased effect sizes compared with common variants. Many simulation studies employ this frequency dependent architecture with a negative $\alpha$ value, as it increases the magnitude of effect sizes on rare variants. The details of the model and the relationship between $\alpha$ and the predictability of human traits are indicated in [Schoech et al. (2019)](https://doi.org/10.1038/s41467-019-08424-6) and [Speed et al. (2017)](https://doi.org/10.1038/ng.3865). The {ref}`sec_trait_model_additive` model is a special case of {ref}`sec_trait_model_allele` model with $\alpha=0$.
+The distribution of effect size in the {class}`.TraitModelAlleleFrequency` model depends on the allele frequency, as it has been shown that rare variants have increased effect sizes compared with common variants. Many simulation studies employ this frequency dependent architecture with a negative $\alpha$ value, as it increases the magnitude of effect sizes on rare variants. The details of the model and the relationship between $\alpha$ and the predictability of human traits are indicated in [Speed et al. (2017)](https://doi.org/10.1038/ng.3865). The {ref}`sec_trait_model_additive` model is a special case of {ref}`sec_trait_model_allele` model with $\alpha=0$.
 
 In the below example, we will be simulating quantitative traits by using the same simulated tree sequence data that was used in the {ref}`sec_trait_model_additive` example to show the relationship between effect sizes and the `alpha` parameter.
 
@@ -87,7 +87,7 @@ In the below example, we will be simulating quantitative traits by using the sam
 The simulation model puts some emphasis on effect sizes from rarer variants when $\alpha$ is a negative number.
 
 ```{code-cell} ipython3
-model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_var=1, alpha=-0.3)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
 
 plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)
@@ -103,7 +103,7 @@ plt.show()
 When $\alpha$ is set to be a smaller number, the simulation model puts greater emphasis on effect sizes from rarer variants compared with the previous example.
 
 ```{code-cell} ipython3
-model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.6)
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_var=1, alpha=-0.6)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
 
 plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)

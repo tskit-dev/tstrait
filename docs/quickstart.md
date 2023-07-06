@@ -32,7 +32,7 @@ ts = msprime.sim_ancestry(num_ind, sequence_length=1_000_000, recombination_rate
                           population_size=10**4, random_seed=1)
 ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
-model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
+model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_var=1, alpha=-0.3)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
 ```
 

@@ -11,22 +11,14 @@ class TraitModel:
     :type model_name: str
     :param trait_mean: Mean value of the simulated effect sizes.
     :type trait_mean: float
-    :param trait_sd: Standard deviation of the simulated effect sizes.
-    :type trait_sd: float
+    :param trait_var: Variance of the simulated effect sizes.
+    :type trait_var: float
     """
 
-    def __init__(self, model_name, trait_mean, trait_sd):
-        if not isinstance(trait_mean, numbers.Number):
-            raise TypeError("Mean value of traits should be a number")
-        if not isinstance(trait_sd, numbers.Number):
-            raise TypeError("Standard deviation of traits should be a number")
-        if trait_sd < 0:
-            raise ValueError(
-                "Standard deviation of traits should be a non-negative number"
-            )
+    def __init__(self, model_name, trait_mean, trait_var):
         self._model_name = model_name
         self.trait_mean = trait_mean
-        self.trait_sd = trait_sd
+        self.trait_var = trait_var
 
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
@@ -52,11 +44,12 @@ class TraitModel:
         if not isinstance(rng, np.random.Generator):
             raise TypeError("rng should be a numpy random generator")
 
-        if self.trait_sd == 0:
-            beta = self.trait_mean
+        if self.trait_var == 0:
+            beta = self.trait_mean / num_causal
         else:
             beta = rng.normal(
-                loc=self.trait_mean, scale=self.trait_sd / np.sqrt(num_causal)
+                loc=self.trait_mean / num_causal,
+                scale=np.sqrt(self.trait_var / num_causal),
             )
         return beta
 
@@ -76,12 +69,12 @@ class TraitModelAdditive(TraitModel):
 
     :param trait_mean: Mean value of the simulated effect sizes.
     :type trait_mean: float
-    :param trait_sd: Standard deviation of the simulated effect sizes.
-    :type trait_sd: float
+    :param trait_var: Variance of the simulated effect sizes.
+    :type trait_var: float
     """
 
-    def __init__(self, trait_mean, trait_sd):
-        super().__init__("additive", trait_mean, trait_sd)
+    def __init__(self, trait_mean, trait_var):
+        super().__init__("additive", trait_mean, trait_var)
 
     def sim_effect_size(self, num_causal, allele_freq, rng):
         """
@@ -111,10 +104,10 @@ class TraitModelAlleleFrequency(TraitModel):
     to be zero. See the :ref:`sec_trait_model_allele` section for more details
     on the model.
 
-    :param trait_mean: Mean value of the simulated traits.
+    :param trait_mean: Mean value of the simulated effect sizes.
     :type trait_mean: float
-    :param trait_sd: Standard deviation of the simulated traits.
-    :type trait_sd: float
+    :param trait_var: Variance of the simulated effect sizes.
+    :type trait_var: float
     :param alpha: Parameter that determines the relative weight on rarer variants.
         A negative `alpha` value can increase the magnitude of effect sizes coming
         from rarer variants. The frequency dependent architecture can be ignored by
@@ -122,8 +115,8 @@ class TraitModelAlleleFrequency(TraitModel):
     :type alpha: float
     """
 
-    def __init__(self, trait_mean, trait_sd, alpha):
-        super().__init__("allele", trait_mean, trait_sd)
+    def __init__(self, trait_mean, trait_var, alpha):
+        super().__init__("allele", trait_mean, trait_var)
         if not isinstance(alpha, numbers.Number):
             raise TypeError("Alpha should be a number")
         self.alpha = alpha
