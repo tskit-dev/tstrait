@@ -762,16 +762,17 @@ class Test_sim_genetic_value:
         tables.mutations.add_row(site=5, node=1, derived_state="A")
 
         ts = tables.tree_sequence()
-        model = trait_model.TraitModelAdditive(trait_mean=2, trait_sd=0)
+        model = trait_model.TraitModelAdditive(trait_mean=2, trait_var=0)
         simulator = simulate_phenotype.PhenotypeSimulator(
             ts, num_causal=6, h2=0, model=model, random_seed=1
         )
         genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
 
-        assert np.array_equal(individual_genetic_array, np.array([4, 16]))
+        assert np.array_equal(individual_genetic_array, np.array([4 / 6, 16 / 6]))
         assert np.array_equal(genotypic_effect_data.site_id, np.arange(6))
         assert np.array_equal(
-            genotypic_effect_data.effect_size, np.array([2, 2, 2, 2, 2, 2])
+            genotypic_effect_data.effect_size,
+            np.array([2 / 6, 2 / 6, 2 / 6, 2 / 6, 2 / 6, 2 / 6]),
         )
         assert np.array_equal(
             genotypic_effect_data.causal_allele,

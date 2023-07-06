@@ -5,37 +5,17 @@ import tstrait.trait_model as trait_model
 
 class Test_TraitModelAdditive:
     @pytest.mark.parametrize("trait_mean", [0, 1.1, -1, np.array([1])[0]])
-    @pytest.mark.parametrize("trait_sd", [0.1, np.array([1])[0]])
+    @pytest.mark.parametrize("trait_var", [0.1, np.array([1])[0]])
     @pytest.mark.parametrize("num_causal", [5, np.array([1])[0]])
     @pytest.mark.parametrize("random_seed", [1, None])
-    def test_pass_condition(self, trait_mean, trait_sd, num_causal, random_seed):
-        model = trait_model.TraitModelAdditive(trait_mean, trait_sd)
+    def test_pass_condition(self, trait_mean, trait_var, num_causal, random_seed):
+        model = trait_model.TraitModelAdditive(trait_mean, trait_var)
         assert model.name == "additive"
 
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal, 0.5, rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("trait_mean", ["a", "1", None, [1, 1]])
-    def test_mean_type(self, trait_mean):
-        with pytest.raises(TypeError, match="Mean value of traits should be a number"):
-            trait_model.TraitModelAdditive(trait_mean, 1)
-
-    @pytest.mark.parametrize("trait_sd", [-0.1, -1])
-    def test_negative_sd(self, trait_sd):
-        with pytest.raises(
-            ValueError,
-            match="Standard deviation of traits should be a non-negative number",
-        ):
-            trait_model.TraitModelAdditive(0, trait_sd)
-
-    @pytest.mark.parametrize("trait_sd", ["a", "1", None])
-    def test_sd_type(self, trait_sd):
-        with pytest.raises(
-            TypeError, match="Standard deviation of traits should be a number"
-        ):
-            trait_model.TraitModelAdditive(0, trait_sd)
 
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1.1])
     @pytest.mark.parametrize("num_causal", [1, 5])
@@ -47,7 +27,7 @@ class Test_TraitModelAdditive:
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal, 0.5, rng)
 
-        assert beta == trait_mean
+        assert beta == trait_mean / num_causal
 
     @pytest.mark.parametrize("num_causal", [0.1, -1.0])
     def test_num_causal_value(self, num_causal):
@@ -77,29 +57,21 @@ class Test_TraitModelAdditive:
 
 class Test_TraitModelAlleleFrequency:
     @pytest.mark.parametrize("trait_mean", [1, 1.1, -1, np.array([0])[0]])
-    @pytest.mark.parametrize("trait_sd", [0.1, 1, np.array([1])[0]])
+    @pytest.mark.parametrize("trait_var", [0.1, 1, np.array([1])[0]])
     @pytest.mark.parametrize("num_causal", [1, 5])
     @pytest.mark.parametrize("random_seed", [1, None])
     @pytest.mark.parametrize("allele_freq", [0.1, np.array([0.5])[0]])
     @pytest.mark.parametrize("alpha", [1, -1, -1.1, np.array([0])[0]])
     def test_pass_condition(
-        self, trait_mean, trait_sd, num_causal, allele_freq, alpha, random_seed
+        self, trait_mean, trait_var, num_causal, allele_freq, alpha, random_seed
     ):
-        model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_sd, alpha)
+        model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_var, alpha)
         assert model.name == "allele"
 
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal, allele_freq, rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("trait_sd", [-0.1, -1])
-    def test_negative_sd(self, trait_sd):
-        with pytest.raises(
-            ValueError,
-            match="Standard deviation of traits should be a non-negative number",
-        ):
-            trait_model.TraitModelAlleleFrequency(0, trait_sd, -1)
 
     @pytest.mark.parametrize("trait_mean", [0, 1, 1.1, -1, -1.1])
     @pytest.mark.parametrize("num_causal", [1, 5])
@@ -113,7 +85,10 @@ class Test_TraitModelAlleleFrequency:
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal, allele_freq, rng)
         assert np.isclose(
-            beta, trait_mean * np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
+            beta,
+            trait_mean
+            * np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
+            / num_causal,
         )
 
     @pytest.mark.parametrize("num_causal", [0.1, -1.0])
