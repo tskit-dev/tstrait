@@ -372,12 +372,6 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
             "There are less number of sites in the tree sequence than the inputted "
             "number of causal sites"
         )
-    num_dim = len(model.trait_mean)
-    if num_dim != len(h2):
-        raise ValueError(
-            "The dimension of narrow-sense heritability does not match the dimension "
-            "of the trait mean"
-        )
 
     simulator = PhenotypeSimulator(
         ts=ts, num_causal=num_causal, h2=h2, model=model, random_seed=random_seed
