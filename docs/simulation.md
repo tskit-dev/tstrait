@@ -85,16 +85,15 @@ print(sim_result.phenotype)
 All arrays are indexed based on the individual IDs. The $i$th entry of each array represents the value associated with the $i$th individual. We can obtain the array of individual ids
 
 ```{code-cell} ipython3
-phenotype_result = sim_result.phenotype
-print(phenotype_result.individual_id)
+print(sim_result.phenotype.individual_id)
 ```
 
-Further information regarding the individuals can be accessed by using the {ref}`Individual Table<tskit:sec_individual_table_definition>` in the tree sequence data through the individual IDs in `phenotype_result.individual_id`. Note that `phenotype_result.individual_id == np.array(list(ts.individuals()))`
+Further information regarding the individuals can be accessed by using the {ref}`Individual Table<tskit:sec_individual_table_definition>` in the tree sequence data through the individual IDs in `sim_result.phenotype.individual_id`. Note that `sim_result.phenotype.individual_id == np.array(list(ts.individuals()))`
 
 For example, information regarding the first individual in the output can be obtained as following:
 
 ```{code-cell} ipython3
-ts.individual(phenotype_result.individual_id[0])
+ts.individual(sim_result.phenotype.individual_id[0])
 ```
 
 (sec_simulation_output_genotype)=
@@ -111,16 +110,15 @@ print(sim_result.genotype)
 The $i$th entry of each array represents the value associated with the $i$th causal site. Causal allele is randomly selected among the non-ancestral alleles at the causal site, and the allele frequency represents the frequency of the causal allele. We can obtain the array of site ids by running the following code:
 
 ```{code-cell} ipython3
-genotype_result = sim_result.genotype
 print(sim_result.genotype.site_id)
 ```
 
-Further information regarding the causal sites can be accessed by using the {ref}`Site Table<tskit:sec_site_table_definition>` in the tree sequence data through the site IDs in `genetic_result.site_id`.
+Further information regarding the causal sites can be accessed by using the {ref}`Site Table<tskit:sec_site_table_definition>` in the tree sequence data through the site IDs in `sim_result.genotype.site_id`.
 
 For example, information regarding the first causal site in the output can be obtained as following:
 
 ```{code-cell} ipython3
-ts.site(genotype_result.site_id[0])
+ts.site(sim_result.genotype.site_id[0])
 ```
 
 (sec_simulation_heritability)=
@@ -147,14 +145,13 @@ When the narrow-sense heritability is set to a low number, most of the phenotypi
 
 ```{code-cell} ipython3
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.1, random_seed=1)
-phenotype_result = sim_result.phenotype
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 fig.suptitle('Narrow-sense heritability = 0.1')
-ax1.hist(phenotype_result.environment_noise, bins=20)
+ax1.hist(sim_result.phenotype.environment_noise, bins=20)
 ax1.set_xlabel("Environmental Noise")
 ax1.set_xlim([-4, 4])
-ax2.hist(phenotype_result.phenotype, bins=20)
+ax2.hist(sim_result.phenotype.phenotype, bins=20)
 ax2.set_xlabel("Phenotype")
 ax2.set_xlim([-4, 4])
 plt.show()
@@ -170,10 +167,10 @@ phenotype_result = sim_result.phenotype
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 fig.suptitle('Narrow-sense heritability = 0.9')
-ax1.hist(phenotype_result.environment_noise, bins=20)
+ax1.hist(sim_result.phenotype.environment_noise, bins=20)
 ax1.set_xlabel("Environmental Noise")
 ax1.set_xlim([-1.5, 1.5])
-ax2.hist(phenotype_result.phenotype, bins=20)
+ax2.hist(sim_result.phenotype.phenotype, bins=20)
 ax2.set_xlabel("Phenotype")
 ax2.set_xlim([-1.5, 1.5])
 plt.show()

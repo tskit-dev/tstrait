@@ -34,9 +34,6 @@ ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
-
-phenotype_result = sim_result.phenotype
-genotype_result = sim_result.genotype
 ```
 
 We first specify {ref}`sec_trait_model_allele`. In this case the model specifies that the effect sizes for the random subset of a 1000 causal variants are a function of allele frequency. The model further requires us to set the narrow-sense heritability $h^2$ and a trait mean and standard deviation. The parameters required for each model are described in detail in {ref}`sec_simulation` and {ref}`sec_trait_model` page.
@@ -46,7 +43,7 @@ The output of the {func}`.sim_phenotype` function is twofold. It returns both in
 We can now visualize the results using [matplotlib](https://matplotlib.org/). The distribution of simulated phenotypes of the 2000 individuals in the tree sequence data is shown in the histogram below.
 
 ```{code-cell} ipython3
-plt.hist(phenotype_result.phenotype, bins=20)
+plt.hist(sim_result.phenotype.phenotype, bins=20)
 plt.xlabel("Phenotype")
 plt.show()
 ```
@@ -54,7 +51,7 @@ plt.show()
 The relationship between causal allele frequency and effect size for each causal site is shown in the scatter plot below.
 
 ```{code-cell} ipython3
-plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
+plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)
 plt.xlabel("Causal allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')

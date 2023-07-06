@@ -52,10 +52,7 @@ ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=1)
 model = tstrait.TraitModelAdditive(trait_mean=0, trait_sd=1)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
 
-phenotype_result = sim_result.phenotype
-genotype_result = sim_result.genotype
-
-plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
+plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
@@ -92,10 +89,8 @@ The simulation model puts some emphasis on effect sizes from rarer variants when
 ```{code-cell} ipython3
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.3)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
-phenotype_result = sim_result.phenotype
-genotype_result = sim_result.genotype
 
-plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
+plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
@@ -110,10 +105,8 @@ When $\alpha$ is set to be a smaller number, the simulation model puts greater e
 ```{code-cell} ipython3
 model = tstrait.TraitModelAlleleFrequency(trait_mean=0, trait_sd=1, alpha=-0.6)
 sim_result = tstrait.sim_phenotype(ts, num_causal=1000, model=model, h2=0.3, random_seed=1)
-phenotype_result = sim_result.phenotype
-genotype_result = sim_result.genotype
 
-plt.scatter(genotype_result.allele_frequency, genotype_result.effect_size)
+plt.scatter(sim_result.genotype.allele_frequency, sim_result.genotype.effect_size)
 plt.xlabel("Allele frequency")
 plt.ylabel("Effect size")
 plt.axhline(y=0, color='r', linestyle='-')
