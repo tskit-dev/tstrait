@@ -60,7 +60,6 @@ class TraitModel:
         """
         return self._model_name
 
-
 class TraitModelAdditive(TraitModel):
     """Additive trait model class, where the distribution of effect size does not
     depend on allele frequency. The effect size will be simulated from a normal
@@ -146,67 +145,42 @@ class TraitModelAlleleFrequency(TraitModel):
         beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
         return beta
 
-class TraitModelMultivariate(TraitModel):
-    """Trait model class of multiple traits.
+def dominance_genetic_value(genotype, effect_size, dominance_effect):
+    genetic_value = np.zeros(len(genotype))
+    for i, individual_genotype in genotype:
+        if individual_genotype == 2:
+            genetic_value[i] = 2 * effect_size
+        elif individual_genotype == 1:
+            genetic_value[i] = effect_size + dominance_effect
     
-    We assume that the phenotypes are pleiotropic, meaning that the genes are
-    influencing more than one trait. See the :ref:`sec_trait_model_multivariate`
-    section for more details on the model.
+    return genetic_value
 
-    :param trait_mean: Mean vector of the simulated effect sizes.
-    :type trait_mean: float
-    :param trait_var: Covariance matrix of the simulated effect sizes.
-    :type trait_var: float
-    :param alpha: Parameter that determines the relative weight on rarer variants.
-        A negative `alpha` value can increase the magnitude of effect sizes coming
-        from rarer variants. The frequency dependent architecture can be ignored by
-        setting `alpha` to be zero.
-    :type alpha: float
-    """
-
-    def __init__(self, trait_mean, trait_var, alpha):
-        if len(trait_mean) != len(trait_var):
-            raise ValueError(
-            "The dimension of trait mean does not match the dimension of the "
-            "covariance matrix"
-        )
-        super().__init__("allele", trait_mean, trait_var)
-        if not isinstance(alpha, numbers.Number):
-            raise TypeError("Alpha should be a number")
-        self.alpha = alpha
-
-    def sim_effect_size(self, num_causal, allele_freq, rng):
-        """
-        This method initially simulates an effect size, and multiplies it by a
-        constant that depends on `allele_freq` and `alpha` input of
-        :class:`TraitModelMultivariate`. Negative `alpha` value can increase the
-        magnitude of effect sizes coming from rarer variants. The effects of allele
-        frequency on simulating effect size can be ignored by setting `alpha` to be
-        zero.
-
-        :param num_causal: Number of causal sites
-        :type num_causal: int
-        :param allele_freq: Allele frequency of causal mutation
-        :type allele_freq: float
-        :param rng: Random generator that will be used to simulate effect size
-        :type rng: numpy.random.Generator
-        :return: Simulated effect size of a causal mutation
-        :rtype: float
-        """
-        if not isinstance(num_causal, numbers.Number):
-            raise TypeError("Number of causal sites should be a number")
-        if not isinstance(allele_freq, numbers.Number):
-            raise TypeError("Allele frequency should be a number")
-        if int(num_causal) != num_causal or num_causal <= 0:
-            raise ValueError("Number of causal sites should be a positive integer")
-        if not isinstance(rng, np.random.Generator):
-            raise TypeError("rng should be a numpy random generator")
-        if allele_freq >= 1 or allele_freq <= 0:
-            raise ValueError("Allele frequency should be 0 < Allele frequency < 1")
+class DominanceModel:
+    def __init__(self, model_name, dominance_mean, dominance_var):
+        self._model_name = model_name
+        self.dominance_mean = dominance_mean
+        self.dominance_var = dominance_var
         
-        mean = self.trait_mean / num_causal
-        cov = self.trait_var / num_causal
+    def sim_dominance(self, genotype, effect_size, rng):
+        pass
+    
+    @property
+    def name(self):
+        """
+        Name of the trait model.
+        """
+        return self._model_name
         
-        beta = rng.multivariate_normal(mean=mean, cov=cov)
-        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return beta
+class DominanceModelNormal(DominanceModel):
+    def __init__(self, dominance_mean, dominance_var):
+        super().__init__("dominance_normal", dominance_mean, dominance_var)
+    
+    def sim_dominance(self, genotype, effect_size, rng):
+        dominance_degree = rng.normal(
+                loc=self.dominance_mean, scale=np.sqrt(self.dominance_var)
+            )
+        additive = np.absolute(effect_size)
+        dominance_effect = additive * dominance_degree
+        
+        genetic_value = dominance_genetic_value(genotype, effect_size, dominance_effect)
+        return genetic_value, dominance_degree

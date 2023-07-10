@@ -67,6 +67,7 @@ class GenotypeResult:
     causal_allele: np.ndarray
     effect_size: np.ndarray
     allele_frequency: np.ndarray
+    dominance_degree: np.ndarray
 
     def __str__(self):
         output = (
@@ -74,27 +75,9 @@ class GenotypeResult:
             f"\ncausal_allele: {self.causal_allele}"
             f"\neffect_size: {self.effect_size}"
             f"\nallele_frequency: {self.allele_frequency}"
+            f"\ndominance_degree: {self.dominance_degree}"
         )
         return output
-
-@dataclass
-class MultipleGenotypeSpecific:
-    site_id: np.ndarray
-    causal_allele: np.ndarray
-    effect_size: np.ndarray
-    allele_frequency: np.ndarray
-    trait_index: np.ndarray
-
-@dataclass
-class MultipleGenotypeResult:
-    pleiotropy: GenotypeResult
-    specific: MultipleGenotypeSpecific
-    
-
-@dataclass
-class MultipleResult:
-    phenotype: PhenotypeResult
-    genotype: MultipleGenotypeResult
 
 @dataclass
 class Result:
@@ -161,11 +144,12 @@ class PhenotypeSimulator:
     :type model: TraitModel
     """
 
-    def __init__(self, ts, num_causal, h2, model, random_seed):
+    def __init__(self, ts, num_causal, h2, model, dominance_model, random_seed):
         self.ts = ts
         self.num_causal = num_causal
         self.h2 = h2
         self.model = model
+        self.dominance_model = dominance_model
         self.rng = np.random.default_rng(random_seed)
 
     def _choose_causal_site(self):
@@ -252,6 +236,7 @@ class PhenotypeSimulator:
         causal_state_array = np.zeros(self.num_causal, dtype=object)
         beta_array = np.zeros(self.num_causal)
         allele_frequency = np.zeros(self.num_causal)
+        dominance_degree = np.zeros(self.num_causal)
 
         for i, single_id in enumerate(causal_site_array):
             site = self.ts.site(single_id)
@@ -270,13 +255,18 @@ class PhenotypeSimulator:
             beta_array[i] = self.model.sim_effect_size(
                 self.num_causal, allele_frequency[i], self.rng
             )
-            individual_genetic_array += individual_genotype * beta_array[i]
+            if self.dominance_model:
+                genetic_value, dominance_degree[i] = self.dominance_model.sim_dominance(individual_genotype, beta_array[i], self.rng)
+                individual_genetic_array += genetic_value
+            else:    
+                individual_genetic_array += individual_genotype * beta_array[i]
 
         genotypic_effect_data = GenotypeResult(
             site_id=causal_site_array,
             causal_allele=causal_state_array,
             effect_size=beta_array,
             allele_frequency=allele_frequency,
+            dominance_degree=dominance_degree
         )
 
         return genotypic_effect_data, individual_genetic_array
@@ -331,239 +321,7 @@ class PhenotypeSimulator:
 
         return phenotype_individuals
 
-class PhenotypeSimulatorMultiple:
-    def __init__(self, ts, num_trait, num_pleiotropy, num_trait_spec, h2, 
-                 model, random_seed):
-        self.ts = ts
-        self.num_trait = num_trait
-        self.num_pleiotropy = num_pleiotropy
-        self.num_trait_spec = num_trait_spec
-        self.h2 = h2
-        self.model = model
-        self.rng = np.random.default_rng(random_seed)
-    
-    def _choose_causal_site(self):
-        """
-        Obtain site ID based on their position (site IDs are aligned
-        based on their positions in tree sequence data requirement).
-        """
-        num_causal = np.sum(self.num_trait_spec) + self.num_pleiotropy
-        
-        site_id = self.rng.choice(
-            range(self.ts.num_sites), num_causal, replace=False
-        )
-        tag_id = [-1] * self.num_pleiotropy
-        
-        for i in range(self.num_trait):
-            tag_id += [i] * self.num_trait_spec[i]
-        
-        tag_id = np.array(tag_id)
-        
-        index = np.argsort(site_id)
-        site_id = site_id[index]
-        tag_id = tag_id[index]
-        
-        return site_id, tag_id
-    
-    def _obtain_allele_frequency(self, tree, site):
-        """
-        Obtain a dictionary of allele frequency counts, excluding the ancestral state
-        Input is the tree sequence site (ts.site(ID)).
-        Remove sites from dictionary having no items.
-        If only the ancestral state exists, don't delete the ancestral state.
-        """
-        counts = collections.Counter({site.ancestral_state: self.ts.num_samples})
-        for m in site.mutations:
-            current_state = site.ancestral_state
-            if m.parent != tskit.NULL:
-                current_state = self.ts.mutation(m.parent).derived_state
-            # Silent mutations do nothing
-            if current_state != m.derived_state:
-                num_samples = tree.num_samples(m.node)
-                counts[m.derived_state] += num_samples
-                counts[current_state] -= num_samples
-        del counts[site.ancestral_state]
-        counts = {x: y for x, y in counts.items() if y != 0}
-        if len(counts) == 0:
-            counts = {site.ancestral_state: self.ts.num_samples}
-        return counts
-    
-    def _individual_genotype(self, tree, site, causal_state, num_nodes):
-        """
-        Returns a numpy array that describes the number of causal mutation in an
-        individual.
-        """
-        has_mutation = np.zeros(num_nodes + 1, dtype=bool)
-        state_transitions = {tree.virtual_root: site.ancestral_state}
-        for m in site.mutations:
-            state_transitions[m.node] = m.derived_state
-            has_mutation[m.node] = True
-        stack = numba.typed.List()
-        for node, state in state_transitions.items():
-            if state == causal_state:
-                stack.append(node)
-
-        genotype = _traversal_genotype(
-            nodes_individual=self.ts.nodes_individual,
-            left_child_array=tree.left_child_array,
-            right_sib_array=tree.right_sib_array,
-            stack=stack,
-            has_mutation=has_mutation,
-            num_individuals=self.ts.num_individuals,
-            num_nodes=num_nodes,
-        )
-
-        return genotype    
-    
-    def sim_genetic_value_multiple(self):
-        """Simulates genetic values of individuals.
-
-        This method randomly chooses causal sites and the corresponding causal state
-        based on the `num_causal` input. Afterwards, effect size of each causal site
-        is simulated based on the trait model given by the `model` input. Genetic
-        values are computed by using the simulated effect sizes and mutation
-        information of individuals.
-
-        :return: Returns a :class:`Genotype` object that includes simulated
-            genetic information of each causal site, and a numpy array of simulated
-            genetic values.
-        :rtype: (GenotypeResult, numpy.ndarray(float))
-        """
-        site_id_array, tag_id_array = self._choose_causal_site()
-        
-        num_causal = np.sum(self.num_trait_spec) + self.num_pleiotropy
-        
-        num_nodes = self.ts.num_nodes
-        tree = tskit.Tree(self.ts)
-        individual_genetic_array = np.zeros((self.ts.num_individuals, self.num_trait))
- 
-        genotype_pleio = GenotypeResult(
-            site_id = np.zeros(self.num_pleiotropy),
-            causal_allele=np.zeros(self.num_pleiotropy, dtype=object),
-            effect_size=np.zeros((self.num_pleiotropy, self.num_trait)),
-            allele_frequency=np.zeros(self.num_pleiotropy)
-        )
-        
-        genotype_spec = MultipleGenotypeSpecific(
-            site_id=np.zeros(num_causal-self.num_pleiotropy),
-            causal_allele=np.zeros(num_causal-self.num_pleiotropy, dtype=object),
-            effect_size=np.zeros(num_causal-self.num_pleiotropy),
-            allele_frequency=np.zeros(num_causal-self.num_pleiotropy),
-            trait_index=np.zeros(num_causal-self.num_pleiotropy)
-        )
-        
-        index_pleio = 0
-        index_spec = 0
-        
-        for i, site_id in enumerate(site_id_array):
-            site = self.ts.site(site_id)
-            tree.seek(site.position)
-            counts = self._obtain_allele_frequency(tree, site)
-            causal_state_allele = self.rng.choice(list(counts))
-            individual_genotype = self._individual_genotype(
-                tree=tree,
-                site=site,
-                causal_state=causal_state_allele,
-                num_nodes=num_nodes,
-            )
-            allele_freq = np.sum(individual_genotype) / (
-                2 * len(individual_genotype)
-            )
-            
-            tag_id = tag_id_array[i]
-            
-            if tag_id == -1:
-                model = self.model[0]
-                beta = model.sim_effect_size(
-                    num_causal, allele_freq, self.rng
-                )
-                genotype_pleio.site_id[index_pleio] = site_id
-                genotype_pleio.causal_allele[index_pleio] = causal_state_allele
-                genotype_pleio.effect_size[index_pleio] = beta
-                genotype_pleio.allele_frequency[index_pleio] = allele_freq
-                
-                for j in range(self.num_trait):
-                    individual_genetic_array[:,j] += individual_genotype * beta[j]
-                
-                index_pleio += 1
-                
-            else:
-                model = self.model[1]
-                beta = model.sim_effect_size(
-                    num_causal, allele_freq, self.rng
-                )
-                genotype_spec.site_id[index_spec] = site_id
-                genotype_spec.causal_allele[index_spec] = causal_state_allele
-                genotype_spec.effect_size[index_spec] = beta
-                genotype_spec.allele_frequency[index_spec] = allele_freq
-                genotype_spec.trait_index[index_spec] = tag_id
-                
-                individual_genetic_array[:,tag_id] += individual_genotype * beta
-            
-                index_spec += 1
-                
-            genotype_result = MultipleGenotypeResult(
-                pleiotropy=genotype_pleio,
-                specific=genotype_spec
-            )
-        
-            return genotype_result, individual_genetic_array
-    def _sim_environment_noise(self, individual_genetic_array):
-        """
-        Add environmental noise to the genetic value of individuals given the genetic
-        value of individuals. The simulation assumes the additive model.
-        """
-        num_ind = self.ts.num_individuals
-        
-        phenotype = np.zeros((num_ind, self.num_trait))
-        
-        for i in range(self.num_trait):
-            trait_var = self.model.trait_var[i,i]
-            h2 = self.h2[i]
-            if h2 == 1:
-                E = np.zeros(num_ind)
-                phenotype[:,i] = individual_genetic_array[i]
-            elif h2 == 0:
-                E = self.rng.normal(loc=0, scale=np.sqrt(trait_var), size=num_ind)
-                phenotype[:,i]=E
-            else:
-                env_std = np.sqrt(
-                    (1-h2)/h2*np.var(individual_genetic_array[i])
-                )
-                E = self.rng.normal(loc=0,scale=env_std,size=num_ind)
-
-        return phenotype, E
-
-    def sim_environment(self, individual_genetic_value):
-        """Simulates environmental noise of individuals and returns the phenotype.
-
-        This method simulates the environmental noise of individuals based on their
-        genetic values that are passed into the method. The narrow-sense heritability
-        in :class:`PhenotypeSimulator` object will be used to simulate environmental
-        noise assuming the additive model.
-
-        The simulated environmental noise and phenotype will be returned by using the
-        :class:`PhenotypeResult` object, which includes individual ID, phenotype,
-        environmental noise and genetic value.
-
-        :param individual_genetic_value: Genetic value of individuals.
-        :type individual_genetic_value: numpy.ndarray(float)
-        :return: Returns the :class:`PhenotypeResult` object, which includes individual
-            ID, phenotype, environmental noise and genetic value.
-        :rtype: PhenotypeResult
-        """
-        phenotype, E = self._sim_environment_noise(individual_genetic_value)
-        phenotype_individuals = PhenotypeResult(
-            individual_id=np.arange(self.ts.num_individuals),
-            phenotype=phenotype,
-            environment_noise=E,
-            genetic_value=individual_genetic_value,
-        )
-
-        return phenotype_individuals
-        
-
-def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
+def sim_phenotype(ts, num_causal, model, h2=0.3, dominance_model=None, random_seed=None):
     """Simulates quantitative traits of individuals based on the inputted tree sequence
     and the specified trait model, and returns a :class:`Result` object. See the
     :ref:`sec_simulation_output` section for more details on the output of the simulation
@@ -618,60 +376,11 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
         )
 
     simulator = PhenotypeSimulator(
-        ts=ts, num_causal=num_causal, h2=h2, model=model, random_seed=random_seed
+        ts=ts, num_causal=num_causal, h2=h2, model=model,
+        dominance_model=dominance_model, random_seed=random_seed
     )
     genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
     phenotype_data = simulator.sim_environment(individual_genetic_array)
     sim_result = Result(phenotype=phenotype_data, genotype=genotypic_effect_data)
     
     return sim_result
-
-def sim_phenotype_multiple(ts, num_trait, num_pleiotropy, model, h2,
-                           num_trait_spec=None, random_seed=None):
-    if num_trait_spec == None:
-        num_trait_spec = np.zeros(num_trait)
-
-    if not isinstance(ts, tskit.TreeSequence):
-        raise TypeError("Input should be a tree sequence data")    
-    if not isinstance(num_pleiotropy, numbers.Number):
-        raise TypeError("Number of pleiotropy sites should be an integer")
-    if int(num_pleiotropy) != num_pleiotropy or num_pleiotropy <= 0:
-        raise ValueError("Number of pleiotropy sites should be a positive integer")
-    for i in num_trait_spec:
-        if not isinstance(i, numbers.Number):
-            raise TypeError("Number of trait specific sites should be an integer")
-        if i != int(i):
-            raise ValueError("Number of trait specific sites should be a positive "
-                             "integer")
-    for i in h2:
-        if i > 1 or i < 0:
-            raise ValueError("Heritability should be 0 <= h2 <= 1")
-    num_sites = ts.num_sites
-    num_causal = np.sum(num_trait_spec) + num_pleiotropy
-    if num_sites == 0:
-        raise ValueError("No mutation in the provided data")
-    if num_causal > num_sites:
-        raise ValueError(
-            "There are less number of sites in the tree sequence than the inputted "
-            "number of causal sites"
-        )
-    if num_trait != len(h2):
-        raise ValueError(
-            "Dimension of heritability does not match the dimension of the trait "
-            "mean"
-            )
-    if len(model) != 2:
-        raise ValueError("Two models should be given in the pleiotropy model")
-    for i in model:
-        if not isinstance(i, trait_model.TraitModel):
-            raise TypeError("Trait model must be an instance of TraitModel")
-    
-    simulator = PhenotypeSimulatorMultiple(
-        ts=ts, num_trait=num_trait, num_pleiotropy=num_pleiotropy,
-        num_trait_spec=num_trait_spec, h2=h2, model=model, random_seed=random_seed
-    )
-    genotype_data, individual_genetic_array = simulator.sim_genetic_value_multiple()
-    phenotype_data = simulator.sim_environment(individual_genetic_array)
-    sim_result = MultipleResult(phenotype=phenotype_data, genotype=genotype_data)
-    
-    return sim_result    
