@@ -145,3 +145,68 @@ class TraitModelAlleleFrequency(TraitModel):
             raise ValueError("Allele frequency should be 0 < Allele frequency < 1")
         beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
         return beta
+
+class TraitModelMultivariate(TraitModel):
+    """Trait model class of multiple traits.
+    
+    We assume that the phenotypes are pleiotropic, meaning that the genes are
+    influencing more than one trait. See the :ref:`sec_trait_model_multivariate`
+    section for more details on the model.
+
+    :param trait_mean: Mean vector of the simulated effect sizes.
+    :type trait_mean: float
+    :param trait_var: Covariance matrix of the simulated effect sizes.
+    :type trait_var: float
+    :param alpha: Parameter that determines the relative weight on rarer variants.
+        A negative `alpha` value can increase the magnitude of effect sizes coming
+        from rarer variants. The frequency dependent architecture can be ignored by
+        setting `alpha` to be zero.
+    :type alpha: float
+    """
+
+    def __init__(self, trait_mean, trait_var, alpha):
+        if len(trait_mean) != len(trait_var):
+            raise ValueError(
+            "The dimension of trait mean does not match the dimension of the "
+            "covariance matrix"
+        )
+        super().__init__("allele", trait_mean, trait_var)
+        if not isinstance(alpha, numbers.Number):
+            raise TypeError("Alpha should be a number")
+        self.alpha = alpha
+
+    def sim_effect_size(self, num_causal, allele_freq, rng):
+        """
+        This method initially simulates an effect size, and multiplies it by a
+        constant that depends on `allele_freq` and `alpha` input of
+        :class:`TraitModelMultivariate`. Negative `alpha` value can increase the
+        magnitude of effect sizes coming from rarer variants. The effects of allele
+        frequency on simulating effect size can be ignored by setting `alpha` to be
+        zero.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param allele_freq: Allele frequency of causal mutation
+        :type allele_freq: float
+        :param rng: Random generator that will be used to simulate effect size
+        :type rng: numpy.random.Generator
+        :return: Simulated effect size of a causal mutation
+        :rtype: float
+        """
+        if not isinstance(num_causal, numbers.Number):
+            raise TypeError("Number of causal sites should be a number")
+        if not isinstance(allele_freq, numbers.Number):
+            raise TypeError("Allele frequency should be a number")
+        if int(num_causal) != num_causal or num_causal <= 0:
+            raise ValueError("Number of causal sites should be a positive integer")
+        if not isinstance(rng, np.random.Generator):
+            raise TypeError("rng should be a numpy random generator")
+        if allele_freq >= 1 or allele_freq <= 0:
+            raise ValueError("Allele frequency should be 0 < Allele frequency < 1")
+        
+        mean = self.trait_mean / num_causal
+        cov = self.trait_var / num_causal
+        
+        beta = rng.multivariate_normal(mean=mean, cov=cov)
+        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
+        return beta
