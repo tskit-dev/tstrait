@@ -133,21 +133,24 @@ def _traversal_genotype(
 class PhenotypeSimulator:
     """Simulator class to simulate quantitative traits of individuals.
 
-    :param ts: Tree sequence data with mutation
+    :param ts: Tree sequence data with mutation.
     :type ts: tskit.TreeSequence
-    :param num_causal: Number of causal sites
+    :param num_causal: Number of causal sites.
     :type num_causal: int
-    :param h2: Narrow-sense heritability
+    :param h2: Narrow-sense heritability.
     :type h2: float
-    :param model: Trait model
+    :param alpha: Parameter that determines the emphasis placed on rarer variants.
+    :type alpha: float
+    :param model: Trait model that will be used to simulate effect sizes.
     :type model: TraitModel
     """
 
-    def __init__(self, ts, num_causal, h2, model, random_seed):
+    def __init__(self, ts, num_causal, h2, model, alpha, random_seed):
         self.ts = ts
         self.num_causal = num_causal
         self.h2 = h2
         self.model = model
+        self.alpha = alpha
         self.rng = np.random.default_rng(random_seed)
 
     def _choose_causal_site(self):
@@ -250,7 +253,10 @@ class PhenotypeSimulator:
                 2 * len(individual_genotype)
             )
             beta_array[i] = self.model.sim_effect_size(
-                self.num_causal, allele_frequency[i], self.rng
+                num_causal=self.num_causal,
+                allele_freq=allele_frequency[i],
+                alpha=self.alpha,
+                rng=self.rng,
             )
             individual_genetic_array += individual_genotype * beta_array[i]
 
@@ -314,7 +320,7 @@ class PhenotypeSimulator:
         return phenotype_individuals
 
 
-def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
+def sim_phenotype(ts, num_causal, model, h2=0.3, alpha=0, random_seed=None):
     """Simulates quantitative traits of individuals based on the inputted tree sequence
     and the specified trait model, and returns a :class:`Result` object. See the
     :ref:`sec_simulation_output` section for more details on the output of the simulation
@@ -334,6 +340,11 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     :param h2: Narrow-sense heritability, which will be used to simulate environmental
         noise. Narrow-sense heritability must be between 0 and 1.
     :type h2: float
+    :param alpha: Parameter that determines the relative weight on rarer variants.
+        A negative `alpha` value can increase the magnitude of effect sizes coming
+        from rarer variants. The frequency dependent architecture can be ignored
+        by setting `alpha` to be zero.
+    :type alpha: float
     :param random_seed: The random seed. If this is not specified or None, simulation
         will be done randomly.
     :type random_seed: None or int
@@ -348,17 +359,17 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
     """
 
     if not isinstance(ts, tskit.TreeSequence):
-        raise TypeError("Input should be a tree sequence data")
+        raise TypeError("Input must be a tree sequence data")
     if not isinstance(num_causal, numbers.Number):
-        raise TypeError("Number of causal sites should be an integer")
+        raise TypeError("Number of causal sites must be an integer")
     if int(num_causal) != num_causal or num_causal <= 0:
-        raise ValueError("Number of causal sites should be a positive integer")
+        raise ValueError("Number of causal sites must be a positive integer")
     if not isinstance(model, trait_model.TraitModel):
         raise TypeError("Trait model must be an instance of TraitModel")
     if not isinstance(h2, numbers.Number):
-        raise TypeError("Heritability should be a number")
+        raise TypeError("Heritability must be a number")
     if h2 > 1 or h2 < 0:
-        raise ValueError("Heritability should be 0 <= h2 <= 1")
+        raise ValueError("Heritability must be 0 <= h2 <= 1")
     num_sites = ts.num_sites
     if num_sites == 0:
         raise ValueError("No mutation in the provided data")
@@ -369,7 +380,12 @@ def sim_phenotype(ts, num_causal, model, h2=0.3, random_seed=None):
         )
 
     simulator = PhenotypeSimulator(
-        ts=ts, num_causal=num_causal, h2=h2, model=model, random_seed=random_seed
+        ts=ts,
+        num_causal=num_causal,
+        h2=h2,
+        model=model,
+        alpha=alpha,
+        random_seed=random_seed,
     )
     genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
     phenotype_data = simulator.sim_environment(individual_genetic_array)

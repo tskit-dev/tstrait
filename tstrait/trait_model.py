@@ -2,189 +2,312 @@ import numbers
 
 import numpy as np
 
+
 class TraitModel:
     """Superclass of the trait model. See the :ref:`sec_trait_model` section for
     more details on the available models and examples.
 
     :param model_name: Name of the trait model.
     :type model_name: str
-    :param trait_mean: Mean value of the simulated effect sizes.
-    :type trait_mean: float
-    :param trait_var: Variance of the simulated effect sizes.
-    :type trait_var: float
     """
 
-    def __init__(self, model_name, trait_mean, trait_var, alpha):
-        if not isinstance(trait_mean, numbers.Number):
-            raise TypeError("Trait mean should be a number")
-        if not isinstance(trait_var, numbers.Number):
-            raise TypeError("Trait variance should be a number")
-        if trait_var < 0:
-            raise ValueError("Trait variance should be a non-negative number")
-        if not isinstance(alpha, numbers.Number):
-            raise TypeError("Alpha should be a number")
-        self._model_name = model_name
-        self.trait_mean = trait_mean
-        self.trait_var = trait_var
-        self.alpha = alpha
-    
-    def sim_effect_size(self, num_causal, allele_freq, rng):
-        if not isinstance(num_causal, numbers.Number):
-            raise TypeError("Number of causal sites should be a number")
-        if not isinstance(allele_freq, numbers.Number):
-            raise TypeError("Allele frequency should be a number")
-        if allele_freq >= 1 or allele_freq <= 0:
-            raise ValueError("Allele frequency should be 0 < Allele frequency < 1")    
-        if int(num_causal) != num_causal or num_causal <= 0:        
-            raise ValueError("Number of causal sites should be a positive integer")
-        if not isinstance(rng, np.random.Generator):
-            raise TypeError("rng should be a numpy random generator")
+    def __init__(self, name):
+        self.name = name
 
-    @property
-    def name(self):
+    def _check_parameter(self, num_causal, allele_freq, alpha, rng):
+        if not isinstance(num_causal, numbers.Number):
+            raise TypeError("Number of causal sites must be an integer")
+        if int(num_causal) != num_causal or num_causal <= 0:
+            raise ValueError("Number of causal sites must be a positive integer")
+        if not isinstance(allele_freq, numbers.Number):
+            raise TypeError("Allele frequency must be a number")
+        if allele_freq >= 1 or allele_freq <= 0:
+            raise ValueError("Allele frequency must be 0 < Allele frequency < 1")
+        if not isinstance(alpha, numbers.Number):
+            raise TypeError("Allele frequency must be a number")
+        if not isinstance(rng, np.random.Generator):
+            raise TypeError("rng must be a numpy random generator")
+
+    def frequency_dependence(self, allele_freq, alpha):
+        """Frequency dependent architecture.
+
+        The `alpha` parameter modifies the relative emphasis placed on rarer variants
+        to simulate the effect size of causal mutations.
+
+        :param allele_freq: Allele frequency of causal mutation.
+        :type allele_freq: float
+        :param alpha: Parameter that determines the relative weight on rarer variants.
+            A negative `alpha` value can increase the magnitude of effect sizes coming
+            from rarer variants. The frequency dependent architecture can be ignored
+            by setting `alpha` to be zero.
+        :type alpha: float
+        :return: Returns the value that will be multiplied to the effect size to
+            implement the frequency dependent architecture.
+        :rtype: float
         """
-        Name of the trait model.
-        """
-        return self._model_name
+        return np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
+
 
 class TraitModelNormal(TraitModel):
-    """Normal distribution trait model class, where the distribution of effect size
-    is simulated from a normal distribution.
+    """Normal distribution trait model class, where the effect sizes are simulated
+    from a normal distribution.
 
-    The `alpha` parameter modifies the relative emphasis placed on rarer variants to
-    simulate the effect sizes of causal mutations. See the
-    :ref:`sec_trait_model_normal` section for more details on the model.
-
-    :param trait_mean: Mean value of the simulated effect sizes.
-    :type trait_mean: float
-    :param trait_var: Variance of the simulated effect sizes.
-    :type trait_var: float
-    :param alpha: Parameter that determines the relative weight on rarer variants.
-        A negative `alpha` value can increase the magnitude of effect sizes coming
-        from rarer variants. The frequency dependent architecture can be ignored by
-        setting `alpha` to be zero.
-    :type alpha: float
+    :param mean: Mean value of the simulated effect sizes.
+    :type mean: float
+    :param var: Variance of the simulated effect sizes.
+    :type var: float
     """
 
-    def __init__(self, kwargs   ):
-        trait_mean = kwargs["trait_mean"]
-        trait_var = kwargs["trait_var"]
-        alpha = kwargs["alpha"]
-        super().__init__("normal", trait_mean, trait_var, alpha)
+    def __init__(self, mean, var):
+        if not isinstance(mean, numbers.Number):
+            raise TypeError("Mean must be a number")
+        if not isinstance(var, numbers.Number):
+            raise TypeError("Variance must be a number")
+        if var <= 0:
+            raise ValueError("Variance must be greater than 0")
+        super().__init__("normal")
+        self.mean = mean
+        self.var = var
 
-    def sim_effect_size(self, num_causal, allele_freq, rng):
+    def sim_effect_size(self, num_causal, allele_freq, alpha, rng):
         """
-        This method initially simulates an effect size from
-        :func:`TraitModel.sim_effect_size`. Afterwards, it will be multiplied by a
-        constant that depends on `allele_freq` and `alpha` input of
-        :class:`TraitModelAlleleFrequency`. Negative `alpha` value can increase the
-        magnitude of effect sizes coming from rarer variants. The effects of allele
-        frequency on simulating effect size can be ignored by setting `alpha` to be
-        zero.
+        This method simulates an effect size from a normal distribution.
 
         :param num_causal: Number of causal sites
         :type num_causal: int
-        :param allele_freq: Allele frequency of causal mutation
+        :param allele_freq: Allele frequency of causal mutation.
         :type allele_freq: float
-        :param rng: Random generator that will be used to simulate effect size
+        :param alpha: Parameter that determines the relative weight on rarer variants.
+            A negative `alpha` value can increase the magnitude of effect sizes coming
+            from rarer variants. The frequency dependent architecture can be ignored
+            by setting `alpha` to be zero.
+        :type alpha: float
+        :param rng: Random generator that will be used to simulate effect size.
         :type rng: numpy.random.Generator
-        :return: Simulated effect size of a causal mutation
+        :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        super().sim_effect_size(num_causal, allele_freq, rng)
+        self._check_parameter(num_causal, allele_freq, alpha, rng)
         beta = rng.normal(
-            loc=self.trait_mean / num_causal,
-            scale=np.sqrt(self.trait_var / num_causal))
-        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return beta
+            loc=self.mean / num_causal, scale=np.sqrt(self.var) / num_causal
+        )
+        return beta * self.frequency_dependence(allele_freq, alpha)
+
 
 class TraitModelExponential(TraitModel):
-    def __init__(self, kwargs):
-        trait_scale = kwargs["trait_scale"]
-        alpha = kwargs["alpha"]
-        trait_mean = trait_scale
-        trait_var = trait_scale ** 2
-        super().__init__("exponential", trait_mean, trait_var, alpha)
-        self.trait_scale = trait_scale
+    """Exponential distribution trait model class, where the effect sizes
+    are simulated from an exponential distribution.
 
-    def sim_effect_size(self, num_causal, allele_freq, rng):
-        super().sim_effect_size(num_causal, allele_freq, rng)
-        beta = rng.exponential(scale=self.trait_scale)
-        beta /= num_causal
-        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return beta
+    :param scale: The scale parameter of the exponential distribution, and
+        it must be greater than zero.
+    :type scale: float
+    :param negative: Determines if a negative value can be simulated from the
+        trait model. If it is set to be True, 1 or -1 will be multipled to
+        the simulated effect size.
+    :type negative: bool
+    """
+
+    def __init__(self, scale, negative=False):
+        if not isinstance(scale, numbers.Number):
+            raise TypeError("Scale must be a number")
+        if scale <= 0:
+            raise ValueError("Scale must be greater than 0")
+        if not isinstance(negative, bool):
+            raise TypeError("Negative must be a boolean")
+        super().__init__("exponential")
+        self.scale = scale
+        self.negative = negative
+
+    def sim_effect_size(self, num_causal, allele_freq, alpha, rng):
+        """
+        This method simulates an effect size from an exponential distribution.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param allele_freq: Allele frequency of causal mutation.
+        :type allele_freq: float
+        :param alpha: Parameter that determines the relative weight on rarer variants.
+            A negative `alpha` value can increase the magnitude of effect sizes coming
+            from rarer variants. The frequency dependent architecture can be ignored
+            by setting `alpha` to be zero.
+        :type alpha: float
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :return: Simulated effect size of a causal mutation.
+        :rtype: float
+        """
+        self._check_parameter(num_causal, allele_freq, alpha, rng)
+        beta = rng.exponential(scale=self.scale / num_causal)
+        if self.negative:
+            beta *= rng.choice([-1, 1])
+        return beta * self.frequency_dependence(allele_freq, alpha)
+
 
 class TraitModelFixed(TraitModel):
-    def __init__(self, kwargs):
-        trait_value = kwargs["trait_value"]
-        alpha = kwargs["alpha"]
-        trait_mean = trait_value
-        trait_var = 0
-        super().__init__("exponential", trait_mean, trait_var, alpha)
-        self.alpha = alpha
-    
-    def sim_effect_size(self, num_causal, allele_freq, rng):
-        super().sim_effect_size(num_causal, allele_freq, rng)
-        beta = self.trait_mean / num_causal
-        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return beta
+    """Fixed trait model class, where the effect size is a fixed quantity.
+
+    :param value: Effect size of causal mutation.
+    :type value: float
+    """
+
+    def __init__(self, value):
+        if not isinstance(value, numbers.Number):
+            raise TypeError("Value must be a number")
+        self.value = value
+        super().__init__("fixed")
+
+    def sim_effect_size(self, num_causal, allele_freq, alpha, rng):
+        """
+        This method returns an effect size from a fixed trait model.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param allele_freq: Allele frequency of causal mutation.
+        :type allele_freq: float
+        :param alpha: Parameter that determines the relative weight on rarer variants.
+            A negative `alpha` value can increase the magnitude of effect sizes coming
+            from rarer variants. The frequency dependent architecture can be ignored
+            by setting `alpha` to be zero.
+        :type alpha: float
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :return: Simulated effect size of a causal mutation.
+        :rtype: float
+        """
+        self._check_parameter(num_causal, allele_freq, alpha, rng)
+        beta = self.value
+        return beta * self.frequency_dependence(allele_freq, alpha)
+
 
 class TraitModelT(TraitModel):
-    def __init__(self, kwargs):
-        trait_mean = kwargs["trait_mean"]
-        trait_var = kwargs["trait_var"]
-        df = kwargs["df"]
-        alpha = kwargs["alpha"]
-        super().__init__("t", trait_mean, trait_var, alpha)
-        if not isinstance(df, numbers.Number):
-            raise TypeError("Degrees of freedom should be a number")
-        if df <= 0:
-            raise ValueError("Degrees of freedom should be larger than 0")
+    """T distribution trait model class, where the effect sizes are simulated from
+    a t distribution.
+
+    :param mean: Mean value of the simulated effect sizes.
+    :type mean: float
+    :param var: Variance of the simulated effect sizes.
+    :type var: float
+    :param df: Degrees of freedom, and it must be greater than 0.
+    :type df: float
+    """
+
+    def __init__(self, mean, var, df):
+        self.mean = mean
+        self.var = var
         self.df = df
-    
-    def sim_effect_size(self, num_causal, allele_freq, rng):
-        super().sim_effect_size(num_causal, allele_freq, rng)
+        super().__init__("t")
+        if not isinstance(mean, numbers.Number):
+            raise TypeError("Mean must be a number")
+        if not isinstance(var, numbers.Number):
+            raise TypeError("Variance must be a number")
+        if var <= 0:
+            raise ValueError("Variance must be greater than 0")
+        if not isinstance(df, numbers.Number):
+            raise TypeError("Degrees of freedom must be a number")
+        if df <= 0:
+            raise ValueError("Degrees of freedom must be larger than 0")
+        self.df = df
+
+    def sim_effect_size(self, num_causal, allele_freq, alpha, rng):
+        """
+        This method returns an effect size from a t distribution.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param allele_freq: Allele frequency of causal mutation.
+        :type allele_freq: float
+        :param alpha: Parameter that determines the relative weight on rarer variants.
+            A negative `alpha` value can increase the magnitude of effect sizes coming
+            from rarer variants. The frequency dependent architecture can be ignored
+            by setting `alpha` to be zero.
+        :type alpha: float
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :return: Simulated effect size of a causal mutation.
+        :rtype: float
+        """
+        self._check_parameter(num_causal, allele_freq, alpha, rng)
         beta = rng.standard_t(self.df)
-        beta = (beta*np.sqrt(self.trait_var) + self.trait_mean)/num_causal
-        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return beta
+        beta = (beta * np.sqrt(self.var) + self.mean) / num_causal
+        return beta * self.frequency_dependence(allele_freq, alpha)
+
 
 class TraitModelGamma(TraitModel):
-    def __init__(self, kwargs):
-        shape = kwargs["shape"]
-        scale = kwargs["scale"]
-        alpha = kwargs["alpha"]
+    """Gamma distribution trait model class, where the effect sizes are
+    simulated from a gamma distribution.
+
+    :param shape: The shape parameter of the gamma distribution, and it must be
+        greater than zero.
+    :type shape: float
+    :param scale: The scale parameter of the gamma distribution, and it must be
+        greater than zero.
+    :type scale: float
+    :param negative: Determines if a negative value can be simulated from the
+        trait model. If it is set to be True, 1 or -1 will be multipled to
+        the simulated effect size.
+    :type negative: bool
+    """
+
+    def __init__(self, shape, scale, negative=False):
         if not isinstance(shape, numbers.Number):
-            raise TypeError("Shape should be a number")
+            raise TypeError("Shape must be a number")
         if shape <= 0:
-            raise ValueError("Shape should be greater than 0")
+            raise ValueError("Shape must be greater than 0")
         if not isinstance(scale, numbers.Number):
-            raise TypeError("Scale should be a number")
+            raise TypeError("Scale must be a number")
         if scale <= 0:
-            raise ValueError("Scale should be greater than 0")
-        trait_mean = shape * scale
-        trait_var = shape * (scale ** 2)
-        super().__init__("gamma", trait_mean, trait_var, alpha)
+            raise ValueError("Scale must be greater than 0")
+        if not isinstance(negative, bool):
+            raise TypeError("Negative must be a boolean")
+        super().__init__("gamma")
         self.shape = shape
         self.scale = scale
-    
-    def sim_effect_size(self, num_causal, allele_freq, rng):
-        super().sim_effect_size(num_causal, allele_freq, rng)
-        beta = rng.gamma(self.shape, self.scale)
-        beta /= num_causal
-        beta *= np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return beta
+        self.negative = negative
+
+    def sim_effect_size(self, num_causal, allele_freq, alpha, rng):
+        """
+        This method returns an effect size from a gamma distribution.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param allele_freq: Allele frequency of causal mutation.
+        :type allele_freq: float
+        :param alpha: Parameter that determines the relative weight on rarer variants.
+            A negative `alpha` value can increase the magnitude of effect sizes coming
+            from rarer variants. The frequency dependent architecture can be ignored
+            by setting `alpha` to be zero.
+        :type alpha: float
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :return: Simulated effect size of a causal mutation.
+        :rtype: float
+        """
+        self._check_parameter(num_causal, allele_freq, alpha, rng)
+        beta = rng.gamma(self.shape, self.scale) / num_causal
+        if self.negative:
+            beta *= rng.choice([-1, 1])
+        return beta * self.frequency_dependence(allele_freq, alpha)
+
 
 MODEL_MAP = {
     "normal": TraitModelNormal,
     "exponential": TraitModelExponential,
     "fixed": TraitModelFixed,
     "t": TraitModelT,
-    "gamma": TraitModelGamma
+    "gamma": TraitModelGamma,
 }
 
 
 def trait_model(distribution, **kwargs):
+    """Returns a trait model corresponding to the specified model. The arguments
+    corresponding to the specified distribution must be inputted as arguments into
+    this function.
+
+    :param distribution: A string describing the trait model.
+    :type distribution: str
+    :return: The corresponding trait model.
+    :rtype: TraitModel
+    """
     if not isinstance(distribution, str):
         raise TypeError("Distribution must be a string")
     lower_model = distribution.lower()
@@ -194,7 +317,6 @@ def trait_model(distribution, **kwargs):
                 distribution, sorted(MODEL_MAP.keys())
             )
         )
-    model_instance = MODEL_MAP[lower_model](kwargs)
-    
+    model_instance = MODEL_MAP[lower_model](**kwargs)
+
     return model_instance
-        

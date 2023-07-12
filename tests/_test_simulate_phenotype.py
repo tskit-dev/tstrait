@@ -4,8 +4,7 @@ import msprime
 import numpy as np
 import pytest
 import tskit
-import tstrait.simulate_phenotype as simulate_phenotype
-import tstrait.trait_model as trait_model
+import tstrait
 
 
 @functools.lru_cache(maxsize=None)
@@ -35,20 +34,22 @@ def all_trees_ts(n):
     tables.simplify()
     return tables.tree_sequence()
 
-
+# In the future, write this test for all trait models
 class Test_sim_phenotype_output_dim:
     @pytest.mark.parametrize("num_ind", [1, 2, np.array([5])[0]])
     @pytest.mark.parametrize("num_causal", [1, 2, np.array([3])[0]])
     @pytest.mark.parametrize("h2", [0.1, np.array([0.5])[0]])
     @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_output_dim_additive(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model.TraitModelAdditive(0, 1)
+    def test_output_dim_normal(self, num_ind, num_causal, h2, random_seed):
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
+        
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, h2, random_seed
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, num_causal=num_causal, model=model,
+            h2=h2, alpha=0, random_seed=random_seed
         )
         phenotype_result = sim_result.phenotype
         genetic_result = sim_result.genotype
@@ -71,15 +72,16 @@ class Test_sim_phenotype_output_dim:
         num_ind = 10
         num_causal = 5
         h2 = 0.3
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(
             ts, rate=0.01, random_seed=random_seed, model="binary"
         )
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, h2, random_seed
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, num_causal=num_causal, model=model,
+            h2=h2, alpha=0, random_seed=random_seed
         )
 
         phenotype_result = sim_result.phenotype
@@ -97,40 +99,6 @@ class Test_sim_phenotype_output_dim:
         assert len(genetic_result.causal_allele) == num_causal
         assert len(genetic_result.effect_size) == num_causal
         assert len(genetic_result.allele_frequency) == num_causal
-
-    @pytest.mark.parametrize("num_ind", [1, 2, 5])
-    @pytest.mark.parametrize("num_causal", [1, 2, 3])
-    @pytest.mark.parametrize("h2", [0.1, 0.5])
-    @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_output_dim_Allele(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=random_seed
-        )
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, h2, random_seed
-        )
-
-        phenotype_result = sim_result.phenotype
-        genetic_result = sim_result.genotype
-
-        assert len(phenotype_result.__dict__) == 4
-        assert len(genetic_result.__dict__) == 4
-
-        assert len(phenotype_result.individual_id) == num_ind
-        assert len(phenotype_result.phenotype) == num_ind
-        assert len(phenotype_result.environment_noise) == num_ind
-        assert len(phenotype_result.genetic_value) == num_ind
-
-        assert len(genetic_result.site_id) == num_causal
-        assert len(genetic_result.causal_allele) == num_causal
-        assert len(genetic_result.effect_size) == num_causal
-        assert len(genetic_result.allele_frequency) == num_causal
-
-        assert max(genetic_result.allele_frequency < 1) and min(
-            genetic_result.allele_frequency > 0
-        )
 
 
 class Test_sim_phenotype_input:

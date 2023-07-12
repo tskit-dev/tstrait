@@ -8,8 +8,7 @@ import numpy as np
 import scipy.stats as stats
 import statsmodels.api as sm
 import tskit
-import tstrait.simulate_phenotype as simulate_phenotype
-import tstrait.trait_model as trait_model
+import tstrait
 from tqdm import tqdm
 
 
@@ -179,7 +178,7 @@ class Test:
         plt.close("all")
 
 
-class TestGenetic(Test):
+class TestNormal(Test):
     def test_normal(self):
         """
         Genotype of individuals:
@@ -254,10 +253,10 @@ class TestGenetic(Test):
             assert np.array_equal(genetic0, np.zeros(1000))
 
             effect_size_sd0 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+                trait_sd / 2 * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
             )
             effect_size_sd1 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
+                trait_sd / 2 * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
             )
 
             effect_size_mean0 = trait_mean * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
@@ -273,16 +272,16 @@ class TestGenetic(Test):
                 loc=2 * effect_size_mean0,
                 scale=ind_sd1,
                 filename=f"ind_1_genetic_{count}",
-                title=f"Individual 1 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 1 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
             self.plot_qq_normal(
                 data=genetic2,
                 loc=effect_size_mean0 + effect_size_mean1,
                 scale=ind_sd2,
                 filename=f"ind_2_genetic_{count}",
-                title=f"Individual 2 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 2 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
 
             genetic_sim = np.zeros(3)
@@ -303,8 +302,8 @@ class TestGenetic(Test):
                 x_label="Individual 0 Environment",
                 y_label="Simulated values",
                 filename=f"ind_0_env_{count}",
-                title=f"Individual 0 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
-                f"trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 0 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
+                f"trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
             self.plot_qq_compare(
                 v1=environment1,
@@ -312,8 +311,8 @@ class TestGenetic(Test):
                 x_label="Individual 1 Environment",
                 y_label="Simulated values",
                 filename=f"ind_1_env_{count}",
-                title=f"Individual 1 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
-                f"trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 1 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
+                f"trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
             self.plot_qq_compare(
                 v1=environment2,
@@ -321,8 +320,8 @@ class TestGenetic(Test):
                 x_label="Individual 2 Environment",
                 y_label="Simulated values",
                 filename=f"ind_2_env_{count}",
-                title=f"Individual 2 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
-                f"trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 2 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
+                f"trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
 
             count += 1
@@ -394,10 +393,10 @@ class TestInternal(Test):
                 genetic2[i] = phenotype_result.genetic_value[2]
 
             effect_size_sd0 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+                trait_sd / 2 * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
             )
             effect_size_sd1 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
+                trait_sd / 2 * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
             )
             effect_size_mean0 = trait_mean * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
             effect_size_mean1 = trait_mean * np.sqrt(
@@ -409,24 +408,24 @@ class TestInternal(Test):
                 loc=effect_size_mean0,
                 scale=effect_size_sd0,
                 filename=f"internal_ind_0_genetic_{count}",
-                title=f"Individual 0 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 0 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
             self.plot_qq_normal(
                 data=genetic1,
                 loc=2 * effect_size_mean0,
                 scale=2 * effect_size_sd0,
                 filename=f"internal_ind_1_genetic_{count}",
-                title=f"Individual 1 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 1 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
             self.plot_qq_normal(
                 data=genetic2,
                 loc=effect_size_mean1,
                 scale=effect_size_sd1,
                 filename=f"internal_ind_2_genetic_{count}",
-                title=f"Individual 2 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                title=f"Ind 2 Genetic, alpha = {alpha}, "
+                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}, model = normal",
             )
 
             count += 1
