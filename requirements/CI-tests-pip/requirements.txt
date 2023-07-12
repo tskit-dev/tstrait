@@ -1,0 +1,4 @@
+msprime
+numba
+numpy
+tskit==0.5.3
