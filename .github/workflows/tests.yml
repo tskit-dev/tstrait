@@ -40,11 +40,16 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install pytest
+          pip install pytest-cov
+          pip install pytest-xdist
           pip install -r requirements/CI-tests-pip/requirements.txt
       - name: Test with pytest
         run: |
-          pytest
+          pytest --cov=tstrait --cov-report=xml --cov-branch -n 0 tests
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env: 
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Delete coverage
+        run: |
+            rm .coverage
