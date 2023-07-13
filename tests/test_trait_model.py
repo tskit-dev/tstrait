@@ -34,13 +34,14 @@ class Test_TraitModelNormal:
                 num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
             )
 
-    @pytest.mark.parametrize("allele_freq", [0,1])
-    def test_allele_freq_value_value(self, allele_freq):
+    @pytest.mark.parametrize("allele_freq", [0, 1])
+    def test_allele_freq_value_value_one(self, allele_freq):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(num_causal=5, allele_freq=allele_freq,
-                                     alpha=0.3, rng=rng)
-        
+        beta = model.sim_effect_size(
+            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+        )
+
         assert beta == 0
 
     @pytest.mark.parametrize("mean", ["a", [0, 1]])
@@ -92,13 +93,14 @@ class Test_TraitModelExponential:
                 num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
             )
 
-    @pytest.mark.parametrize("allele_freq", [0,1])
-    def test_allele_freq_value_value(self, allele_freq):
+    @pytest.mark.parametrize("allele_freq", [0, 1])
+    def test_allele_freq_value_value_one(self, allele_freq):
         model = tstrait.trait_model(distribution="exponential", scale=1)
         rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(num_causal=5, allele_freq=allele_freq,
-                                     alpha=0.3, rng=rng)
-        
+        beta = model.sim_effect_size(
+            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+        )
+
         assert beta == 0
 
     @pytest.mark.parametrize("scale", ["a", [0, 1]])
@@ -134,7 +136,7 @@ class Test_TraitModelFixed:
         )
 
         assert isinstance(beta, float)
-        
+
     @pytest.mark.parametrize("allele_freq", [-0.1, 1.01])
     def test_allele_freq_value_value(self, allele_freq):
         model = tstrait.trait_model(distribution="fixed", value=1)
@@ -147,13 +149,14 @@ class Test_TraitModelFixed:
                 num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
             )
 
-    @pytest.mark.parametrize("allele_freq", [0,1])
-    def test_allele_freq_value_value(self, allele_freq):
+    @pytest.mark.parametrize("allele_freq", [0, 1])
+    def test_allele_freq_value_value_one(self, allele_freq):
         model = tstrait.trait_model(distribution="fixed", value=1)
         rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(num_causal=5, allele_freq=allele_freq,
-                                     alpha=0.3, rng=rng)
-        
+        beta = model.sim_effect_size(
+            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+        )
+
         assert beta == 0
 
     @pytest.mark.parametrize("value", ["a", [0, 1]])
@@ -194,13 +197,14 @@ class Test_TraitModelT:
                 num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
             )
 
-    @pytest.mark.parametrize("allele_freq", [0,1])
-    def test_allele_freq_value_value(self, allele_freq):
+    @pytest.mark.parametrize("allele_freq", [0, 1])
+    def test_allele_freq_value_value_one(self, allele_freq):
         model = tstrait.trait_model(distribution="t", mean=0, var=1, df=1)
         rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(num_causal=5, allele_freq=allele_freq,
-                                     alpha=0.3, rng=rng)
-        
+        beta = model.sim_effect_size(
+            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+        )
+
         assert beta == 0
 
     @pytest.mark.parametrize("mean", ["a", [0, 1]])
@@ -267,13 +271,14 @@ class Test_TraitModelGamma:
                 num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
             )
 
-    @pytest.mark.parametrize("allele_freq", [0,1])
-    def test_allele_freq_value_value(self, allele_freq):
+    @pytest.mark.parametrize("allele_freq", [0, 1])
+    def test_allele_freq_value_value_one(self, allele_freq):
         model = tstrait.trait_model(distribution="gamma", shape=1, scale=1)
         rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(num_causal=5, allele_freq=allele_freq,
-                                     alpha=0.3, rng=rng)
-        
+        beta = model.sim_effect_size(
+            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+        )
+
         assert beta == 0
 
     @pytest.mark.parametrize("shape", ["a", [0, 1]])
