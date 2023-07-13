@@ -1,5 +1,6 @@
 import collections
 import numbers
+
 import numpy as np
 import pandas as pd
 import tskit
@@ -72,7 +73,7 @@ class EffectSizeSimulator:
             const = 0
         else:
             const = np.sqrt(pow(2 * allele_freq * (1 - allele_freq), self.alpha))
-        return const        
+        return const
 
     def sim_causal_mutation(self):
         """This method randomly chooses causal sites and the corresponding causal state
@@ -97,10 +98,7 @@ class EffectSizeSimulator:
             causal_state = self.rng.choice(list(counts))
             causal_state_array[i] = causal_state
             allele_freq = counts[causal_state] / num_samples
-            beta = self.model.sim_effect_size(
-                num_causal=self.num_causal,
-                rng=self.rng
-            )
+            beta = self.model.sim_effect_size(num_causal=self.num_causal, rng=self.rng)
             beta *= self._frequency_dependence(allele_freq)
             beta_array[i] = beta
 
@@ -125,7 +123,8 @@ def sim_traits(ts, num_causal, model, alpha=0, random_seed=None):
         a positive integer that is greater than the number of sites in the tree sequence
         data.
     :type num_causal: int
-    :param model: Trait model that will be used to simulate effect sizes of causal mutations.
+    :param model: Trait model that will be used to simulate effect sizes of causal
+        mutations.
     :type model: TraitModel
     :param alpha: Parameter that determines the relative weight on rarer variants.
         A negative `alpha` value can increase the magnitude of effect sizes coming
