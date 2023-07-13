@@ -21,8 +21,8 @@ class TraitModel:
             raise ValueError("Number of causal sites must be a positive integer")
         if not isinstance(allele_freq, numbers.Number):
             raise TypeError("Allele frequency must be a number")
-        if allele_freq >= 1 or allele_freq <= 0:
-            raise ValueError("Allele frequency must be 0 < Allele frequency < 1")
+        if allele_freq > 1 or allele_freq < 0:
+            raise ValueError("Allele frequency must be 0 <= Allele frequency <= 1")
         if not isinstance(alpha, numbers.Number):
             raise TypeError("Allele frequency must be a number")
         if not isinstance(rng, np.random.Generator):
@@ -45,7 +45,10 @@ class TraitModel:
             implement the frequency dependent architecture.
         :rtype: float
         """
-        return np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
+        const = np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
+        if allele_freq == 0 or allele_freq == 1:
+            const = 0
+        return const
 
 
 class TraitModelNormal(TraitModel):
