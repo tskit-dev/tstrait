@@ -7,42 +7,16 @@ class Test_TraitModelNormal:
     @pytest.mark.parametrize("mean", [0, -1, np.array([1])[0]])
     @pytest.mark.parametrize("var", [0.1, np.array([1])[0]])
     @pytest.mark.parametrize("num_causal", [5, np.array([1])[0]])
-    @pytest.mark.parametrize("alpha", [0, 0.3])
     @pytest.mark.parametrize("random_seed", [1, None])
-    def test_pass_condition(self, mean, var, num_causal, alpha, random_seed):
-        allele_freq = 0.3
+    def test_pass_condition(self, mean, var, num_causal, random_seed):
         model = tstrait.trait_model(distribution="normal", mean=mean, var=var)
         assert model.name == "normal"
         assert isinstance(model, tstrait.TraitModel)
 
         rng = np.random.default_rng(random_seed)
-        beta = model.sim_effect_size(
-            num_causal=num_causal, allele_freq=allele_freq, alpha=alpha, rng=rng
-        )
+        beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("allele_freq", [-0.1, 1.01])
-    def test_allele_freq_value_value(self, allele_freq):
-        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        rng = np.random.default_rng(1)
-
-        with pytest.raises(
-            ValueError, match="Allele frequency must be 0 <= Allele frequency <= 1"
-        ):
-            model.sim_effect_size(
-                num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
-            )
-
-    @pytest.mark.parametrize("allele_freq", [0, 1])
-    def test_allele_freq_value_value_one(self, allele_freq):
-        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
-        )
-
-        assert beta == 0
 
     @pytest.mark.parametrize("mean", ["a", [0, 1]])
     def test_mean_error(self, mean):
@@ -64,10 +38,8 @@ class Test_TraitModelExponential:
     @pytest.mark.parametrize("scale", [1.1, np.array([1])[0]])
     @pytest.mark.parametrize("negative", [True, False])
     @pytest.mark.parametrize("num_causal", [5, np.array([1])[0]])
-    @pytest.mark.parametrize("alpha", [0, 0.3])
     @pytest.mark.parametrize("random_seed", [1, None])
-    def test_pass_condition(self, scale, negative, num_causal, alpha, random_seed):
-        allele_freq = 0.3
+    def test_pass_condition(self, scale, negative, num_causal, random_seed):
         model = tstrait.trait_model(
             distribution="exponential", scale=scale, negative=negative
         )
@@ -75,33 +47,9 @@ class Test_TraitModelExponential:
         assert isinstance(model, tstrait.TraitModel)
 
         rng = np.random.default_rng(random_seed)
-        beta = model.sim_effect_size(
-            num_causal=num_causal, allele_freq=allele_freq, alpha=alpha, rng=rng
-        )
+        beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("allele_freq", [-0.1, 1.01])
-    def test_allele_freq_value_value(self, allele_freq):
-        model = tstrait.trait_model(distribution="exponential", scale=1)
-        rng = np.random.default_rng(1)
-
-        with pytest.raises(
-            ValueError, match="Allele frequency must be 0 <= Allele frequency <= 1"
-        ):
-            model.sim_effect_size(
-                num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
-            )
-
-    @pytest.mark.parametrize("allele_freq", [0, 1])
-    def test_allele_freq_value_value_one(self, allele_freq):
-        model = tstrait.trait_model(distribution="exponential", scale=1)
-        rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
-        )
-
-        assert beta == 0
 
     @pytest.mark.parametrize("scale", ["a", [0, 1]])
     def test_scale_error(self, scale):
@@ -120,44 +68,18 @@ class Test_TraitModelExponential:
 
 
 class Test_TraitModelFixed:
-    @pytest.mark.parametrize("value", [1.1, np.array([1])[0]])
+    @pytest.mark.parametrize("value", [1.1, np.array([1.0])[0]])
     @pytest.mark.parametrize("num_causal", [5, np.array([1])[0]])
-    @pytest.mark.parametrize("alpha", [0, 0.3])
     @pytest.mark.parametrize("random_seed", [1, None])
-    def test_pass_condition(self, value, num_causal, alpha, random_seed):
-        allele_freq = 0.3
+    def test_pass_condition(self, value, num_causal, random_seed):
         model = tstrait.trait_model(distribution="fixed", value=value)
         assert model.name == "fixed"
         assert isinstance(model, tstrait.TraitModel)
 
         rng = np.random.default_rng(random_seed)
-        beta = model.sim_effect_size(
-            num_causal=num_causal, allele_freq=allele_freq, alpha=alpha, rng=rng
-        )
+        beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("allele_freq", [-0.1, 1.01])
-    def test_allele_freq_value_value(self, allele_freq):
-        model = tstrait.trait_model(distribution="fixed", value=1)
-        rng = np.random.default_rng(1)
-
-        with pytest.raises(
-            ValueError, match="Allele frequency must be 0 <= Allele frequency <= 1"
-        ):
-            model.sim_effect_size(
-                num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
-            )
-
-    @pytest.mark.parametrize("allele_freq", [0, 1])
-    def test_allele_freq_value_value_one(self, allele_freq):
-        model = tstrait.trait_model(distribution="fixed", value=1)
-        rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
-        )
-
-        assert beta == 0
 
     @pytest.mark.parametrize("value", ["a", [0, 1]])
     def test_value_error(self, value):
@@ -170,42 +92,16 @@ class Test_TraitModelT:
     @pytest.mark.parametrize("var", [0.1, np.array([1])[0]])
     @pytest.mark.parametrize("df", [3, np.array([0.1])[0]])
     @pytest.mark.parametrize("num_causal", [5, np.array([1])[0]])
-    @pytest.mark.parametrize("alpha", [0, 0.3])
     @pytest.mark.parametrize("random_seed", [1, None])
-    def test_pass_condition(self, mean, var, df, num_causal, alpha, random_seed):
-        allele_freq = 0.3
+    def test_pass_condition(self, mean, var, df, num_causal, random_seed):
         model = tstrait.trait_model(distribution="t", mean=mean, var=var, df=df)
         assert model.name == "t"
         assert isinstance(model, tstrait.TraitModel)
 
         rng = np.random.default_rng(random_seed)
-        beta = model.sim_effect_size(
-            num_causal=num_causal, allele_freq=allele_freq, alpha=alpha, rng=rng
-        )
+        beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("allele_freq", [-0.1, 1.01])
-    def test_allele_freq_value_value(self, allele_freq):
-        model = tstrait.trait_model(distribution="t", mean=0, var=1, df=1)
-        rng = np.random.default_rng(1)
-
-        with pytest.raises(
-            ValueError, match="Allele frequency must be 0 <= Allele frequency <= 1"
-        ):
-            model.sim_effect_size(
-                num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
-            )
-
-    @pytest.mark.parametrize("allele_freq", [0, 1])
-    def test_allele_freq_value_value_one(self, allele_freq):
-        model = tstrait.trait_model(distribution="t", mean=0, var=1, df=1)
-        rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
-        )
-
-        assert beta == 0
 
     @pytest.mark.parametrize("mean", ["a", [0, 1]])
     def test_mean_error(self, mean):
@@ -240,12 +136,8 @@ class Test_TraitModelGamma:
     @pytest.mark.parametrize("scale", [1.1, np.array([1])[0]])
     @pytest.mark.parametrize("negative", [True, False])
     @pytest.mark.parametrize("num_causal", [5, np.array([1])[0]])
-    @pytest.mark.parametrize("alpha", [0, 0.3])
     @pytest.mark.parametrize("random_seed", [1, None])
-    def test_pass_condition(
-        self, shape, scale, negative, num_causal, alpha, random_seed
-    ):
-        allele_freq = 0.3
+    def test_pass_condition(self, shape, scale, negative, num_causal, random_seed):
         model = tstrait.trait_model(
             distribution="gamma", shape=shape, scale=scale, negative=negative
         )
@@ -253,33 +145,9 @@ class Test_TraitModelGamma:
         assert isinstance(model, tstrait.TraitModel)
 
         rng = np.random.default_rng(random_seed)
-        beta = model.sim_effect_size(
-            num_causal=num_causal, allele_freq=allele_freq, alpha=alpha, rng=rng
-        )
+        beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
 
         assert isinstance(beta, float)
-
-    @pytest.mark.parametrize("allele_freq", [-0.1, 1.01])
-    def test_allele_freq_value_value(self, allele_freq):
-        model = tstrait.trait_model(distribution="gamma", shape=1, scale=1)
-        rng = np.random.default_rng(1)
-
-        with pytest.raises(
-            ValueError, match="Allele frequency must be 0 <= Allele frequency <= 1"
-        ):
-            model.sim_effect_size(
-                num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
-            )
-
-    @pytest.mark.parametrize("allele_freq", [0, 1])
-    def test_allele_freq_value_value_one(self, allele_freq):
-        model = tstrait.trait_model(distribution="gamma", shape=1, scale=1)
-        rng = np.random.default_rng(1)
-        beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
-        )
-
-        assert beta == 0
 
     @pytest.mark.parametrize("shape", ["a", [0, 1]])
     def test_shape_error(self, shape):
@@ -307,3 +175,14 @@ class Test_TraitModelGamma:
             tstrait.trait_model(
                 distribution="gamma", shape=1, scale=1, negative=negative
             )
+
+
+class Test_distribution_input:
+    @pytest.mark.parametrize("dist", [0, 1, ["a", "b"]])
+    def test_string_error(self, dist):
+        with pytest.raises(TypeError, match="Distribution must be a string"):
+            tstrait.trait_model(distribution=dist)
+
+    def test_string_error_1(self):
+        with pytest.raises(ValueError):
+            tstrait.trait_model(distribution="normall", mean=0, var=1)
