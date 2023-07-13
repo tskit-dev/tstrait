@@ -39,7 +39,7 @@ class Test_TraitModelNormal:
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         rng = np.random.default_rng(1)
         beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
         )
 
         assert beta == 0
@@ -98,7 +98,7 @@ class Test_TraitModelExponential:
         model = tstrait.trait_model(distribution="exponential", scale=1)
         rng = np.random.default_rng(1)
         beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
         )
 
         assert beta == 0
@@ -154,7 +154,7 @@ class Test_TraitModelFixed:
         model = tstrait.trait_model(distribution="fixed", value=1)
         rng = np.random.default_rng(1)
         beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
         )
 
         assert beta == 0
@@ -202,7 +202,7 @@ class Test_TraitModelT:
         model = tstrait.trait_model(distribution="t", mean=0, var=1, df=1)
         rng = np.random.default_rng(1)
         beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
         )
 
         assert beta == 0
@@ -276,7 +276,7 @@ class Test_TraitModelGamma:
         model = tstrait.trait_model(distribution="gamma", shape=1, scale=1)
         rng = np.random.default_rng(1)
         beta = model.sim_effect_size(
-            num_causal=5, allele_freq=allele_freq, alpha=0.3, rng=rng
+            num_causal=5, allele_freq=allele_freq, alpha=-1, rng=rng
         )
 
         assert beta == 0

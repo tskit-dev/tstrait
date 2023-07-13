@@ -45,9 +45,10 @@ class TraitModel:
             implement the frequency dependent architecture.
         :rtype: float
         """
-        const = np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
         if allele_freq == 0 or allele_freq == 1:
             const = 0
+        else:
+            const = np.sqrt(pow(2 * allele_freq * (1 - allele_freq), alpha))
         return const
 
 
