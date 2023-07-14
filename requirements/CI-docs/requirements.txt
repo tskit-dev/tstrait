@@ -5,6 +5,7 @@ matplotlib
 msprime
 numba
 numpy
+pandas
 scipy
 sphinx==4.5
 sphinx-argparse

@@ -1,3 +1,5 @@
+from tstrait.simulate_effect_size import sim_trait
+from tstrait.simulate_effect_size import TraitSimulator
 from tstrait.simulate_phenotype import GenotypeResult
 from tstrait.simulate_phenotype import PhenotypeResult
 from tstrait.simulate_phenotype import PhenotypeSimulator
@@ -12,6 +14,8 @@ from tstrait.trait_model import TraitModelNormal
 from tstrait.trait_model import TraitModelT
 
 __all__ = [
+    "TraitSimulator",
+    "sim_trait",
     "sim_phenotype",
     "PhenotypeSimulator",
     "Result",

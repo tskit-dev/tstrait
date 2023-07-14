@@ -1,4 +1,5 @@
 msprime
 numba
 numpy
+pandas
 tskit==0.5.3

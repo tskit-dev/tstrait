@@ -8,8 +8,7 @@ import numpy as np
 import scipy.stats as stats
 import statsmodels.api as sm
 import tskit
-import tstrait.simulate_phenotype as simulate_phenotype
-import tstrait.trait_model as trait_model
+import tstrait
 from tqdm import tqdm
 
 
@@ -41,17 +40,27 @@ def sim_tree_seq():
 
     Site 0 Genotype:
         [A, A, T, T, A, T]
+        Ancestral state: A
+        Causal allele freq: 0.5
         Individual 0: 0 causal
         Individual 1: 2 causal
         Individual 2: 1 causal
 
     Site 1 Genotype:
         [A, A, A, A, A, T]
+        Ancestral state: T
+        Causal allele freq: 1/6
         Individual 0: 0 causal
         Individual 1: 0 causal
         Individual 2: 1 causal
+
+    Effect size distribution:
+
+    SD Formula:
+        trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
+        sqrt(2) from 2 causal sites
     """
-    ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
+    ts = tskit.Tree.generate_comb(6, span=2).tree_sequence
 
     tables = ts.dump_tables()
     for j in range(2):
@@ -75,61 +84,11 @@ def sim_tree_seq():
     return ts
 
 
-def sim_tree_internal():
-    """
-    The following tree sequence will be generated:
+def sim_tree_seq_freq(alpha):
+    const1 = np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+    const2 = np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
 
-        6
-     4━━┻━━5
-    ┏┻━┓  ┏┻━┓
-    0  1  2  3
-
-    Individual 0: Node 4 and 5
-    Individual 1: Node 2 and 3
-    Individual 3: Node 4 and 5
-
-    Site 0 Ancestral State: "A"
-        Causal Mutation: Node 4
-
-    Site 1 Ancestral State: "A"
-        Causal Mutation: Node 2
-
-    Site 0 Genotype:
-        [T, T, A, A, T, A]
-        Individual 0: 1 causal
-        Individual 1: 2 causal
-        Individual 2: 0 causal
-
-    Site 1 Genotype:
-        [A, A, T, A, A, A]
-        Individual 0: 0 causal
-        Individual 1: 0 causal
-        Individual 2: 1 causal
-    """
-    ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
-
-    tables = ts.dump_tables()
-    for j in range(2):
-        tables.sites.add_row(j, "A")
-
-    tables.individuals.add_row()
-    tables.individuals.add_row()
-    tables.individuals.add_row()
-    individuals = tables.nodes.individual
-    individuals[0] = 1
-    individuals[1] = 1
-    individuals[2] = 2
-    individuals[3] = 2
-    individuals[4] = 0
-    individuals[5] = 0
-    tables.nodes.individual = individuals
-
-    tables.mutations.add_row(site=0, node=4, derived_state="T")
-    tables.mutations.add_row(site=1, node=2, derived_state="T")
-
-    ts = tables.tree_sequence()
-
-    return ts
+    return const1, const2
 
 
 class Test:
@@ -178,257 +137,336 @@ class Test:
         plt.savefig(f, dpi=72)
         plt.close("all")
 
+    def plot_qq_exponential(self, data, scale, filename, title=""):
+        sm.qqplot(data, stats.expon, scale=scale, line="45")
+        plt.title(title)
+        f = self._build_filename(filename)
+        plt.savefig(f, dpi=72)
+        plt.close("all")
 
-class TestGenetic(Test):
+
+class TestNormal(Test):
     def test_normal(self):
-        """
-        Genotype of individuals:
 
-        Site 0 Genotype:
-            [A, A, T, T, A, T]
-            Ancestral state: A
-            Causal allele freq: 0.5
-            Individual 0: 0 causal
-            Individual 1: 2 causal
-            Individual 2: 1 causal
-
-        Site 1 Genotype:
-            [A, A, A, A, A, T]
-            Ancestral state: T
-            Causal allele freq: 1/6
-            Individual 0: 0 causal
-            Individual 1: 0 causal
-            Individual 2: 1 causal
-
-        Effect size distribution:
-
-        SD Formula:
-            trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
-            sqrt(2) from 2 causal sites
-
-        Environmental noise is simulated from a normal distribution where standard
-        deviation depends on the variance of the simulated genetic values
-        """
-        rng = np.random.default_rng(1)
-        alpha_array = np.array([0, -0.3])
-        trait_mean_array = np.array([0, 1])
-        trait_var_array = np.array([1, 2])
-        h2_array = np.array([0.3, 0.8])
+        alpha_array = np.array([0, -0.3, 1])
+        mean_array = np.array([0, 1])
+        var_array = np.array([1, 2])
 
         ts = sim_tree_seq()
 
         count = 0
 
-        prod = itertools.product(
-            alpha_array, trait_mean_array, trait_var_array, h2_array
-        )
-
-        for element in tqdm(prod, total=16):
+        prod = itertools.product(alpha_array, mean_array, var_array)
+        for element in tqdm(prod, total=12):
             alpha = element[0]
-            trait_mean = element[1]
-            trait_var = element[2]
-            trait_sd = np.sqrt(trait_var)
-            h2 = element[3]
-            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_var, alpha)
-            trait_mean /= 2
-            genetic0 = np.zeros(1000)
-            genetic1 = np.zeros(1000)
-            genetic2 = np.zeros(1000)
-
-            environment0 = np.zeros(1000)
-            environment1 = np.zeros(1000)
-            environment2 = np.zeros(1000)
-
+            mean = element[1]
+            var = element[2]
+            sd = np.sqrt(var)
+            const0, const1 = sim_tree_seq_freq(alpha)
+            model = tstrait.trait_model(distribution="normal", mean=mean, var=var)
+            effect_size0 = np.zeros(1000)
+            effect_size1 = np.zeros(1000)
             for i in range(1000):
-                sim_result = simulate_phenotype.sim_phenotype(
-                    ts, num_causal=2, model=model, h2=h2, random_seed=i
+                sim_result = tstrait.sim_trait(
+                    ts=ts,
+                    num_causal=2,
+                    model=model,
+                    alpha=alpha,
+                    random_seed=i + 1000 * count,
                 )
-                phenotype_result = sim_result.phenotype
-                genetic0[i] = phenotype_result.genetic_value[0]
-                genetic1[i] = phenotype_result.genetic_value[1]
-                genetic2[i] = phenotype_result.genetic_value[2]
-
-                environment0[i] = phenotype_result.environment_noise[0]
-                environment1[i] = phenotype_result.environment_noise[1]
-                environment2[i] = phenotype_result.environment_noise[2]
-            assert np.array_equal(genetic0, np.zeros(1000))
-
-            effect_size_sd0 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
-            )
-            effect_size_sd1 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
-            )
-
-            effect_size_mean0 = trait_mean * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
-            effect_size_mean1 = trait_mean * np.sqrt(
-                pow(2 * 1 / 6 * (1 - 1 / 6), alpha)
-            )
-
-            ind_sd1 = effect_size_sd0 * 2
-            ind_sd2 = np.sqrt((effect_size_sd0**2) + (effect_size_sd1**2))
-
+                effect_size0[i] = sim_result["effect_size"][0]
+                effect_size1[i] = sim_result["effect_size"][1]
             self.plot_qq_normal(
-                data=genetic1,
-                loc=2 * effect_size_mean0,
-                scale=ind_sd1,
-                filename=f"ind_1_genetic_{count}",
-                title=f"Individual 1 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                data=effect_size0,
+                loc=mean * const0 / 2,
+                scale=sd * const0 / 2,
+                filename=f"effect_size_0_{count}",
+                title=f"EffectSize0, Normal, alpha = {alpha}, "
+                f"mean = {mean}, var = {var}",
             )
             self.plot_qq_normal(
-                data=genetic2,
-                loc=effect_size_mean0 + effect_size_mean1,
-                scale=ind_sd2,
-                filename=f"ind_2_genetic_{count}",
-                title=f"Individual 2 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
+                data=effect_size1,
+                loc=mean * const1 / 2,
+                scale=sd * const1 / 2,
+                filename=f"effect_size_1_{count}",
+                title=f"EffectSize1, Normal, alpha = {alpha}, "
+                f"mean = {mean}, var = {var}",
             )
+            count += 1
 
-            genetic_sim = np.zeros(3)
-            env_sim = np.zeros(1000)
 
+class TestExponential(Test):
+    def test_exponential(self):
+
+        alpha_array = np.array([0, -0.3, 1])
+        scale_array = np.array([1, 2.5])
+
+        ts = sim_tree_seq()
+
+        count = 0
+
+        prod = itertools.product(alpha_array, scale_array)
+        for element in tqdm(prod, total=6):
+            alpha = element[0]
+            scale = element[1]
+            const0, const1 = sim_tree_seq_freq(alpha)
+            model = tstrait.trait_model(
+                distribution="exponential", scale=scale, negative=False
+            )
+            effect_size0 = np.zeros(1000)
+            effect_size1 = np.zeros(1000)
             for i in range(1000):
-                x1 = rng.normal(loc=effect_size_mean0, scale=effect_size_sd0)
-                x2 = rng.normal(loc=effect_size_mean1, scale=effect_size_sd1)
-                genetic_sim[0] = 0
-                genetic_sim[1] = 2 * x1
-                genetic_sim[2] = x1 + x2
-                env_std = np.sqrt((1 - h2) / h2 * np.var(genetic_sim))
-                env_sim[i] = rng.normal(loc=0, scale=env_std)
+                sim_result = tstrait.sim_trait(
+                    ts=ts,
+                    num_causal=2,
+                    model=model,
+                    alpha=alpha,
+                    random_seed=i + 1000 * count,
+                )
+                effect_size0[i] = sim_result["effect_size"][0]
+                effect_size1[i] = sim_result["effect_size"][1]
+            self.plot_qq_exponential(
+                data=effect_size0,
+                scale=scale / 2 * const0,
+                filename=f"effect_size_0_{count}",
+                title=f"EffectSize0, Exponential, alpha = {alpha}, "
+                f"scale = {scale}, negative = False",
+            )
+            self.plot_qq_exponential(
+                data=effect_size1,
+                scale=scale / 2 * const1,
+                filename=f"effect_size_1_{count}",
+                title=f"EffectSize1, Expnential, alpha = {alpha}, "
+                f"scale = {scale}, negative = False",
+            )
+            count += 1
+
+    def test_exponential_negative(self):
+
+        alpha_array = np.array([0, -0.3, 1])
+        scale_array = np.array([1, 2.5])
+
+        ts = sim_tree_seq()
+
+        count = 0
+
+        prod = itertools.product(alpha_array, scale_array)
+        for element in tqdm(prod, total=6):
+            alpha = element[0]
+            scale = element[1]
+            const0, const1 = sim_tree_seq_freq(alpha)
+            model = tstrait.trait_model(
+                distribution="exponential", scale=scale, negative=True
+            )
+            effect_size0 = np.zeros(1000)
+            effect_size1 = np.zeros(1000)
+            for i in range(1000):
+                sim_result = tstrait.sim_trait(
+                    ts=ts,
+                    num_causal=2,
+                    model=model,
+                    alpha=alpha,
+                    random_seed=i + 1000 * count,
+                )
+                effect_size0[i] = sim_result["effect_size"][0]
+                effect_size1[i] = sim_result["effect_size"][1]
+            rng = np.random.default_rng(count + 1)
+            exponential = rng.exponential(scale=scale / 2, size=1000)
+            exponential *= rng.choice([-1, 1], size=1000)
 
             self.plot_qq_compare(
-                v1=environment0,
-                v2=env_sim,
-                x_label="Individual 0 Environment",
-                y_label="Simulated values",
-                filename=f"ind_0_env_{count}",
-                title=f"Individual 0 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
-                f"trait_sd = {trait_sd}, h2 = {h2}",
+                v1=effect_size0,
+                v2=exponential * const0,
+                x_label="Simulated Effect Size",
+                y_label="Exponential Distribution",
+                filename=f"effect_size_0_negative_{count}",
+                title=f"EffectSize0, Exponential, alpha = {alpha}, "
+                f"scale = {scale}, negative = True",
             )
             self.plot_qq_compare(
-                v1=environment1,
-                v2=env_sim,
-                x_label="Individual 1 Environment",
-                y_label="Simulated values",
-                filename=f"ind_1_env_{count}",
-                title=f"Individual 1 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
-                f"trait_sd = {trait_sd}, h2 = {h2}",
-            )
-            self.plot_qq_compare(
-                v1=environment2,
-                v2=env_sim,
-                x_label="Individual 2 Environment",
-                y_label="Simulated values",
-                filename=f"ind_2_env_{count}",
-                title=f"Individual 2 Env, alpha = {alpha}, trait_mean = {trait_mean}, "
-                f"trait_sd = {trait_sd}, h2 = {h2}",
+                v1=effect_size1,
+                v2=exponential * const1,
+                x_label="Simulated Effect Size",
+                y_label="Exponential Distribution",
+                filename=f"effect_size_1_negative_{count}",
+                title=f"EffectSize1, Exponential, alpha = {alpha}, "
+                f"scale = {scale}, negative = True",
             )
 
             count += 1
 
 
-class TestInternal(Test):
-    def test_internal(self):
-        """
-        Genotype of individuals:
+class TestT(Test):
+    def test_t(self):
 
-        Site 0 Genotype:
-            [T, T, A, A, T, A]
-            Ancestral state: A
-            Causal allele freq: 0.5
-            Individual 0: 1 causal
-            Individual 1: 2 causal
-            Individual 2: 0 causal
+        alpha_array = np.array([0, -0.3, 1])
+        mean_array = np.array([0, 1])
+        var_array = np.array([1, 2])
+        df_array = np.array([10, 13.5])
 
-        Site 1 Genotype:
-            [A, A, T, A, A, A]
-            Ancestral state: A
-            Causal allele freq: 1/6
-            Individual 0: 0 causal
-            Individual 1: 0 causal
-            Individual 2: 1 causal
-
-        Effect size distribution:
-
-        SD Formula:
-            trait_sd / sqrt(2) * [sqrt(2 * freq * (1 - freq))] ^ alpha
-            sqrt(2) from 2 causal sites
-
-        Environmental noise is simulated from a normal distribution where standard
-        deviation depends on the variance of the simulated genetic values
-        """
-
-        ts = sim_tree_internal()
-
-        alpha_array = np.array([0, -1])
-        trait_mean_array = np.array([0, 1])
-        trait_var_array = np.array([1, 2])
-        h2_array = np.array([0.3, 0.8])
+        ts = sim_tree_seq()
 
         count = 0
 
-        prod = itertools.product(
-            alpha_array, trait_mean_array, trait_var_array, h2_array
-        )
-
-        for element in tqdm(prod, total=16):
+        prod = itertools.product(alpha_array, mean_array, var_array, df_array)
+        for element in tqdm(prod, total=24):
             alpha = element[0]
-            trait_mean = element[1]
-            trait_var = element[2]
-            trait_sd = np.sqrt(trait_var)
-            h2 = element[3]
-            model = trait_model.TraitModelAlleleFrequency(trait_mean, trait_var, alpha)
-            trait_mean /= 2
-            genetic0 = np.zeros(1000)
-            genetic1 = np.zeros(1000)
-            genetic2 = np.zeros(1000)
-
+            mean = element[1]
+            var = element[2]
+            df = element[3]
+            sd = np.sqrt(var)
+            const0, const1 = sim_tree_seq_freq(alpha)
+            model = tstrait.trait_model(distribution="t", mean=mean, var=var, df=df)
+            effect_size0 = np.zeros(1000)
+            effect_size1 = np.zeros(1000)
             for i in range(1000):
-                sim_result = simulate_phenotype.sim_phenotype(
-                    ts, num_causal=2, model=model, h2=h2, random_seed=i
+                sim_result = tstrait.sim_trait(
+                    ts=ts,
+                    num_causal=2,
+                    model=model,
+                    alpha=alpha,
+                    random_seed=i + 1000 * count,
                 )
-                phenotype_result = sim_result.phenotype
-                genetic0[i] = phenotype_result.genetic_value[0]
-                genetic1[i] = phenotype_result.genetic_value[1]
-                genetic2[i] = phenotype_result.genetic_value[2]
+                effect_size0[i] = sim_result["effect_size"][0]
+                effect_size1[i] = sim_result["effect_size"][1]
+            rng = np.random.default_rng(count + 1)
+            simulated_t = rng.standard_t(df, size=1000)
+            simulated_t = simulated_t * sd + mean
+            simulated_t /= 2
 
-            effect_size_sd0 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
+            self.plot_qq_compare(
+                v1=effect_size0,
+                v2=simulated_t * const0,
+                x_label="Simulated Effect Size",
+                y_label="T Distribution",
+                filename=f"effect_size_0_{count}",
+                title=f"EffectSize0, T, alpha = {alpha}, mean = {mean}, "
+                f"var = {var}, df = {df}",
             )
-            effect_size_sd1 = (
-                trait_sd / np.sqrt(2) * np.sqrt(pow(2 * 1 / 6 * (1 - 1 / 6), alpha))
+            self.plot_qq_compare(
+                v1=effect_size1,
+                v2=simulated_t * const1,
+                x_label="Simulated Effect Size",
+                y_label="T Distribution",
+                filename=f"effect_size_1_{count}",
+                title=f"EffectSize1, T, alpha = {alpha}, mean = {mean}, "
+                f"var = {var}, df = {df}",
             )
-            effect_size_mean0 = trait_mean * np.sqrt(pow(2 * 0.5 * (1 - 0.5), alpha))
-            effect_size_mean1 = trait_mean * np.sqrt(
-                pow(2 * 1 / 6 * (1 - 1 / 6), alpha)
-            )
+            count += 1
 
-            self.plot_qq_normal(
-                data=genetic0,
-                loc=effect_size_mean0,
-                scale=effect_size_sd0,
-                filename=f"internal_ind_0_genetic_{count}",
-                title=f"Individual 0 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
-            )
-            self.plot_qq_normal(
-                data=genetic1,
-                loc=2 * effect_size_mean0,
-                scale=2 * effect_size_sd0,
-                filename=f"internal_ind_1_genetic_{count}",
-                title=f"Individual 1 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
-            )
-            self.plot_qq_normal(
-                data=genetic2,
-                loc=effect_size_mean1,
-                scale=effect_size_sd1,
-                filename=f"internal_ind_2_genetic_{count}",
-                title=f"Individual 2 Genetic, alpha = {alpha}, "
-                f"trait_mean = {trait_mean}, trait_sd = {trait_sd}, h2 = {h2}",
-            )
 
+class TestGamma(Test):
+    def test_gamma(self):
+
+        alpha_array = np.array([0, -0.3, 1])
+        shape_array = np.array([1, 3.5])
+        scale_array = np.array([1, 2.5])
+
+        ts = sim_tree_seq()
+
+        count = 0
+
+        prod = itertools.product(alpha_array, shape_array, scale_array)
+        for element in tqdm(prod, total=12):
+            alpha = element[0]
+            shape = element[1]
+            scale = element[2]
+            const0, const1 = sim_tree_seq_freq(alpha)
+            model = tstrait.trait_model(
+                distribution="gamma", shape=shape, scale=scale, negative=False
+            )
+            effect_size0 = np.zeros(1000)
+            effect_size1 = np.zeros(1000)
+            for i in range(1000):
+                sim_result = tstrait.sim_trait(
+                    ts=ts,
+                    num_causal=2,
+                    model=model,
+                    alpha=alpha,
+                    random_seed=i + 1000 * count,
+                )
+                effect_size0[i] = sim_result["effect_size"][0]
+                effect_size1[i] = sim_result["effect_size"][1]
+
+            rng = np.random.default_rng(count + 1)
+            gamma = rng.gamma(shape=shape, scale=scale, size=1000)
+            gamma /= 2
+
+            self.plot_qq_compare(
+                v1=effect_size0,
+                v2=gamma * const0,
+                x_label="Simulated Effect Size",
+                y_label="Gamma Distribution",
+                filename=f"effect_size_0_{count}",
+                title=f"EffectSize0, Gamma, alpha = {alpha}, "
+                f"shape = {shape}, scale = {scale}, negative = False",
+            )
+            self.plot_qq_compare(
+                v1=effect_size1,
+                v2=gamma * const1,
+                x_label="Simulated Effect Size",
+                y_label="Gamma Distribution",
+                filename=f"effect_size_1_{count}",
+                title=f"EffectSize1, Gamma, alpha = {alpha}, "
+                f"shape = {shape}, scale = {scale}, negative = False",
+            )
+            count += 1
+
+    def test_gamma_negative(self):
+
+        alpha_array = np.array([0, -0.3, 1])
+        shape_array = np.array([1, 3.5])
+        scale_array = np.array([1, 2.5])
+
+        ts = sim_tree_seq()
+
+        count = 0
+
+        prod = itertools.product(alpha_array, shape_array, scale_array)
+        for element in tqdm(prod, total=12):
+            alpha = element[0]
+            shape = element[1]
+            scale = element[2]
+            const0, const1 = sim_tree_seq_freq(alpha)
+            model = tstrait.trait_model(
+                distribution="gamma", shape=shape, scale=scale, negative=True
+            )
+            effect_size0 = np.zeros(1000)
+            effect_size1 = np.zeros(1000)
+            for i in range(1000):
+                sim_result = tstrait.sim_trait(
+                    ts=ts,
+                    num_causal=2,
+                    model=model,
+                    alpha=alpha,
+                    random_seed=i + 1000 * count,
+                )
+                effect_size0[i] = sim_result["effect_size"][0]
+                effect_size1[i] = sim_result["effect_size"][1]
+
+            rng = np.random.default_rng(count + 1)
+            gamma = rng.gamma(shape=shape, scale=scale, size=1000)
+            gamma /= 2
+            gamma *= rng.choice([-1, 1], size=1000)
+
+            self.plot_qq_compare(
+                v1=effect_size0,
+                v2=gamma * const0,
+                x_label="Simulated Effect Size",
+                y_label="Gamma Distribution",
+                filename=f"effect_size_0_negative_{count}",
+                title=f"EffectSize0, Gamma, alpha = {alpha}, "
+                f"shape = {shape}, scale = {scale}, negative = True",
+            )
+            self.plot_qq_compare(
+                v1=effect_size1,
+                v2=gamma * const1,
+                x_label="Simulated Effect Size",
+                y_label="Gamma Distribution",
+                filename=f"effect_size_1_negative_{count}",
+                title=f"EffectSize1, Gamma, alpha = {alpha}, "
+                f"shape = {shape}, scale = {scale}, negative = True",
+            )
             count += 1
 
 
@@ -440,4 +478,7 @@ def run_tests(suite, output_dir):
 
 
 if __name__ == "__main__":
-    run_tests(["TestGenetic", "TestInternal"], "_output/stats_tests_output")
+    run_tests(
+        ["TestNormal", "TestExponential", "TestT", "TestGamma"],
+        "_output/stats_tests_output",
+    )
