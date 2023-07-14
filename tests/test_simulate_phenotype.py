@@ -42,7 +42,7 @@ class Test_sim_phenotype_output_dim:
     @pytest.mark.parametrize("h2", [0.1, np.array([0.5])[0]])
     @pytest.mark.parametrize("random_seed", [1, 2])
     def test_output_dim_additive(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
@@ -71,7 +71,7 @@ class Test_sim_phenotype_output_dim:
         num_ind = 10
         num_causal = 5
         h2 = 0.3
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
@@ -102,8 +102,8 @@ class Test_sim_phenotype_output_dim:
     @pytest.mark.parametrize("num_causal", [1, 2, 3])
     @pytest.mark.parametrize("h2", [0.1, 0.5])
     @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_output_dim_Allele(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model.TraitModelAlleleFrequency(0, 1, -1)
+    def test_output_dim_exponential(self, num_ind, num_causal, h2, random_seed):
+        model = trait_model(distribution="exponential", scale=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
@@ -136,7 +136,7 @@ class Test_sim_phenotype_output_dim:
 class Test_sim_phenotype_input:
     @pytest.mark.parametrize("ts", [0, "a", [1, 1]])
     def test_ts(self, ts):
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(TypeError, match="Input should be a tree sequence data"):
             simulate_phenotype.sim_phenotype(ts, 2, model, 0.3, 1)
 
@@ -145,7 +145,7 @@ class Test_sim_phenotype_input:
     @pytest.mark.parametrize("h2", [0.1, 0.5])
     @pytest.mark.parametrize("random_seed", [1, 2])
     def test_no_mutation(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
@@ -165,41 +165,31 @@ class Test_sim_phenotype_input:
     def test_h2(self, h2):
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(TypeError, match="Heritability should be a number"):
             simulate_phenotype.sim_phenotype(ts, 2, model, h2, 1)
 
-    @pytest.mark.parametrize("h2", [-1, -0.1, 1.01])
+    @pytest.mark.parametrize("alpha", ["0", "a", [1, 1]])
+    def test_alpha(self, alpha):
+        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        with pytest.raises(TypeError, match="Alpha must be a number"):
+            simulate_phenotype.sim_phenotype(ts, 2, model, 0.3, alpha, 1)
+
+    @pytest.mark.parametrize("h2", [-1, -0.1, 1.01, 0])
     def test_h2_value(self, h2):
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model.TraitModelAdditive(0, 1)
-        with pytest.raises(ValueError, match="Heritability should be 0 <= h2 <= 1"):
+        model = trait_model(distribution="normal", mean=0, var=1)
+        with pytest.raises(ValueError, match="Heritability must be 0 < h2 <= 1"):
             simulate_phenotype.sim_phenotype(ts, 2, model, h2, 1)
-
-    @pytest.mark.parametrize("num_ind", [1, 2, 5])
-    @pytest.mark.parametrize("num_causal", [1, 2, 3])
-    @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_h2_zero(self, num_ind, num_causal, random_seed):
-        model = trait_model.TraitModelAdditive(0, 1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=random_seed
-        )
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, 0, random_seed
-        )
-        phenotype_result = sim_result.phenotype
-
-        assert np.allclose(
-            phenotype_result.phenotype, phenotype_result.environment_noise
-        )
 
     @pytest.mark.parametrize("num_ind", [1, 2, 5])
     @pytest.mark.parametrize("num_causal", [1, 2, 3])
     @pytest.mark.parametrize("random_seed", [1, 2])
     def test_h2_one(self, num_ind, num_causal, random_seed):
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
@@ -216,7 +206,7 @@ class Test_sim_phenotype_input:
     def test_num_causal(self, num_causal):
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(
             TypeError, match="Number of causal sites should be an integer"
         ):
@@ -226,7 +216,7 @@ class Test_sim_phenotype_input:
     def test_num_causal_value(self, num_causal):
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(
             ValueError, match="Number of causal sites should be a positive integer"
         ):
@@ -237,7 +227,7 @@ class Test_sim_phenotype_input:
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         num_causal = num_add + ts.num_sites
-        model = trait_model.TraitModelAdditive(0, 1)
+        model = trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(
             ValueError,
             match="There are less number of sites in the tree sequence than the "
@@ -306,9 +296,10 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
@@ -412,9 +403,10 @@ class Test_site_genotypes:
         tables.mutations.add_row(site=8, node=4, derived_state="T", parent=18)
         ts = tables.tree_sequence()
 
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
@@ -497,9 +489,10 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._individual_genotype(tree, ts.site(0), "G", ts.num_nodes)
@@ -543,9 +536,10 @@ class Test_site_genotypes:
         tables.mutations.add_row(site=2, node=5, derived_state="T", parent=3)
 
         ts = tables.tree_sequence()
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
@@ -599,9 +593,10 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
@@ -655,9 +650,10 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
@@ -709,9 +705,10 @@ class Test_obtain_allele_frequency:
 
         ts = tables.tree_sequence()
 
-        model = trait_model.TraitModelAdditive(0, 1)
-        rng = np.random.default_rng(1)
-        simulator = simulate_phenotype.PhenotypeSimulator(ts, 1, 0.3, model, rng)
+        model = trait_model(distribution="normal", mean=0, var=1)
+        simulator = simulate_phenotype.PhenotypeSimulator(
+            ts, 1, 0.3, model, alpha=0, random_seed=1
+        )
         tree = ts.first()
 
         g1 = simulator._obtain_allele_frequency(tree, ts.site(0))
@@ -751,28 +748,28 @@ class Test_sim_genetic_value:
         tables.mutations.add_row(site=0, node=4, derived_state="T")
         tables.mutations.add_row(site=1, node=4, derived_state="T")
         tables.mutations.add_row(site=2, node=5, derived_state="C")
-        tables.mutations.add_row(site=2, node=4, derived_state="G")
+        tables.mutations.add_row(site=2, node=4, derived_state="G", parent=2)
         tables.mutations.add_row(site=3, node=5, derived_state="C")
-        tables.mutations.add_row(site=3, node=3, derived_state="T")
+        tables.mutations.add_row(site=3, node=3, derived_state="T", parent=4)
         tables.mutations.add_row(site=4, node=3, derived_state="T")
-        tables.mutations.add_row(site=4, node=3, derived_state="A")
-        tables.mutations.add_row(site=4, node=3, derived_state="C")
+        tables.mutations.add_row(site=4, node=3, derived_state="A", parent=6)
+        tables.mutations.add_row(site=4, node=3, derived_state="C", parent=7)
         tables.mutations.add_row(site=5, node=4, derived_state="C")
-        tables.mutations.add_row(site=5, node=4, derived_state="C")
+        tables.mutations.add_row(site=5, node=4, derived_state="C", parent=9)
         tables.mutations.add_row(site=5, node=1, derived_state="A")
 
         ts = tables.tree_sequence()
-        model = trait_model.TraitModelAdditive(trait_mean=2, trait_var=0)
+        model = trait_model(distribution="fixed", value=2)
         simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, num_causal=6, h2=0, model=model, random_seed=1
+            ts, num_causal=6, h2=0.3, model=model, alpha=0, random_seed=1
         )
         genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
 
-        assert np.array_equal(individual_genetic_array, np.array([4 / 6, 16 / 6]))
+        assert np.array_equal(individual_genetic_array, np.array([4, 16]))
         assert np.array_equal(genotypic_effect_data.site_id, np.arange(6))
         assert np.array_equal(
             genotypic_effect_data.effect_size,
-            np.array([2 / 6, 2 / 6, 2 / 6, 2 / 6, 2 / 6, 2 / 6]),
+            np.array([2, 2, 2, 2, 2, 2]),
         )
         assert np.array_equal(
             genotypic_effect_data.causal_allele,
