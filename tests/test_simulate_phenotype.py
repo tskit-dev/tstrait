@@ -36,6 +36,70 @@ def all_trees_ts(n):
     return tables.tree_sequence()
 
 
+class Test_input:
+    def sample_effect_size_df(self):
+        data = [[1, "A", 0.1]]
+        df = pd.DataFrame(data, columns=["SiteID", "CausalState", "EffectSize"])
+        return df
+
+    @pytest.mark.parametrize("ts", [10, "a", True])
+    def test_input_tree_sequence(self, ts):
+        effect_size_df = self.sample_effect_size_df()
+        with pytest.raises(TypeError, match="Input must be a tree sequence data"):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=0.3, random_seed=1
+            )
+
+    @pytest.mark.parametrize("effect_size_df", [{"A": 1}, 1, [1, 1]])
+    def test_input_effect_size_df(self, effect_size_df):
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        with pytest.raises(
+            TypeError, match="Effect size input must be a pandas dataframe"
+        ):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=0.3, random_seed=1
+            )
+
+    def test_input_col1(self):
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        data = [[1, "A", 0.1]]
+        effect_size_df = pd.DataFrame(
+            data, columns=["Site", "CausalState", "EffectSize"]
+        )
+        with pytest.raises(
+            ValueError, match="SiteID is not included in the effect size dataframe"
+        ):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=0.3, random_seed=1
+            )
+
+    def test_input_col2(self):
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        data = [[1, "A", 0.1]]
+        effect_size_df = pd.DataFrame(data, columns=["SiteID", "State", "EffectSize"])
+        with pytest.raises(
+            ValueError, match="CausalState is not included in the effect size dataframe"
+        ):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=0.3, random_seed=1
+            )
+
+    def test_input_col3(self):
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        data = [[1, "A"]]
+        effect_size_df = pd.DataFrame(data, columns=["SiteID", "CausalState"])
+        with pytest.raises(
+            ValueError, match="EffectSize is not included in the effect size dataframe"
+        ):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=0.3, random_seed=1
+            )
+
+
 class Test_sim_phenotype_output_dim:
     @pytest.mark.parametrize("num_ind", [10, np.array([5])[0]])
     @pytest.mark.parametrize("num_causal", [1, 2, np.array([3])[0]])
@@ -114,6 +178,21 @@ class Test_heritability:
             tstrait.sim_phenotype(
                 ts=ts, effect_size=effect_size_df, h2=h2, random_seed=1
             )
+
+    @pytest.mark.parametrize("h2", [0.3, 1])
+    def test_ind_one(self, h2):
+        ts = msprime.sim_ancestry(1, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+        effect_size_df = tstrait.sim_traits(
+            ts=ts, num_causal=1, model=model, alpha=1, random_seed=1
+        )
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=h2, random_seed=1
+        )
+
+        assert np.array_equal(sim_result["EnvironmentalNoise"], np.zeros(1))
+        assert np.array_equal(sim_result["Phenotype"], sim_result["GeneticValue"])
 
 
 class Test_site_genotypes:

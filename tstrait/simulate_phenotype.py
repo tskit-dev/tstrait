@@ -126,17 +126,16 @@ class PhenotypeSimulator:
         num_ind = len(individual_genetic_array)
         if self.h2 == 1:
             E = np.zeros(num_ind)
-            phenotype = individual_genetic_array
         else:
             if num_ind > 1:
                 env_std = np.sqrt(
                     (1 - self.h2) / self.h2 * np.var(individual_genetic_array)
                 )
                 E = self.rng.normal(loc=0.0, scale=env_std, size=num_ind)
-                phenotype = individual_genetic_array + E
             else:
                 E = np.zeros(num_ind)
-                phenotype = individual_genetic_array + E
+
+        phenotype = individual_genetic_array + E
 
         return phenotype, E
 
