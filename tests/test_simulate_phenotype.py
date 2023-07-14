@@ -2,10 +2,10 @@ import functools
 
 import msprime
 import numpy as np
+import pandas as pd
 import pytest
 import tskit
-import tstrait.simulate_phenotype as simulate_phenotype
-import tstrait.trait_model as trait_model
+import tstrait
 
 
 @functools.lru_cache(maxsize=None)
@@ -37,207 +37,87 @@ def all_trees_ts(n):
 
 
 class Test_sim_phenotype_output_dim:
-    @pytest.mark.parametrize("num_ind", [1, 2, np.array([5])[0]])
+    @pytest.mark.parametrize("num_ind", [10, np.array([5])[0]])
     @pytest.mark.parametrize("num_causal", [1, 2, np.array([3])[0]])
-    @pytest.mark.parametrize("h2", [0.1, np.array([0.5])[0]])
-    @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_output_dim_additive(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model(distribution="normal", mean=0, var=1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=random_seed
-        )
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, h2, random_seed
-        )
-        phenotype_result = sim_result.phenotype
-        genetic_result = sim_result.genotype
-
-        assert len(phenotype_result.__dict__) == 4
-        assert len(genetic_result.__dict__) == 4
-
-        assert len(phenotype_result.individual_id) == num_ind
-        assert len(phenotype_result.phenotype) == num_ind
-        assert len(phenotype_result.environment_noise) == num_ind
-        assert len(phenotype_result.genetic_value) == num_ind
-
-        assert len(genetic_result.site_id) == num_causal
-        assert len(genetic_result.causal_allele) == num_causal
-        assert len(genetic_result.effect_size) == num_causal
-        assert len(genetic_result.allele_frequency) == num_causal
-
-    def test_binary_mutation_model(self):
-        random_seed = 1
-        num_ind = 10
-        num_causal = 5
+    @pytest.mark.parametrize("alpha", [0, 1, -1.1])
+    @pytest.mark.parametrize("random_seed", [1, 2, None])
+    def test_output_dim_normal(self, num_ind, num_causal, alpha, random_seed):
         h2 = 0.3
-        model = trait_model(distribution="normal", mean=0, var=1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=random_seed
-        )
-        ts = msprime.sim_mutations(
-            ts, rate=0.01, random_seed=random_seed, model="binary"
-        )
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, h2, random_seed
-        )
-
-        phenotype_result = sim_result.phenotype
-        genetic_result = sim_result.genotype
-
-        assert len(phenotype_result.__dict__) == 4
-        assert len(genetic_result.__dict__) == 4
-
-        assert len(phenotype_result.individual_id) == num_ind
-        assert len(phenotype_result.phenotype) == num_ind
-        assert len(phenotype_result.environment_noise) == num_ind
-        assert len(phenotype_result.genetic_value) == num_ind
-
-        assert len(genetic_result.site_id) == num_causal
-        assert len(genetic_result.causal_allele) == num_causal
-        assert len(genetic_result.effect_size) == num_causal
-        assert len(genetic_result.allele_frequency) == num_causal
-
-    @pytest.mark.parametrize("num_ind", [1, 2, 5])
-    @pytest.mark.parametrize("num_causal", [1, 2, 3])
-    @pytest.mark.parametrize("h2", [0.1, 0.5])
-    @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_output_dim_exponential(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model(distribution="exponential", scale=1)
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, h2, random_seed
+        effect_size_df = tstrait.sim_traits(
+            ts=ts,
+            num_causal=num_causal,
+            model=model,
+            alpha=alpha,
+            random_seed=random_seed,
         )
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=h2, random_seed=random_seed
+        )
+        assert sim_result.shape[0] == num_ind
+        assert sim_result.shape[1] == 4
 
-        phenotype_result = sim_result.phenotype
-        genetic_result = sim_result.genotype
-
-        assert len(phenotype_result.__dict__) == 4
-        assert len(genetic_result.__dict__) == 4
-
-        assert len(phenotype_result.individual_id) == num_ind
-        assert len(phenotype_result.phenotype) == num_ind
-        assert len(phenotype_result.environment_noise) == num_ind
-        assert len(phenotype_result.genetic_value) == num_ind
-
-        assert len(genetic_result.site_id) == num_causal
-        assert len(genetic_result.causal_allele) == num_causal
-        assert len(genetic_result.effect_size) == num_causal
-        assert len(genetic_result.allele_frequency) == num_causal
-
-        assert max(genetic_result.allele_frequency < 1) and min(
-            genetic_result.allele_frequency > 0
+        assert np.array_equal(sim_result["IndividualID"], np.arange(num_ind))
+        assert np.array_equal(
+            sim_result["Phenotype"],
+            sim_result["GeneticValue"] + sim_result["EnvironmentalNoise"],
         )
 
 
-class Test_sim_phenotype_input:
-    @pytest.mark.parametrize("ts", [0, "a", [1, 1]])
-    def test_ts(self, ts):
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(TypeError, match="Input should be a tree sequence data"):
-            simulate_phenotype.sim_phenotype(ts, 2, model, 0.3, 1)
-
-    @pytest.mark.parametrize("num_ind", [1, 2, 5])
-    @pytest.mark.parametrize("num_causal", [1, 2, 3])
-    @pytest.mark.parametrize("h2", [0.1, 0.5])
-    @pytest.mark.parametrize("random_seed", [1, 2])
-    def test_no_mutation(self, num_ind, num_causal, h2, random_seed):
-        model = trait_model(distribution="normal", mean=0, var=1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=random_seed
-        )
-        with pytest.raises(ValueError, match="No mutation in the provided data"):
-            simulate_phenotype.sim_phenotype(ts, num_causal, model, h2, random_seed)
-
-    @pytest.mark.parametrize("model", [None, 1, "a"])
-    def test_model(self, model):
-        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=2)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=2)
-        with pytest.raises(
-            TypeError, match="Trait model must be an instance of TraitModel"
-        ):
-            simulate_phenotype.sim_phenotype(ts, 3, model, 0.3, 2)
-
-    @pytest.mark.parametrize("h2", ["0", "a", [1, 1]])
-    def test_h2(self, h2):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(TypeError, match="Heritability should be a number"):
-            simulate_phenotype.sim_phenotype(ts, 2, model, h2, 1)
-
-    @pytest.mark.parametrize("alpha", ["0", "a", [1, 1]])
-    def test_alpha(self, alpha):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(TypeError, match="Alpha must be a number"):
-            simulate_phenotype.sim_phenotype(ts, 2, model, 0.3, alpha, 1)
-
-    @pytest.mark.parametrize("h2", [-1, -0.1, 1.01, 0])
-    def test_h2_value(self, h2):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(ValueError, match="Heritability must be 0 < h2 <= 1"):
-            simulate_phenotype.sim_phenotype(ts, 2, model, h2, 1)
-
+class Test_heritability:
     @pytest.mark.parametrize("num_ind", [1, 2, 5])
     @pytest.mark.parametrize("num_causal", [1, 2, 3])
     @pytest.mark.parametrize("random_seed", [1, 2])
     def test_h2_one(self, num_ind, num_causal, random_seed):
-        model = trait_model(distribution="normal", mean=0, var=1)
+        h2 = 1
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(
             num_ind, sequence_length=100_000, random_seed=random_seed
         )
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
-        sim_result = simulate_phenotype.sim_phenotype(
-            ts, num_causal, model, 1, random_seed
+        effect_size_df = tstrait.sim_traits(
+            ts=ts, num_causal=num_causal, model=model, alpha=1, random_seed=random_seed
         )
-        phenotype_result = sim_result.phenotype
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=h2, random_seed=random_seed
+        )
 
-        assert np.allclose(phenotype_result.phenotype, phenotype_result.genetic_value)
-        assert np.array_equiv(phenotype_result.environment_noise, np.zeros(num_ind))
+        assert np.allclose(sim_result["Phenotype"], sim_result["GeneticValue"])
+        assert np.array_equal(sim_result["EnvironmentalNoise"], np.zeros(num_ind))
 
-    @pytest.mark.parametrize("num_causal", ["1", "a", [1, 1]])
-    def test_num_causal(self, num_causal):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+    @pytest.mark.parametrize("h2", [0, -1, 2])
+    def test_h2_error(self, h2):
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(
-            TypeError, match="Number of causal sites should be an integer"
-        ):
-            simulate_phenotype.sim_phenotype(ts, num_causal, model, 0.3, 1)
+        effect_size_df = tstrait.sim_traits(
+            ts=ts, num_causal=3, model=model, alpha=1, random_seed=1
+        )
+        with pytest.raises(ValueError, match="Heritability must be 0 < h2 <= 1"):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=h2, random_seed=1
+            )
 
-    @pytest.mark.parametrize("num_causal", [-1, 1.8, -1.5, 0])
-    def test_num_causal_value(self, num_causal):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+    @pytest.mark.parametrize("h2", ["A", "0.1", [0.1, 0.3]])
+    def test_h2_error_input(self, h2):
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(
-            ValueError, match="Number of causal sites should be a positive integer"
-        ):
-            simulate_phenotype.sim_phenotype(ts, num_causal, model, 0.3, 1)
-
-    @pytest.mark.parametrize("num_add", [1, 100])
-    def test_num_causal_value_more(self, num_add):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        num_causal = num_add + ts.num_sites
-        model = trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(
-            ValueError,
-            match="There are less number of sites in the tree sequence than the "
-            "inputted number of causal sites",
-        ):
-            simulate_phenotype.sim_phenotype(ts, num_causal, model, 0.3, 1)
+        effect_size_df = tstrait.sim_traits(
+            ts=ts, num_causal=3, model=model, alpha=1, random_seed=1
+        )
+        with pytest.raises(TypeError, match="Heritability must be a number"):
+            tstrait.sim_phenotype(
+                ts=ts, effect_size=effect_size_df, h2=h2, random_seed=1
+            )
 
 
 class Test_site_genotypes:
-    def test_binary_tree(self):
+    def binary_tree(self):
         #  3.00   6
         #     ┊ ┏━┻━┓    ┊
         # 2.00┊ ┃   5   ┊
@@ -296,9 +176,23 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+        return ts
+
+    def binary_tree_df(self):
+        effect_size = {
+            "SiteID": np.arange(12),
+            "CausalState": ["T", "T", "T", "T", "T", "A", "C", "T", "T", "A", "C", "C"],
+            "EffectSize": np.ones(12),
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+
+        return effect_size_df
+
+    def test_binary_tree_genotype(self):
+        ts = self.binary_tree()
+        effect_size_df = self.binary_tree_df()
+        simulator = tstrait.PhenotypeSimulator(
+            ts=ts, effect_size_df=effect_size_df, h2=0.1, random_seed=1
         )
         tree = ts.first()
 
@@ -315,18 +209,6 @@ class Test_site_genotypes:
         g11 = simulator._individual_genotype(tree, ts.site(10), "C", ts.num_nodes)
         g12 = simulator._individual_genotype(tree, ts.site(11), "C", ts.num_nodes)
 
-        c1 = simulator._obtain_allele_frequency(tree, ts.site(0))
-        c2 = simulator._obtain_allele_frequency(tree, ts.site(1))
-        c3 = simulator._obtain_allele_frequency(tree, ts.site(2))
-        c4 = simulator._obtain_allele_frequency(tree, ts.site(3))
-        c5 = simulator._obtain_allele_frequency(tree, ts.site(4))
-        c6 = simulator._obtain_allele_frequency(tree, ts.site(5))
-        c7 = simulator._obtain_allele_frequency(tree, ts.site(6))
-        c8 = simulator._obtain_allele_frequency(tree, ts.site(7))
-        c9 = simulator._obtain_allele_frequency(tree, ts.site(8))
-        c10 = simulator._obtain_allele_frequency(tree, ts.site(10))
-        c11 = simulator._obtain_allele_frequency(tree, ts.site(11))
-
         assert np.array_equal(g1, np.array([1, 0]))
         assert np.array_equal(g2, np.array([0, 2]))
         assert np.array_equal(g3, np.array([1, 0]))
@@ -340,19 +222,15 @@ class Test_site_genotypes:
         assert np.array_equal(g11, np.array([2, 2]))
         assert np.array_equal(g12, np.array([1, 2]))
 
-        assert c1 == {"T": 1}
-        assert c2 == {"T": 2}
-        assert c3 == {"T": 1}
-        assert c4 == {"T": 3}
-        assert c5 == {"T": 3}
-        assert c6 == {"A": 4}
-        assert c7 == {"C": 1}
-        assert c8 == {"T": 1, "C": 2}
-        assert c9 == {"T": 3}
-        assert c10 == {"C": 4}
-        assert c11 == {"C": 3, "T": 1}
+    def test_binary_tree_output(self):
+        ts = self.binary_tree()
+        effect_size_df = self.binary_tree_df()
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
+        )
+        assert np.array_equal(sim_result["GeneticValue"], np.array([14, 16]))
 
-    def test_binary_tree_different_individual(self):
+    def binary_tree_different_individual(self):
         #  3.00   6
         #     ┊ ┏━┻━┓    ┊
         # 2.00┊ ┃   5   ┊
@@ -403,9 +281,22 @@ class Test_site_genotypes:
         tables.mutations.add_row(site=8, node=4, derived_state="T", parent=18)
         ts = tables.tree_sequence()
 
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+        return ts
+
+    def binary_tree_different_individual_df(self):
+        effect_size = {
+            "SiteID": np.arange(9),
+            "CausalState": ["T", "T", "T", "T", "T", "A", "C", "T", "T"],
+            "EffectSize": np.ones(9),
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+        return effect_size_df
+
+    def test_binary_tree_different_individual_genotype(self):
+        ts = self.binary_tree_different_individual()
+        effect_size_df = self.binary_tree_different_individual_df()
+        simulator = tstrait.PhenotypeSimulator(
+            ts=ts, effect_size_df=effect_size_df, h2=0.1, random_seed=1
         )
         tree = ts.first()
 
@@ -419,16 +310,6 @@ class Test_site_genotypes:
         g8 = simulator._individual_genotype(tree, ts.site(7), "T", ts.num_nodes)
         g9 = simulator._individual_genotype(tree, ts.site(8), "T", ts.num_nodes)
 
-        c1 = simulator._obtain_allele_frequency(tree, ts.site(0))
-        c2 = simulator._obtain_allele_frequency(tree, ts.site(1))
-        c3 = simulator._obtain_allele_frequency(tree, ts.site(2))
-        c4 = simulator._obtain_allele_frequency(tree, ts.site(3))
-        c5 = simulator._obtain_allele_frequency(tree, ts.site(4))
-        c6 = simulator._obtain_allele_frequency(tree, ts.site(5))
-        c7 = simulator._obtain_allele_frequency(tree, ts.site(6))
-        c8 = simulator._obtain_allele_frequency(tree, ts.site(7))
-        c9 = simulator._obtain_allele_frequency(tree, ts.site(8))
-
         assert np.array_equal(g1, np.array([1, 0]))
         assert np.array_equal(g2, np.array([1, 1]))
         assert np.array_equal(g3, np.array([0, 1]))
@@ -439,17 +320,15 @@ class Test_site_genotypes:
         assert np.array_equal(g8, np.array([0, 1]))
         assert np.array_equal(g9, np.array([1, 2]))
 
-        assert c1 == {"T": 1}
-        assert c2 == {"T": 2}
-        assert c3 == {"T": 1}
-        assert c4 == {"T": 3}
-        assert c5 == {"T": 3}
-        assert c6 == {"A": 4}
-        assert c7 == {"C": 1}
-        assert c8 == {"T": 1, "C": 2}
-        assert c9 == {"T": 3}
+    def test_binary_tree_different_individual_output(self):
+        ts = self.binary_tree_different_individual()
+        effect_size_df = self.binary_tree_different_individual_df()
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
+        )
+        assert np.array_equal(sim_result["GeneticValue"], np.array([9, 10]))
 
-    def test_binary_tree_internal_node(self):
+    def tree_internal_node(self):
         ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
 
         tables = ts.dump_tables()
@@ -468,13 +347,6 @@ class Test_site_genotypes:
         individuals[5] = 0
         tables.nodes.individual = individuals
 
-        # flags = tables.nodes.flags
-        # Set nodes to be samples
-        # flags[:] = 0
-        # flags[:6] = tskit.NODE_IS_SAMPLE
-
-        # tables.nodes.flags = flags
-
         tables.mutations.add_row(site=0, node=0, derived_state="T")
         tables.mutations.add_row(site=0, node=5, derived_state="G")
 
@@ -489,12 +361,24 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+        return ts
+
+    def tree_internal_node_df(self):
+        effect_size = {
+            "SiteID": np.arange(3),
+            "CausalState": ["G", "T", "T"],
+            "EffectSize": np.ones(3),
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+        return effect_size_df
+
+    def test_binary_tree_internal_node_genotype(self):
+        ts = self.tree_internal_node()
+        effect_size_df = self.tree_internal_node_df()
+        simulator = tstrait.PhenotypeSimulator(
+            ts=ts, effect_size_df=effect_size_df, h2=0.1, random_seed=1
         )
         tree = ts.first()
-
         g1 = simulator._individual_genotype(tree, ts.site(0), "G", ts.num_nodes)
         g2 = simulator._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
         g3 = simulator._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
@@ -505,7 +389,15 @@ class Test_site_genotypes:
         assert np.array_equal(g3, np.array([1, 0, 0]))
         assert np.array_equal(g4, np.array([0, 1, 0]))
 
-    def test_non_binary_tree(self):
+    def test_binary_tree_internal_node_output(self):
+        ts = self.tree_internal_node()
+        effect_size_df = self.tree_internal_node_df()
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
+        )
+        assert np.array_equal(sim_result["GeneticValue"], np.array([3, 1, 2]))
+
+    def non_binary_tree(self):
         # 2.00      7
         #     ┊ ┏━┏━━┏━┻━━┓   ┊
         # 1.00┊ ┃ ┃ ┃     6   ┊
@@ -536,29 +428,41 @@ class Test_site_genotypes:
         tables.mutations.add_row(site=2, node=5, derived_state="T", parent=3)
 
         ts = tables.tree_sequence()
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+
+        return ts
+
+    def non_binary_tree_df(self):
+        effect_size = {
+            "SiteID": np.arange(3),
+            "CausalState": ["T", "T", "C"],
+            "EffectSize": np.ones(3),
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+        return effect_size_df
+
+    def test_non_binary_tree_genotype(self):
+        ts = self.non_binary_tree()
+        effect_size_df = self.non_binary_tree_df()
+        simulator = tstrait.PhenotypeSimulator(
+            ts=ts, effect_size_df=effect_size_df, h2=0.1, random_seed=1
         )
         tree = ts.first()
-
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g2 = simulator._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
         g3 = simulator._individual_genotype(tree, ts.site(2), "C", ts.num_nodes)
-
-        c1 = simulator._obtain_allele_frequency(tree, ts.site(0))
-        c2 = simulator._obtain_allele_frequency(tree, ts.site(1))
-        c3 = simulator._obtain_allele_frequency(tree, ts.site(2))
-
         assert np.array_equal(g1, np.array([0, 1, 2]))
         assert np.array_equal(g2, np.array([1, 0, 0]))
         assert np.array_equal(g3, np.array([0, 1, 1]))
 
-        assert c1 == {"T": 3}
-        assert c2 == {"T": 1}
-        assert c3 == {"C": 2, "T": 1}
+    def test_non_binary_tree_output(self):
+        ts = self.non_binary_tree()
+        effect_size_df = self.non_binary_tree_df()
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
+        )
+        assert np.array_equal(sim_result["GeneticValue"], np.array([1, 2, 3]))
 
-    def test_multiple_node_individual(self):
+    def multiple_node_tree(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
         for j in range(5):
@@ -593,12 +497,25 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+        return ts
+
+    def multiple_node_df(self):
+        effect_size = {
+            "SiteID": np.arange(5),
+            "CausalState": ["T", "A", "T", "C", "A"],
+            "EffectSize": np.ones(5) * 2,
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+
+        return effect_size_df
+
+    def test_multiple_node_genotype(self):
+        ts = self.multiple_node_tree()
+        effect_size_df = self.multiple_node_df()
+        simulator = tstrait.PhenotypeSimulator(
+            ts=ts, effect_size_df=effect_size_df, h2=0.1, random_seed=1
         )
         tree = ts.first()
-
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g2 = simulator._individual_genotype(tree, ts.site(1), "A", ts.num_nodes)
         g3 = simulator._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
@@ -611,7 +528,15 @@ class Test_site_genotypes:
         assert np.array_equal(g4, np.array([0, 1]))
         assert np.array_equal(g5, np.array([3, 3]))
 
-    def test_individual_single_node(self):
+    def test_multiple_node_output(self):
+        ts = self.multiple_node_tree()
+        effect_size_df = self.multiple_node_df()
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
+        )
+        assert np.array_equal(sim_result["GeneticValue"], np.array([20, 20]))
+
+    def individual_tree(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
         for j in range(5):
@@ -650,12 +575,24 @@ class Test_site_genotypes:
 
         ts = tables.tree_sequence()
 
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+        return ts
+
+    def individual_tree_df(self):
+        effect_size = {
+            "SiteID": np.arange(5),
+            "CausalState": ["T", "A", "T", "C", "A"],
+            "EffectSize": [1, 2, 3, 4, 5],
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+        return effect_size_df
+
+    def test_individual_tree_genotype(self):
+        ts = self.individual_tree()
+        effect_size_df = self.individual_tree_df()
+        simulator = tstrait.PhenotypeSimulator(
+            ts=ts, effect_size_df=effect_size_df, h2=0.1, random_seed=1
         )
         tree = ts.first()
-
         g1 = simulator._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g2 = simulator._individual_genotype(tree, ts.site(1), "A", ts.num_nodes)
         g3 = simulator._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
@@ -668,63 +605,18 @@ class Test_site_genotypes:
         assert np.array_equal(g4, np.array([0, 0, 1, 0, 0, 0]))
         assert np.array_equal(g5, np.array([1, 1, 1, 1, 1, 1]))
 
-
-class Test_obtain_allele_frequency:
-    def test_binary_tree(self):
-        ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
-        tables = ts.dump_tables()
-        for j in range(5):
-            tables.sites.add_row(j, "A")
-
-        tables.individuals.add_row()
-        tables.individuals.add_row()
-        tables.individuals.add_row()
-        individuals = tables.nodes.individual
-        individuals[0] = 0
-        individuals[1] = 0
-        individuals[2] = 1
-        individuals[3] = 1
-        individuals[4] = 2
-        individuals[5] = 2
-        tables.nodes.individual = individuals
-
-        tables.mutations.add_row(site=0, node=7, derived_state="T")
-        tables.mutations.add_row(site=1, node=0, derived_state="T")
-        tables.mutations.add_row(site=1, node=0, derived_state="A", parent=1)
-
-        tables.mutations.add_row(site=2, node=9, derived_state="T")
-        tables.mutations.add_row(site=2, node=3, derived_state="C", parent=3)
-
-        tables.mutations.add_row(site=3, node=8, derived_state="T")
-        tables.mutations.add_row(site=3, node=8, derived_state="A", parent=5)
-        tables.mutations.add_row(site=3, node=8, derived_state="C", parent=6)
-        tables.mutations.add_row(site=3, node=3, derived_state="A", parent=7)
-        tables.mutations.add_row(site=3, node=6, derived_state="G", parent=7)
-
-        tables.mutations.add_row(site=4, node=8, derived_state="A")
-
-        ts = tables.tree_sequence()
-
-        model = trait_model(distribution="normal", mean=0, var=1)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, 1, 0.3, model, alpha=0, random_seed=1
+    def test_individual_tree_output(self):
+        ts = self.individual_tree()
+        effect_size_df = self.individual_tree_df()
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
         )
-        tree = ts.first()
-
-        g1 = simulator._obtain_allele_frequency(tree, ts.site(0))
-        g2 = simulator._obtain_allele_frequency(tree, ts.site(1))
-        g3 = simulator._obtain_allele_frequency(tree, ts.site(2))
-        g4 = simulator._obtain_allele_frequency(tree, ts.site(3))
-        g5 = simulator._obtain_allele_frequency(tree, ts.site(4))
-
-        assert g1 == {"T": 3}
-        assert g2 == {"A": 6}
-        assert g3 == {"T": 4, "C": 1}
-        assert g4 == {"G": 2, "C": 1}
-        assert g5 == {"A": 6}
+        assert np.array_equal(
+            sim_result["GeneticValue"], np.array([7, 10, 14, 8, 11, 11])
+        )
 
 
-class Test_sim_genetic_value:
+class Test_tree_sequence:
     def test_tree_sequence(self):
         ts = all_trees_ts(4)
         tables = ts.dump_tables()
@@ -759,23 +651,15 @@ class Test_sim_genetic_value:
         tables.mutations.add_row(site=5, node=1, derived_state="A")
 
         ts = tables.tree_sequence()
-        model = trait_model(distribution="fixed", value=2)
-        simulator = simulate_phenotype.PhenotypeSimulator(
-            ts, num_causal=6, h2=0.3, model=model, alpha=0, random_seed=1
-        )
-        genotypic_effect_data, individual_genetic_array = simulator.sim_genetic_value()
 
-        assert np.array_equal(individual_genetic_array, np.array([4, 16]))
-        assert np.array_equal(genotypic_effect_data.site_id, np.arange(6))
-        assert np.array_equal(
-            genotypic_effect_data.effect_size,
-            np.array([2, 2, 2, 2, 2, 2]),
+        effect_size = {
+            "SiteID": np.arange(6),
+            "CausalState": np.array(["T", "T", "C", "T", "C", "C"]),
+            "EffectSize": np.ones(6),
+        }
+        effect_size_df = pd.DataFrame(effect_size)
+
+        sim_result = tstrait.sim_phenotype(
+            ts=ts, effect_size=effect_size_df, h2=0.1, random_seed=1
         )
-        assert np.array_equal(
-            genotypic_effect_data.causal_allele,
-            np.array(["T", "T", "C", "T", "C", "C"]),
-        )
-        assert np.allclose(
-            genotypic_effect_data.allele_frequency,
-            np.array([0.5, 0.75, 0.25, 0.25, 0.25, 0.5]),
-        )
+        assert np.array_equal(sim_result["GeneticValue"], np.array([2, 8]))
