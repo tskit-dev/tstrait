@@ -313,7 +313,7 @@ class Test_site_genotypes:
 
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         simulator = tstrait.TraitSimulator(
-            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1
+            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1, site_id=None
         )
         tree = ts.first()
 
@@ -394,7 +394,7 @@ class Test_site_genotypes:
 
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         simulator = tstrait.TraitSimulator(
-            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1
+            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1, site_id=None
         )
         tree = ts.first()
 
@@ -453,7 +453,7 @@ class Test_site_genotypes:
 
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         simulator = tstrait.TraitSimulator(
-            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1
+            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1, site_id=None
         )
         tree = ts.first()
 
@@ -498,7 +498,7 @@ class Test_site_genotypes:
         ts = tables.tree_sequence()
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         simulator = tstrait.TraitSimulator(
-            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1
+            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1, site_id=None
         )
         tree = ts.first()
 
@@ -546,7 +546,7 @@ class Test_site_genotypes:
         ts = tables.tree_sequence()
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         simulator = tstrait.TraitSimulator(
-            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1
+            ts=ts, num_causal=1, model=model, alpha=0.3, random_seed=1, site_id=None
         )
         tree = ts.first()
 
@@ -744,3 +744,49 @@ class Test_tree_sequence:
         assert np.isclose(
             sim_result["effect_size"][5], 2 * self.const(freq=0.5, alpha=-1)
         )
+
+
+class Test_site_id:
+    @pytest.mark.parametrize("site_id", [0, 1, {"a": 1}, "1"])
+    def test_input_type(self, site_id):
+        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+        with pytest.raises(
+            TypeError, match="Causal site ID must be a list or a numpy array"
+        ):
+            tstrait.sim_trait(
+                ts=ts,
+                num_causal=5,
+                model=model,
+                alpha=1,
+                random_seed=1,
+                site_id=site_id,
+            )
+
+    @pytest.mark.parametrize("site_id", [[4, 0, 7], np.array([4, 7, 0])])
+    def test_id_output_error(self, site_id):
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+        ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        sim_result = tstrait.sim_trait(
+            ts=ts, num_causal=3, model=model, alpha=0, random_seed=1, site_id=site_id
+        )
+        assert np.array_equal(sim_result["site_id"], np.array([0, 4, 7]))
+
+    def test_num_causal_error(self):
+        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+        with pytest.raises(
+            ValueError,
+            match="Number of causal sites match the length of causal site ID",
+        ):
+            tstrait.sim_trait(
+                ts=ts,
+                num_causal=5,
+                model=model,
+                alpha=1,
+                random_seed=1,
+                site_id=np.array([0, 1]),
+            )
