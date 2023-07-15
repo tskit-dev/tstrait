@@ -169,7 +169,7 @@ class TestNormal(Test):
             for i in range(1000):
                 sim_result = tstrait.sim_trait(
                     ts=ts,
-                    num_causal=2,
+                    causal_sites=2,
                     model=model,
                     alpha=alpha,
                     random_seed=i + 1000 * count,
@@ -218,7 +218,7 @@ class TestExponential(Test):
             for i in range(1000):
                 sim_result = tstrait.sim_trait(
                     ts=ts,
-                    num_causal=2,
+                    causal_sites=2,
                     model=model,
                     alpha=alpha,
                     random_seed=i + 1000 * count,
@@ -263,7 +263,7 @@ class TestExponential(Test):
             for i in range(1000):
                 sim_result = tstrait.sim_trait(
                     ts=ts,
-                    num_causal=2,
+                    causal_sites=2,
                     model=model,
                     alpha=alpha,
                     random_seed=i + 1000 * count,
@@ -322,7 +322,7 @@ class TestT(Test):
             for i in range(1000):
                 sim_result = tstrait.sim_trait(
                     ts=ts,
-                    num_causal=2,
+                    causal_sites=2,
                     model=model,
                     alpha=alpha,
                     random_seed=i + 1000 * count,
@@ -380,7 +380,7 @@ class TestGamma(Test):
             for i in range(1000):
                 sim_result = tstrait.sim_trait(
                     ts=ts,
-                    num_causal=2,
+                    causal_sites=2,
                     model=model,
                     alpha=alpha,
                     random_seed=i + 1000 * count,
@@ -436,7 +436,7 @@ class TestGamma(Test):
             for i in range(1000):
                 sim_result = tstrait.sim_trait(
                     ts=ts,
-                    num_causal=2,
+                    causal_sites=2,
                     model=model,
                     alpha=alpha,
                     random_seed=i + 1000 * count,

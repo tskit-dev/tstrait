@@ -55,7 +55,7 @@ class Test_sim_phenotype_output_dim:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
         sim_result = tstrait.sim_trait(
             ts=ts,
-            num_causal=num_causal,
+            causal_sites=num_causal,
             model=model,
             alpha=alpha,
             random_seed=random_seed,
@@ -76,7 +76,7 @@ class Test_sim_phenotype_output_dim:
         )
         sim_result = tstrait.sim_trait(
             ts=ts,
-            num_causal=num_causal,
+            causal_sites=num_causal,
             model=model,
             alpha=alpha,
             random_seed=random_seed,
@@ -95,7 +95,7 @@ class Test_sim_phenotype_output_dim:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
         sim_result = tstrait.sim_trait(
             ts=ts,
-            num_causal=num_causal,
+            causal_sites=num_causal,
             model=model,
             alpha=alpha,
             random_seed=random_seed,
@@ -114,7 +114,7 @@ class Test_sim_phenotype_output_dim:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
         sim_result = tstrait.sim_trait(
             ts=ts,
-            num_causal=num_causal,
+            causal_sites=num_causal,
             model=model,
             alpha=alpha,
             random_seed=random_seed,
@@ -133,7 +133,7 @@ class Test_sim_phenotype_output_dim:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
         sim_result = tstrait.sim_trait(
             ts=ts,
-            num_causal=num_causal,
+            causal_sites=num_causal,
             model=model,
             alpha=alpha,
             random_seed=random_seed,
@@ -152,7 +152,7 @@ class Test_sim_phenotype_output_dim:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=random_seed)
         sim_result = tstrait.sim_trait(
             ts=ts,
-            num_causal=num_causal,
+            causal_sites=num_causal,
             model=model,
             alpha=alpha,
             random_seed=random_seed,
@@ -165,18 +165,21 @@ class Test_sim_phenotype_input:
     def test_ts(self, ts):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(TypeError, match="Input must be a tree sequence data"):
-            tstrait.sim_trait(ts=ts, num_causal=3, model=model, alpha=1, random_seed=1)
+            tstrait.sim_trait(
+                ts=ts, causal_sites=3, model=model, alpha=1, random_seed=1
+            )
 
-    @pytest.mark.parametrize("num_causal", ["1", "a", [1, 1]])
+    @pytest.mark.parametrize("num_causal", ["1", "a", {"A": 1}])
     def test_num_causal(self, num_causal):
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(
-            TypeError, match="Number of causal sites must be an integer"
+            TypeError,
+            match="causal_sites must be an integer or a list or a numpy array",
         ):
             tstrait.sim_trait(
-                ts=ts, num_causal=num_causal, model=model, alpha=1, random_seed=1
+                ts=ts, causal_sites=num_causal, model=model, alpha=1, random_seed=1
             )
 
     @pytest.mark.parametrize("num_causal", [-1, 1.8, -1.5, 0])
@@ -188,7 +191,7 @@ class Test_sim_phenotype_input:
             ValueError, match="Number of causal sites must be a positive integer"
         ):
             tstrait.sim_trait(
-                ts=ts, num_causal=num_causal, model=model, alpha=1, random_seed=1
+                ts=ts, causal_sites=num_causal, model=model, alpha=1, random_seed=1
             )
 
     @pytest.mark.parametrize("model", ["normal", 1, [None, 1, "a"]])
@@ -198,7 +201,9 @@ class Test_sim_phenotype_input:
         with pytest.raises(
             TypeError, match="Trait model must be an instance of TraitModel"
         ):
-            tstrait.sim_trait(ts=ts, num_causal=1, model=model, alpha=1, random_seed=1)
+            tstrait.sim_trait(
+                ts=ts, causal_sites=1, model=model, alpha=1, random_seed=1
+            )
 
     def test_error_mutation(self):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
@@ -206,7 +211,7 @@ class Test_sim_phenotype_input:
         with pytest.raises(ValueError, match="No mutation in the provided data"):
             tstrait.sim_trait(
                 ts=ts,
-                num_causal=5,
+                causal_sites=5,
                 model=model,
                 alpha=0,
                 random_seed=1,
@@ -224,7 +229,7 @@ class Test_sim_phenotype_input:
         ):
             tstrait.sim_trait(
                 ts=ts,
-                num_causal=num_causal,
+                causal_sites=num_causal,
                 model=model,
                 alpha=0,
                 random_seed=1,
@@ -236,7 +241,7 @@ class Test_sim_phenotype_input:
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         num_causal = ts.num_sites
         sim_result = tstrait.sim_trait(
-            ts=ts, num_causal=num_causal, model=model, alpha=-1, random_seed=1
+            ts=ts, causal_sites=num_causal, model=model, alpha=-1, random_seed=1
         )
         assert sim_result.shape[0] == num_causal
 
@@ -247,7 +252,7 @@ class Test_sim_phenotype_input:
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         with pytest.raises(TypeError, match="Alpha must be a number"):
             tstrait.sim_trait(
-                ts=ts, num_causal=3, model=model, alpha=alpha, random_seed=1
+                ts=ts, causal_sites=3, model=model, alpha=alpha, random_seed=1
             )
 
 
@@ -650,7 +655,7 @@ class Test_fixed_effect_size:
         model = tstrait.trait_model(distribution="fixed", value=value)
         ts = sim_tree_seq()
         sim_result = tstrait.sim_trait(
-            ts=ts, num_causal=2, model=model, alpha=alpha, random_seed=random_seed
+            ts=ts, causal_sites=2, model=model, alpha=alpha, random_seed=random_seed
         )
         const1, const2 = sim_tree_seq_freq(alpha)
         assert np.array_equal(sim_result["site_id"], np.array([0, 1]))
@@ -673,7 +678,7 @@ class Test_allele_freq_one:
         ts = tables.tree_sequence()
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         sim_result = tstrait.sim_trait(
-            ts=ts, num_causal=2, model=model, alpha=alpha, random_seed=1
+            ts=ts, causal_sites=2, model=model, alpha=alpha, random_seed=1
         )
         assert np.array_equal(sim_result["effect_size"], np.array([0, 0]))
 
@@ -720,7 +725,7 @@ class Test_tree_sequence:
 
         model = tstrait.trait_model(distribution="fixed", value=2)
         sim_result = tstrait.sim_trait(
-            ts=ts, num_causal=6, model=model, alpha=-1, random_seed=1
+            ts=ts, causal_sites=6, model=model, alpha=-1, random_seed=1
         )
         assert np.array_equal(sim_result["site_id"], np.array([0, 1, 2, 3, 4, 5]))
         assert np.array_equal(
@@ -747,46 +752,12 @@ class Test_tree_sequence:
 
 
 class Test_site_id:
-    @pytest.mark.parametrize("site_id", [0, 1, {"a": 1}, "1"])
-    def test_input_type(self, site_id):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(
-            TypeError, match="Causal site ID must be a list or a numpy array"
-        ):
-            tstrait.sim_trait(
-                ts=ts,
-                num_causal=5,
-                model=model,
-                alpha=1,
-                random_seed=1,
-                site_id=site_id,
-            )
-
-    @pytest.mark.parametrize("site_id", [[4, 0, 7], np.array([4, 7, 0])])
+    @pytest.mark.parametrize("site_id", [[4, 0, 0, 7], np.array([4, 7, 0, 4])])
     def test_id_output_error(self, site_id):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
         ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         sim_result = tstrait.sim_trait(
-            ts=ts, num_causal=3, model=model, alpha=0, random_seed=1, site_id=site_id
+            ts=ts, causal_sites=site_id, model=model, alpha=0, random_seed=1
         )
         assert np.array_equal(sim_result["site_id"], np.array([0, 4, 7]))
-
-    def test_num_causal_error(self):
-        ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
-        model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        with pytest.raises(
-            ValueError,
-            match="Number of causal sites match the length of causal site ID",
-        ):
-            tstrait.sim_trait(
-                ts=ts,
-                num_causal=5,
-                model=model,
-                alpha=1,
-                random_seed=1,
-                site_id=np.array([0, 1]),
-            )
