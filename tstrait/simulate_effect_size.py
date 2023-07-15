@@ -19,16 +19,20 @@ class TraitSimulator:
     :type model: TraitModel
     :param alpha: Parameter that determines the emphasis placed on rarer variants.
     :type alpha: float
+    :param site_id: Causal site ID. If this is None, causal site IDs will be chosen
+        at random.
+    :type site_id: None or np.ndarray
     :param random_seed: The random seed. If this is not specified or None, simulation
         will be done randomly.
     :type random_seed: None or int
     """
 
-    def __init__(self, ts, num_causal, model, alpha, random_seed):
+    def __init__(self, ts, num_causal, model, alpha, site_id, random_seed):
         self.ts = ts
         self.num_causal = num_causal
         self.model = model
         self.alpha = alpha
+        self.site_id = site_id
         self.rng = np.random.default_rng(random_seed)
 
     def _choose_causal_site(self):
@@ -84,14 +88,16 @@ class TraitSimulator:
             and simulated effect size
         :rtype: pandas.DataFrame
         """
-        causal_site_array = self._choose_causal_site()
+        if self.site_id is None:
+            self.site_id = self._choose_causal_site()
+
         num_samples = self.ts.num_samples
         tree = tskit.Tree(self.ts)
 
         causal_state_array = np.zeros(self.num_causal, dtype=object)
         beta_array = np.zeros(self.num_causal)
 
-        for i, single_id in enumerate(causal_site_array):
+        for i, single_id in enumerate(self.site_id):
             site = self.ts.site(single_id)
             tree.seek(site.position)
             counts = self._obtain_allele_count(tree, site)
@@ -104,7 +110,7 @@ class TraitSimulator:
 
         effect_size_df = pd.DataFrame(
             {
-                "site_id": causal_site_array,
+                "site_id": self.site_id,
                 "causal_state": causal_state_array,
                 "effect_size": beta_array,
             }
@@ -113,7 +119,7 @@ class TraitSimulator:
         return effect_size_df
 
 
-def sim_trait(ts, num_causal, model, alpha=0, random_seed=None):
+def sim_trait(ts, num_causal, model, alpha=0, site_id=None, random_seed=None):
     """Randomly selects causal sites from the inputted tree sequence data, and simulates
     effect sizes of causal mutations.
 
@@ -132,6 +138,9 @@ def sim_trait(ts, num_causal, model, alpha=0, random_seed=None):
         from rarer variants. The frequency dependent architecture can be ignored
         by setting `alpha` to be zero.
     :type alpha: float
+    :param site_id: Causal site ID. If this is not specified or None, causal site
+        IDs will be chosen at random. The length of causal_id must match num_causal.
+    :type site_id: None or np.ndarray or list
     :param random_seed: The random seed. If this is not specified or None, simulation
         will be done randomly.
     :type random_seed: None or int
@@ -158,12 +167,25 @@ def sim_trait(ts, num_causal, model, alpha=0, random_seed=None):
         )
     if not isinstance(alpha, numbers.Number):
         raise TypeError("Alpha must be a number")
+    if site_id is not None:
+        if not isinstance(site_id, list) and not isinstance(site_id, np.ndarray):
+            raise TypeError("Causal site ID must be a list or a numpy array")
+    if site_id is not None:
+        if len(site_id) != num_causal:
+            raise ValueError(
+                "Number of causal sites match the length of causal site ID"
+            )
+
+    if site_id is not None:
+        site_id = np.array(site_id)
+        site_id = np.sort(site_id)
 
     simulator = TraitSimulator(
         ts=ts,
         num_causal=num_causal,
         model=model,
         alpha=alpha,
+        site_id=site_id,
         random_seed=random_seed,
     )
     effect_size_df = simulator.sim_causal_mutation()
