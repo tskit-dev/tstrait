@@ -12,6 +12,7 @@ class Test_TraitModelNormal:
         model = tstrait.trait_model(distribution="normal", mean=mean, var=var)
         assert model.name == "normal"
         assert isinstance(model, tstrait.TraitModel)
+        assert model.num_trait == 1
 
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
@@ -69,6 +70,7 @@ class Test_TraitModelExponential:
         )
         assert model.name == "exponential"
         assert isinstance(model, tstrait.TraitModel)
+        assert model.num_trait == 1
 
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
@@ -123,6 +125,7 @@ class Test_TraitModelFixed:
         model = tstrait.trait_model(distribution="fixed", value=value)
         assert model.name == "fixed"
         assert isinstance(model, tstrait.TraitModel)
+        assert model.num_trait == 1
 
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
@@ -169,6 +172,7 @@ class Test_TraitModelT:
         model = tstrait.trait_model(distribution="t", mean=mean, var=var, df=df)
         assert model.name == "t"
         assert isinstance(model, tstrait.TraitModel)
+        assert model.num_trait == 1
 
         rng = np.random.default_rng(random_seed)
         beta = model.sim_effect_size(num_causal=num_causal, rng=rng)
@@ -238,6 +242,7 @@ class Test_TraitModelGamma:
             distribution="gamma", shape=shape, scale=scale, negative=negative
         )
         assert model.name == "gamma"
+        assert model.num_trait == 1
         assert isinstance(model, tstrait.TraitModel)
 
         rng = np.random.default_rng(random_seed)
@@ -295,6 +300,127 @@ class Test_TraitModelGamma:
         model = tstrait.trait_model(distribution="gamma", shape=1, scale=1)
         with pytest.raises(TypeError, match="rng must be a numpy random generator"):
             model.sim_effect_size(num_causal=1, rng=rng)
+
+
+class Test_TraitModelMultivariateNormal:
+    def test_dimension(self):
+        mean = [0, 1]
+        var = [2, 3]
+        cor = [[1, 0], [0, 1]]
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, var=var, cor=cor
+        )
+        rng = np.random.default_rng(1)
+        beta = model.sim_effect_size(num_causal=1, rng=rng)
+        assert len(beta) == 2
+        assert model.name == "multi_normal"
+        assert isinstance(model, tstrait.TraitModel)
+        assert model.num_trait == 2
+
+    def test_dimension_numpy(self):
+        mean = np.array([0, 0, 0])
+        var = np.array([1, 1, 1])
+        cor = np.array([[1, 0.3, 0.4], [0.3, 1, 0], [0.4, 0, 1]])
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, var=var, cor=cor
+        )
+        rng = np.random.default_rng(1)
+        beta = model.sim_effect_size(num_causal=1, rng=rng)
+        assert len(beta) == 3
+        assert model.name == "multi_normal"
+        assert isinstance(model, tstrait.TraitModel)
+        assert model.num_trait == 3
+
+    @pytest.mark.parametrize("mean", [0, "A", {"A": 1}])
+    def test_mean_input(self, mean):
+        var = np.array([2, 3])
+        cor = np.array([[1, 0], [0, 1]])
+        with pytest.raises(TypeError, match="Mean must be a list or a numpy array"):
+            tstrait.trait_model(
+                distribution="multi_normal", mean=mean, var=var, cor=cor
+            )
+
+    @pytest.mark.parametrize("var", [0, "A", {"A": 1}])
+    def test_var_input(self, var):
+        mean = np.array([2, 3])
+        cor = np.array([[1, 0], [0, 1]])
+        with pytest.raises(TypeError, match="Variance must be a list or a numpy array"):
+            tstrait.trait_model(
+                distribution="multi_normal", mean=mean, var=var, cor=cor
+            )
+
+    @pytest.mark.parametrize("cor", [0, "A", {"A": 1}])
+    def test_cor_input(self, cor):
+        mean = np.array([2, 3])
+        var = np.array([1, 1])
+        with pytest.raises(
+            TypeError, match="Correlation matrix must be a list or a numpy array"
+        ):
+            tstrait.trait_model(
+                distribution="multi_normal", mean=mean, var=var, cor=cor
+            )
+
+    def test_var_zero(self):
+        mean = np.array([1, 1, 1])
+        var = np.array([2, 0, 1])
+        cor = np.array([[1, 0.3, 0.4], [0.3, 1, 0], [0.4, 0, 1]])
+        with pytest.raises(ValueError, match="Variance must be greater than 0"):
+            tstrait.trait_model(
+                distribution="multi_normal", mean=mean, var=var, cor=cor
+            )
+
+    def test_var_dim(self):
+        mean = np.array([0, 0])
+        var = np.array([1, 2, 3])
+        cor = np.array([[1, 0], [0, 1]])
+        with pytest.raises(
+            ValueError,
+            match="The length of the trait variance vector does not match the length "
+            "of the trait mean vector",
+        ):
+            tstrait.trait_model(
+                distribution="multi_normal", mean=mean, var=var, cor=cor
+            )
+
+    def test_cor_dim(self):
+        mean = np.array([1, 1, 1])
+        var = np.array([2, 1, 1])
+        cor = np.array([[1, 0.3, 0.4], [0.3, 1, 0]])
+        with pytest.raises(
+            ValueError,
+            match="The dimension of the correlation matrix does not match the dimension "
+            "of the trait mean and variance vector",
+        ):
+            tstrait.trait_model(
+                distribution="multi_normal", mean=mean, var=var, cor=cor
+            )
+
+    def test_cov_matrix(self):
+        mean = np.array([0, 0])
+        var = np.array([1, 9])
+        cor = np.array([[1, 0.5], [0.5, 1]])
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, var=var, cor=cor
+        )
+        cov = model.cov_matrix()
+        assert np.array_equal(cov, np.array([[1, 1.5], [1.5, 9]]))
+
+    def test_cov_matrix_three(self):
+        mean = np.array([0, 0, 0])
+        var = np.array([1, 9, 16])
+        cor = np.array([[1, 0.1, 0.2], [0.1, 1, 0.3], [0.2, 0.3, 1]])
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, var=var, cor=cor
+        )
+        cov = model.cov_matrix()
+        assert (
+            np.sum(
+                np.isclose(
+                    cov, np.array([[1, 0.3, 0.8], [0.3, 9, 3.6], [0.8, 3.6, 16]])
+                )
+            )
+            == 9
+        )
 
 
 class Test_distribution_input:

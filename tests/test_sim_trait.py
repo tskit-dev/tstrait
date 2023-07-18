@@ -38,10 +38,11 @@ def all_trees_ts(n):
 class Test_sim_phenotype_output_dim:
     def check_dimensions(self, df, num_causal):
         assert len(df) == num_causal
-        assert df.shape[1] == 3
+        assert df.shape[1] == 4
         assert len(df["site_id"]) == num_causal
         assert len(df["causal_state"]) == num_causal
         assert len(df["effect_size"]) == num_causal
+        assert len(df["trait_id"]) == num_causal
 
     @pytest.mark.parametrize("num_ind", [1, 2, np.array([5])[0]])
     @pytest.mark.parametrize("num_causal", [1, 2, np.array([3])[0]])
@@ -158,6 +159,58 @@ class Test_sim_phenotype_output_dim:
             random_seed=random_seed,
         )
         self.check_dimensions(sim_result, num_causal)
+
+    def test_output_multivariate_normal(self):
+        mean = [0, 1]
+        var = [2, 3]
+        cor = [[1, 0], [0, 1]]
+        num_causal = 5
+        ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, var=var, cor=cor
+        )
+        df = tstrait.sim_trait(
+            ts=ts,
+            num_causal=num_causal,
+            model=model,
+            alpha=0,
+            random_seed=1,
+        )
+        trait_ids = df.trait_id.unique()
+        assert np.array_equal(trait_ids, np.array([0, 1]))
+        assert len(df) == num_causal * 2
+        df0 = df[df.trait_id == 0]
+        df1 = df[df.trait_id == 1]
+        self.check_dimensions(df0, num_causal)
+        self.check_dimensions(df1, num_causal)
+
+    def test_output_multivariate_normal_three(self):
+        mean = np.array([0, 0, 0])
+        var = np.array([1, 9, 16])
+        cor = np.array([[1, 0.1, 0.2], [0.1, 1, 0.3], [0.2, 0.3, 1]])
+        num_causal = 5
+        ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, var=var, cor=cor
+        )
+        df = tstrait.sim_trait(
+            ts=ts,
+            num_causal=num_causal,
+            model=model,
+            alpha=0,
+            random_seed=1,
+        )
+        trait_ids = df.trait_id.unique()
+        assert np.array_equal(trait_ids, np.array([0, 1, 2]))
+        assert len(df) == num_causal * 3
+        df0 = df[df.trait_id == 0]
+        df1 = df[df.trait_id == 1]
+        df2 = df[df.trait_id == 2]
+        self.check_dimensions(df0, num_causal)
+        self.check_dimensions(df1, num_causal)
+        self.check_dimensions(df2, num_causal)
 
 
 class Test_sim_phenotype_input:
