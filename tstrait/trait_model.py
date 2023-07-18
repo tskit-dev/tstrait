@@ -13,6 +13,7 @@ class TraitModel:
 
     def __init__(self, name):
         self.name = name
+        self.num_trait = 1
 
     def _check_parameter(self, num_causal, rng):
         if not isinstance(num_causal, numbers.Number):
@@ -229,12 +230,89 @@ class TraitModelGamma(TraitModel):
         return beta
 
 
+class TraitModelMultivariateNormal(TraitModel):
+    """Trait model class of multiple traits.
+
+    We assume that the phenotypes are pleiotropic, meaning that the genes are
+    influencing more than one trait.
+
+    :param mean: Mean vector of the simulated effect sizes. The length of the vector
+        should match the number of traits.
+    :type mean: list or numpy.ndarray
+    :param var: Variance vector of the simulated effect sizes. The length of the
+        vector should match the number of traits.
+    :type var: list or numpy.ndarray
+    :param cor: Correlation matrix of simulated effect sizes.
+    :type cor: list or numpy.ndarray
+    """
+
+    def __init__(self, mean, var, cor):
+        if not isinstance(mean, list) and not isinstance(mean, np.ndarray):
+            raise TypeError("Mean must be a list or a numpy array")
+        if not isinstance(var, list) and not isinstance(var, np.ndarray):
+            raise TypeError("Variance must be a list or a numpy array")
+        for i in var:
+            if i <= 0:
+                raise ValueError("Variance must be greater than 0")
+        if not isinstance(cor, list) and not isinstance(cor, np.ndarray):
+            raise TypeError("Correlation matrix must be a list or a numpy array")
+
+        mean = np.array(mean)
+        var = np.array(var)
+        cor = np.array(cor)
+
+        num_trait = len(mean)
+
+        if len(var) != num_trait:
+            raise ValueError(
+                "The length of the trait variance vector does not match the length "
+                "of the trait mean vector"
+            )
+        if cor.shape != (num_trait, num_trait):
+            raise ValueError(
+                "The dimension of the correlation matrix does not match the dimension "
+                "of the trait mean and variance vector"
+            )
+        super().__init__("multi_normal")
+
+        self.num_trait = num_trait
+        self.mean = mean
+        self.var = var
+        self.cor = cor
+
+    def cov_matrix(self):
+        sd = np.sqrt(self.var)
+        diag_sd = np.diag(sd)
+        mat_mul = np.matmul(diag_sd, self.cor)
+        cov = np.matmul(mat_mul, diag_sd)
+
+        return cov
+
+    def sim_effect_size(self, num_causal, rng):
+        """
+        This method returns an effect size from a multivariate normal distribution.
+
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :return: Simulated effect size of a causal mutation.
+        :rtype: float
+        """
+        self._check_parameter(num_causal, rng)
+        cov = self.cov_matrix()
+        beta = rng.multivariate_normal(mean=self.mean, cov=cov)
+        beta /= num_causal
+        return beta
+
+
 MODEL_MAP = {
     "normal": TraitModelNormal,
     "exponential": TraitModelExponential,
     "fixed": TraitModelFixed,
     "t": TraitModelT,
     "gamma": TraitModelGamma,
+    "multi_normal": TraitModelMultivariateNormal,
 }
 
 
