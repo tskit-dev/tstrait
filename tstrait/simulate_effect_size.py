@@ -80,8 +80,8 @@ class TraitSimulator:
         based on the `num_causal` input. Afterwards, effect size of each causal site
         is simulated based on the trait model given by the `model` input.
 
-        :return: Returns a pandas dataframe that includes causal site ID, causal allele
-            and simulated effect size
+        :return: Returns a pandas dataframe that includes causal site ID, causal allele,
+            simulated effect size, and trait ID.
         :rtype: pandas.DataFrame
         """
         causal_site_array = self._choose_causal_site()
@@ -89,7 +89,7 @@ class TraitSimulator:
         tree = tskit.Tree(self.ts)
 
         causal_state_array = np.zeros(self.num_causal, dtype=object)
-        beta_array = np.zeros(self.num_causal)
+        beta_array = np.zeros((self.num_causal, self.model.num_trait))
 
         for i, single_id in enumerate(causal_site_array):
             site = self.ts.site(single_id)
@@ -102,15 +102,30 @@ class TraitSimulator:
             beta *= self._frequency_dependence(allele_freq)
             beta_array[i] = beta
 
-        effect_size_df = pd.DataFrame(
+        df = pd.DataFrame(
             {
                 "site_id": causal_site_array,
                 "causal_state": causal_state_array,
-                "effect_size": beta_array,
+                "effect_size": beta_array[:, 0],
+                "trait_id": np.zeros(self.num_causal),
             }
         )
 
-        return effect_size_df
+        for i in range(self.model.num_trait - 1):
+            df_add = pd.DataFrame(
+                {
+                    "site_id": causal_site_array,
+                    "causal_state": causal_state_array,
+                    "effect_size": beta_array[:, i + 1],
+                    "trait_id": np.ones(self.num_causal) * (i + 1),
+                }
+            )
+            df = pd.concat([df, df_add])
+
+        df = df.reset_index()
+        del df["index"]
+
+        return df
 
 
 def sim_trait(ts, num_causal, model, alpha=0, random_seed=None):
