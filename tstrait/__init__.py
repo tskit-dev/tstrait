@@ -10,6 +10,7 @@ from tstrait.trait_model import TraitModel
 from tstrait.trait_model import TraitModelExponential
 from tstrait.trait_model import TraitModelFixed
 from tstrait.trait_model import TraitModelGamma
+from tstrait.trait_model import TraitModelMultivariateNormal
 from tstrait.trait_model import TraitModelNormal
 from tstrait.trait_model import TraitModelT
 
@@ -28,4 +29,5 @@ __all__ = [
     "TraitModelGamma",
     "TraitModelNormal",
     "TraitModelT",
+    "TraitModelMultivariateNormal",
 ]
