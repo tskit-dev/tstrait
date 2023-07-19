@@ -1,11 +1,12 @@
 import functools
+
 import msprime
+import numba
 import numpy as np
 import pandas as pd
 import pytest
 import tskit
 import tstrait
-import numba
 
 
 @functools.lru_cache(maxsize=None)
