@@ -1,11 +1,11 @@
 import functools
-
 import msprime
 import numpy as np
 import pandas as pd
 import pytest
 import tskit
 import tstrait
+import numba
 
 
 @functools.lru_cache(maxsize=None)
@@ -334,6 +334,24 @@ class Test_site_genotypes:
         assert np.array_equal(g10, np.array([2, 2]))
         assert np.array_equal(g11, np.array([2, 2]))
         assert np.array_equal(g12, np.array([1, 2]))
+
+    def test_binary_tree_numba_func(self):
+        ts = self.binary_tree()
+        num_nodes = ts.num_nodes
+        has_mutation = np.zeros(num_nodes + 1, dtype=bool)
+        has_mutation[0] = True
+        tree = ts.first()
+        stack = numba.typed.List([0])
+        genotype = tstrait.genetic_value._traversal_genotype(
+            nodes_individual=ts.nodes_individual,
+            left_child_array=tree.left_child_array,
+            right_sib_array=tree.right_sib_array,
+            stack=stack,
+            has_mutation=has_mutation,
+            num_individuals=ts.num_individuals,
+            num_nodes=num_nodes,
+        )
+        assert np.array_equal(genotype, np.array([1, 0]))
 
     def test_binary_tree_output(self):
         ts = self.binary_tree()
