@@ -1,3 +1,5 @@
+from tstrait.genetic_value import calculate_genetic_value
+from tstrait.genetic_value import GeneticValue
 from tstrait.simulate_effect_size import sim_trait
 from tstrait.simulate_effect_size import TraitSimulator
 from tstrait.simulate_phenotype import GenotypeResult
@@ -13,8 +15,6 @@ from tstrait.trait_model import TraitModelGamma
 from tstrait.trait_model import TraitModelMultivariateNormal
 from tstrait.trait_model import TraitModelNormal
 from tstrait.trait_model import TraitModelT
-from tstrait.genetic_value import calculate_genetic_value
-from tstrait.genetic_value import GeneticValue
 
 __all__ = [
     "TraitSimulator",
@@ -33,5 +33,5 @@ __all__ = [
     "TraitModelT",
     "TraitModelMultivariateNormal",
     "calculate_genetic_value",
-    "GeneticValue"
+    "GeneticValue",
 ]

@@ -2,10 +2,10 @@ import functools
 
 import msprime
 import numpy as np
+import pandas as pd
 import pytest
 import tskit
 import tstrait
-import pandas as pd
 
 
 @functools.lru_cache(maxsize=None)
@@ -35,13 +35,12 @@ def all_trees_ts(n):
     tables.simplify()
     return tables.tree_sequence()
 
+
 class Test_output:
     @pytest.mark.parametrize("num_ind", [1, 2, np.array([5])[0]])
     def test_output_single(self, num_ind):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         trait_df = tstrait.sim_trait(
             ts=ts,
@@ -66,9 +65,7 @@ class Test_output:
         model = tstrait.trait_model(
             distribution="multi_normal", mean=mean, var=var, cor=cor
         )
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         trait_df = tstrait.sim_trait(
             ts=ts,
@@ -88,9 +85,7 @@ class Test_output:
     @pytest.mark.parametrize("num_ind", [1, 2, np.array([5])[0]])
     def test_binary_mutation_model(self, num_ind):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        ts = msprime.sim_ancestry(
-            num_ind, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1, model="binary")
         trait_df = tstrait.sim_trait(
             ts=ts,
@@ -107,13 +102,12 @@ class Test_output:
         assert len(genetic_df["genetic_value"]) == num_ind
         assert np.array_equal(genetic_df["trait_id"], np.zeros(num_ind))
 
+
 class Test_genetic_value_input:
     @pytest.mark.parametrize("ts", [0, "a", [1, 1]])
     def test_ts(self, ts):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        ts1 = msprime.sim_ancestry(
-            10, sequence_length=100_000, random_seed=1
-        )
+        ts1 = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
         ts1 = msprime.sim_mutations(ts1, rate=0.01, random_seed=1)
         trait_df = tstrait.sim_trait(
             ts=ts1,
@@ -124,78 +118,77 @@ class Test_genetic_value_input:
         )
         with pytest.raises(TypeError, match="Input must be a tree sequence data"):
             tstrait.calculate_genetic_value(ts, trait_df)
-    
+
     def test_df(self):
-        ts = msprime.sim_ancestry(
-            5, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         with pytest.raises(TypeError, match="trait_df must be a pandas dataframe"):
-            tstrait.calculate_genetic_value(ts, [0,1])
+            tstrait.calculate_genetic_value(ts, [0, 1])
 
     def test_df_site_id(self):
-        ts = msprime.sim_ancestry(
-            5, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         df = pd.DataFrame(
             {
-                "siteID": [0,1],
+                "siteID": [0, 1],
                 "causal_state": ["A", "A"],
                 "effect_size": [0.1, 0.1],
-                "trait_id": [0,1]
+                "trait_id": [0, 1],
             }
         )
-        with pytest.raises(ValueError, match="site_id is not included in the trait dataframe"):
+        with pytest.raises(
+            ValueError, match="site_id is not included in the trait dataframe"
+        ):
             tstrait.calculate_genetic_value(ts, df)
-    
+
     def test_df_causal_state(self):
-        ts = msprime.sim_ancestry(
-            5, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         df = pd.DataFrame(
             {
-                "site_id": [0,1],
+                "site_id": [0, 1],
                 "causal_te": ["A", "A"],
                 "effect_size": [0.1, 0.1],
-                "trait_id": [0,1]
+                "trait_id": [0, 1],
             }
         )
-        with pytest.raises(ValueError, match="causal_state is not included in the trait dataframe"):
+        with pytest.raises(
+            ValueError, match="causal_state is not included in the trait dataframe"
+        ):
             tstrait.calculate_genetic_value(ts, df)
 
     def test_df_effect_size(self):
-        ts = msprime.sim_ancestry(
-            5, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         df = pd.DataFrame(
             {
-                "site_id": [0,1],
+                "site_id": [0, 1],
                 "causal_state": ["A", "A"],
                 "Effect": [0.1, 0.1],
-                "trait_id": [0,1]
+                "trait_id": [0, 1],
             }
         )
-        with pytest.raises(ValueError, match="effect_size is not included in the trait dataframe"):
+        with pytest.raises(
+            ValueError, match="effect_size is not included in the trait dataframe"
+        ):
             tstrait.calculate_genetic_value(ts, df)
 
     def test_df_trait_id(self):
-        ts = msprime.sim_ancestry(
-            5, sequence_length=100_000, random_seed=1
-        )
+        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
         df = pd.DataFrame(
             {
-                "site_id": [0,1],
+                "site_id": [0, 1],
                 "causal_state": ["A", "A"],
                 "effect_size": [0.1, 0.1],
-                "traitID": [0,1]
+                "traitID": [0, 1],
             }
         )
-        with pytest.raises(ValueError, match="trait_id is not included in the trait dataframe"):
+        with pytest.raises(
+            ValueError, match="trait_id is not included in the trait dataframe"
+        ):
             tstrait.calculate_genetic_value(ts, df)
+
 
 class Test_site_genotypes:
     def binary_tree(self):
@@ -262,26 +255,52 @@ class Test_site_genotypes:
     def binary_tree_df(self):
         effect_size = {
             "site_id": np.arange(12),
-            "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T", "A", "C", "C"],
+            "causal_state": [
+                "T",
+                "T",
+                "T",
+                "T",
+                "T",
+                "A",
+                "C",
+                "T",
+                "T",
+                "A",
+                "C",
+                "C",
+            ],
             "effect_size": np.ones(12),
-            "trait_id": np.zeros(12)
+            "trait_id": np.zeros(12),
         }
         effect_size_df = pd.DataFrame(effect_size)
 
         return effect_size_df
-    
+
     def binary_tree_df_multiple(self):
         effect_size = {
             "site_id": np.arange(12),
-            "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T", "A", "C", "C"],
+            "causal_state": [
+                "T",
+                "T",
+                "T",
+                "T",
+                "T",
+                "A",
+                "C",
+                "T",
+                "T",
+                "A",
+                "C",
+                "C",
+            ],
             "effect_size": np.ones(12) * 2,
-            "trait_id": np.ones(12)
+            "trait_id": np.ones(12),
         }
         effect_size_df = pd.DataFrame(effect_size)
         df = pd.concat([self.binary_tree_df(), effect_size_df])
 
         return df
-    
+
     def test_binary_tree_genotype(self):
         ts = self.binary_tree()
         trait_df = self.binary_tree_df()
@@ -327,9 +346,9 @@ class Test_site_genotypes:
         trait_df = self.binary_tree_df_multiple()
         genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
         data = {
-            "individual_id": [0,1,0,1],
+            "individual_id": [0, 1, 0, 1],
             "genetic_value": [14, 16, 28, 32],
-            "trait_id": [0,0,1,1]
+            "trait_id": [0, 0, 1, 1],
         }
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
@@ -392,17 +411,17 @@ class Test_site_genotypes:
             "site_id": np.arange(9),
             "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T"],
             "effect_size": np.ones(9),
-            "trait_id": np.zeros(9)
+            "trait_id": np.zeros(9),
         }
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
-    
+
     def binary_tree_different_individual_multiple_df(self):
         effect_size = {
             "site_id": np.arange(9),
             "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T"],
             "effect_size": np.ones(9) * 2,
-            "trait_id": np.ones(9)
+            "trait_id": np.ones(9),
         }
         effect_size_df = pd.DataFrame(effect_size)
         df = pd.concat([self.binary_tree_different_individual_df(), effect_size_df])
@@ -410,7 +429,7 @@ class Test_site_genotypes:
             "site_id": np.arange(9),
             "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T"],
             "effect_size": np.ones(9) * 3,
-            "trait_id": np.ones(9) * 2
+            "trait_id": np.ones(9) * 2,
         }
         effect_size_df = pd.DataFrame(effect_size)
         df = pd.concat([df, effect_size_df])
@@ -450,16 +469,16 @@ class Test_site_genotypes:
         ts = self.binary_tree_different_individual()
         trait_df = self.binary_tree_different_individual_df()
         genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
-        assert np.array_equal(genetic_df["genetic_value"], np.array([9,10]))
+        assert np.array_equal(genetic_df["genetic_value"], np.array([9, 10]))
 
     def test_binary_tree_output_multiple_different_individual(self):
         ts = self.binary_tree_different_individual()
         trait_df = self.binary_tree_different_individual_multiple_df()
         genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
         data = {
-            "individual_id": [0,1,0,1,0,1],
-            "genetic_value": [9,10,18,20,27,30],
-            "trait_id": [0,0,1,1,2,2]
+            "individual_id": [0, 1, 0, 1, 0, 1],
+            "genetic_value": [9, 10, 18, 20, 27, 30],
+            "trait_id": [0, 0, 1, 1, 2, 2],
         }
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
@@ -504,17 +523,17 @@ class Test_site_genotypes:
             "site_id": np.arange(3),
             "causal_state": ["G", "T", "T"],
             "effect_size": np.ones(3),
-            "trait_id": np.zeros(3)
+            "trait_id": np.zeros(3),
         }
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
-    
+
     def tree_internal_node_multiple_df(self):
         effect_size = {
-            "site_id": [2,2],
+            "site_id": [2, 2],
             "causal_state": ["T", "G"],
-            "effect_size": [1,2],
-            "trait_id": [0,1]
+            "effect_size": [1, 2],
+            "trait_id": [0, 1],
         }
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
@@ -533,7 +552,7 @@ class Test_site_genotypes:
         assert np.array_equal(g2, np.array([1, 1, 0]))
         assert np.array_equal(g3, np.array([1, 0, 0]))
         assert np.array_equal(g4, np.array([0, 1, 0]))
-    
+
     def test_binary_tree_internal_node_output(self):
         ts = self.tree_internal_node()
         trait_df = self.tree_internal_node_df()
@@ -545,9 +564,9 @@ class Test_site_genotypes:
         trait_df = self.tree_internal_node_multiple_df()
         genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
         data = {
-            "individual_id": [0,1,2,0,1,2],
-            "genetic_value": [1,0,0,0,2,0],
-            "trait_id": [0,0,0,1,1,1]
+            "individual_id": [0, 1, 2, 0, 1, 2],
+            "genetic_value": [1, 0, 0, 0, 2, 0],
+            "trait_id": [0, 0, 0, 1, 1, 1],
         }
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
@@ -591,7 +610,7 @@ class Test_site_genotypes:
             "site_id": np.arange(3),
             "causal_state": ["T", "T", "C"],
             "effect_size": np.ones(3),
-            "trait_id": np.zeros(3)
+            "trait_id": np.zeros(3),
         }
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
@@ -656,12 +675,12 @@ class Test_site_genotypes:
             "site_id": np.arange(5),
             "causal_state": ["T", "A", "T", "C", "A"],
             "effect_size": np.ones(5) * 2,
-            "trait_id": np.zeros(5)
+            "trait_id": np.zeros(5),
         }
         effect_size_df = pd.DataFrame(effect_size)
 
         return effect_size_df
-    
+
     def test_multiple_node_genotype(self):
         ts = self.multiple_node_tree()
         trait_df = self.multiple_node_df()
@@ -725,13 +744,13 @@ class Test_site_genotypes:
         ts = tables.tree_sequence()
 
         return ts
-    
+
     def individual_tree_df(self):
         effect_size = {
             "site_id": np.arange(5),
             "causal_state": ["T", "A", "T", "C", "A"],
             "effect_size": [1, 2, 3, 4, 5],
-            "trait_id": np.ones(5)
+            "trait_id": np.ones(5),
         }
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
@@ -761,6 +780,7 @@ class Test_site_genotypes:
             genetic_df["genetic_value"], np.array([7, 10, 14, 8, 11, 11])
         )
         assert np.array_equal(genetic_df["trait_id"], np.ones(6))
+
 
 class Test_tree_sequence:
     def sample_tree_sequence(self):
@@ -803,7 +823,7 @@ class Test_tree_sequence:
         tables.mutations.add_row(site=7, node=2, derived_state="G")
 
         ts = tables.tree_sequence()
-    
+
         return ts
 
     def test_tree_sequence(self):
@@ -812,7 +832,7 @@ class Test_tree_sequence:
             "site_id": np.arange(6),
             "causal_state": np.array(["T", "T", "C", "T", "C", "C"]),
             "effect_size": np.ones(6),
-            "trait_id": np.zeros(6)
+            "trait_id": np.zeros(6),
         }
         trait_df = pd.DataFrame(effect_size)
         genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
@@ -824,14 +844,14 @@ class Test_tree_sequence:
             "site_id": [6, 7, 6, 7, 0],
             "causal_state": np.array(["C", "T", "T", "T", "A"]),
             "effect_size": [1, 1, 1, 1, 1],
-            "trait_id": [0, 0, 1, 1, 2]
+            "trait_id": [0, 0, 1, 1, 2],
         }
         trait_df = pd.DataFrame(effect_size)
         genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
         data = {
             "individual_id": [0, 1, 0, 1, 0, 1],
             "genetic_value": [2, 0, 1, 1, 2, 0],
-            "trait_id": [0, 0, 1, 1, 2, 2]
+            "trait_id": [0, 0, 1, 1, 2, 2],
         }
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)

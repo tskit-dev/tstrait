@@ -1,7 +1,8 @@
-import tskit
-import pandas as pd
-import numpy as np
 import numba
+import numpy as np
+import pandas as pd
+import tskit
+
 
 @numba.njit
 def _traversal_genotype(
@@ -36,12 +37,13 @@ def _traversal_genotype(
 
     return genotype
 
+
 class GeneticValue:
     """GeneticValue class to compute genetic values of individuals.
 
     :param ts: Tree sequence data with mutation.
     :type ts: tskit.TreeSequence
-    :param trait_df: Pandas dataframe that includes causal site ID, causal allele, 
+    :param trait_df: Pandas dataframe that includes causal site ID, causal allele,
         simulated effect size, and trait ID.
     :type effect_size_df: pandas.DataFrame
     """
@@ -66,7 +68,7 @@ class GeneticValue:
         for node, state in state_transitions.items():
             if state == causal_state:
                 stack.append(node)
-        
+
         if len(stack) == 0:
             genotype = np.zeros(self.ts.num_individuals)
         else:
@@ -124,9 +126,11 @@ class GeneticValue:
         """
         num_ind = self.ts.num_individuals
         trait_id_array = self.trait_df.trait_id.unique()
-        df = pd.DataFrame(columns = ['individual_id', 'genetic_value', 'trait_id'])
+        df = pd.DataFrame(columns=["individual_id", "genetic_value", "trait_id"])
         for trait_id in trait_id_array:
-            genetic_value = self.compute_genetic_value_single(self.trait_df[self.trait_df.trait_id == trait_id])
+            genetic_value = self.compute_genetic_value_single(
+                self.trait_df[self.trait_df.trait_id == trait_id]
+            )
             df_add = pd.DataFrame(
                 {
                     "individual_id": np.arange(num_ind),
@@ -135,7 +139,7 @@ class GeneticValue:
                 }
             )
             df = pd.concat([df, df_add])
-        df = df.sort_values(by=['trait_id','individual_id'])
+        df = df.sort_values(by=["trait_id", "individual_id"])
         df = df.reset_index()
         del df["index"]
 
