@@ -79,9 +79,10 @@ class Test_output:
 
         assert len(genetic_df) == num_ind * 3
         assert genetic_df.shape[1] == 3
-        assert len(genetic_df["individual_id"]) == num_ind * 3
-        assert len(genetic_df["genetic_value"]) == num_ind * 3
-        assert len(genetic_df["trait_id"]) == num_ind * 3
+        num_trait = cor.shape[0]
+        assert len(genetic_df["individual_id"]) == num_ind * num_trait
+        assert len(genetic_df["genetic_value"]) == num_ind * num_trait
+        assert len(genetic_df["trait_id"]) == num_ind * num_trait
 
     @pytest.mark.parametrize("num_ind", [1, 2, np.array([5])[0]])
     def test_binary_mutation_model(self, num_ind):
@@ -98,20 +99,25 @@ class Test_output:
         genetic_df = tstrait.calculate_genetic_value(ts, trait_df)
 
         assert len(genetic_df) == num_ind
+        # 3 columns, individual_id, genetic_value and trait_id
         assert genetic_df.shape[1] == 3
         assert np.array_equal(genetic_df["individual_id"], np.arange(num_ind))
         assert len(genetic_df["genetic_value"]) == num_ind
-        assert np.array_equal(genetic_df["trait_id"], np.zeros(num_ind))
+        assert np.all(genetic_df["trait_id"] == 0)
 
 
 class Test_genetic_value_input:
+    @pytest.fixture
+    def sample_ts(self):
+        ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        return ts
+
     @pytest.mark.parametrize("ts", [0, "a", [1, 1]])
-    def test_ts(self, ts):
+    def test_ts(self, ts, sample_ts):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-        ts1 = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
-        ts1 = msprime.sim_mutations(ts1, rate=0.01, random_seed=1)
         trait_df = tstrait.sim_trait(
-            ts=ts1,
+            ts=sample_ts,
             num_causal=5,
             model=model,
             alpha=0,
@@ -120,15 +126,11 @@ class Test_genetic_value_input:
         with pytest.raises(TypeError, match="Input must be a tree sequence data"):
             tstrait.calculate_genetic_value(ts, trait_df)
 
-    def test_df(self):
-        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+    def test_df(self, sample_ts):
         with pytest.raises(TypeError, match="trait_df must be a pandas dataframe"):
-            tstrait.calculate_genetic_value(ts, [0, 1])
+            tstrait.calculate_genetic_value(sample_ts, [0, 1])
 
-    def test_df_site_id(self):
-        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+    def test_df_site_id(self, sample_ts):
         df = pd.DataFrame(
             {
                 "siteID": [0, 1],
@@ -140,11 +142,9 @@ class Test_genetic_value_input:
         with pytest.raises(
             ValueError, match="site_id is not included in the trait dataframe"
         ):
-            tstrait.calculate_genetic_value(ts, df)
+            tstrait.calculate_genetic_value(sample_ts, df)
 
-    def test_df_causal_state(self):
-        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+    def test_df_causal_state(self, sample_ts):
         df = pd.DataFrame(
             {
                 "site_id": [0, 1],
@@ -156,11 +156,9 @@ class Test_genetic_value_input:
         with pytest.raises(
             ValueError, match="causal_state is not included in the trait dataframe"
         ):
-            tstrait.calculate_genetic_value(ts, df)
+            tstrait.calculate_genetic_value(sample_ts, df)
 
-    def test_df_effect_size(self):
-        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+    def test_df_effect_size(self, sample_ts):
         df = pd.DataFrame(
             {
                 "site_id": [0, 1],
@@ -172,11 +170,9 @@ class Test_genetic_value_input:
         with pytest.raises(
             ValueError, match="effect_size is not included in the trait dataframe"
         ):
-            tstrait.calculate_genetic_value(ts, df)
+            tstrait.calculate_genetic_value(sample_ts, df)
 
-    def test_df_trait_id(self):
-        ts = msprime.sim_ancestry(5, sequence_length=100_000, random_seed=1)
-        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+    def test_df_trait_id(self, sample_ts):
         df = pd.DataFrame(
             {
                 "site_id": [0, 1],
@@ -188,10 +184,11 @@ class Test_genetic_value_input:
         with pytest.raises(
             ValueError, match="trait_id is not included in the trait dataframe"
         ):
-            tstrait.calculate_genetic_value(ts, df)
+            tstrait.calculate_genetic_value(sample_ts, df)
 
 
 class Test_site_genotypes:
+    @pytest.fixture
     def binary_tree(self):
         #  3.00   6
         #     ┊ ┏━┻━┓    ┊
@@ -253,6 +250,7 @@ class Test_site_genotypes:
 
         return ts
 
+    @pytest.fixture
     def binary_tree_df(self):
         effect_size = {
             "site_id": np.arange(12),
@@ -277,7 +275,8 @@ class Test_site_genotypes:
 
         return effect_size_df
 
-    def binary_tree_df_multiple(self):
+    @pytest.fixture
+    def binary_tree_df_multiple(self, binary_tree_df):
         effect_size = {
             "site_id": np.arange(12),
             "causal_state": [
@@ -298,29 +297,53 @@ class Test_site_genotypes:
             "trait_id": np.ones(12),
         }
         effect_size_df = pd.DataFrame(effect_size)
-        df = pd.concat([self.binary_tree_df(), effect_size_df])
+        df = pd.concat([binary_tree_df, effect_size_df])
 
         return df
 
-    def test_binary_tree_genotype(self):
-        ts = self.binary_tree()
-        trait_df = self.binary_tree_df()
-        genetic = tstrait.GeneticValue(ts=ts, trait_df=trait_df)
-        tree = ts.first()
+    def test_binary_tree_genotype(self, binary_tree, binary_tree_df):
+        genetic = tstrait.GeneticValue(ts=binary_tree, trait_df=binary_tree_df)
+        tree = binary_tree.first()
 
-        g0 = genetic._individual_genotype(tree, ts.site(0), "G", ts.num_nodes)
-        g1 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
-        g2 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
-        g3 = genetic._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
-        g4 = genetic._individual_genotype(tree, ts.site(3), "T", ts.num_nodes)
-        g5 = genetic._individual_genotype(tree, ts.site(4), "T", ts.num_nodes)
-        g6 = genetic._individual_genotype(tree, ts.site(5), "A", ts.num_nodes)
-        g7 = genetic._individual_genotype(tree, ts.site(6), "C", ts.num_nodes)
-        g8 = genetic._individual_genotype(tree, ts.site(7), "T", ts.num_nodes)
-        g9 = genetic._individual_genotype(tree, ts.site(8), "T", ts.num_nodes)
-        g10 = genetic._individual_genotype(tree, ts.site(9), "A", ts.num_nodes)
-        g11 = genetic._individual_genotype(tree, ts.site(10), "C", ts.num_nodes)
-        g12 = genetic._individual_genotype(tree, ts.site(11), "C", ts.num_nodes)
+        g0 = genetic._individual_genotype(
+            tree, binary_tree.site(0), "G", binary_tree.num_nodes
+        )
+        g1 = genetic._individual_genotype(
+            tree, binary_tree.site(0), "T", binary_tree.num_nodes
+        )
+        g2 = genetic._individual_genotype(
+            tree, binary_tree.site(1), "T", binary_tree.num_nodes
+        )
+        g3 = genetic._individual_genotype(
+            tree, binary_tree.site(2), "T", binary_tree.num_nodes
+        )
+        g4 = genetic._individual_genotype(
+            tree, binary_tree.site(3), "T", binary_tree.num_nodes
+        )
+        g5 = genetic._individual_genotype(
+            tree, binary_tree.site(4), "T", binary_tree.num_nodes
+        )
+        g6 = genetic._individual_genotype(
+            tree, binary_tree.site(5), "A", binary_tree.num_nodes
+        )
+        g7 = genetic._individual_genotype(
+            tree, binary_tree.site(6), "C", binary_tree.num_nodes
+        )
+        g8 = genetic._individual_genotype(
+            tree, binary_tree.site(7), "T", binary_tree.num_nodes
+        )
+        g9 = genetic._individual_genotype(
+            tree, binary_tree.site(8), "T", binary_tree.num_nodes
+        )
+        g10 = genetic._individual_genotype(
+            tree, binary_tree.site(9), "A", binary_tree.num_nodes
+        )
+        g11 = genetic._individual_genotype(
+            tree, binary_tree.site(10), "C", binary_tree.num_nodes
+        )
+        g12 = genetic._individual_genotype(
+            tree, binary_tree.site(11), "C", binary_tree.num_nodes
+        )
 
         assert np.array_equal(g0, np.array([0, 0]))
         assert np.array_equal(g1, np.array([1, 0]))
@@ -336,34 +359,33 @@ class Test_site_genotypes:
         assert np.array_equal(g11, np.array([2, 2]))
         assert np.array_equal(g12, np.array([1, 2]))
 
-    def test_binary_tree_numba_func(self):
-        ts = self.binary_tree()
-        num_nodes = ts.num_nodes
+    def test_binary_tree_numba_func(self, binary_tree):
+        num_nodes = binary_tree.num_nodes
         has_mutation = np.zeros(num_nodes + 1, dtype=bool)
         has_mutation[0] = True
-        tree = ts.first()
+        tree = binary_tree.first()
         stack = numba.typed.List([0])
         genotype = tstrait.genetic_value._traversal_genotype(
-            nodes_individual=ts.nodes_individual,
+            nodes_individual=binary_tree.nodes_individual,
             left_child_array=tree.left_child_array,
             right_sib_array=tree.right_sib_array,
             stack=stack,
             has_mutation=has_mutation,
-            num_individuals=ts.num_individuals,
+            num_individuals=binary_tree.num_individuals,
             num_nodes=num_nodes,
         )
         assert np.array_equal(genotype, np.array([1, 0]))
 
-    def test_binary_tree_output(self):
-        ts = self.binary_tree()
-        trait_df = self.binary_tree_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_binary_tree_output(self, binary_tree, binary_tree_df):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=binary_tree, trait_df=binary_tree_df
+        )
         assert np.array_equal(genetic_df["genetic_value"], np.array([14, 16]))
 
-    def test_binary_tree_output_multiple(self):
-        ts = self.binary_tree()
-        trait_df = self.binary_tree_df_multiple()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_binary_tree_output_multiple(self, binary_tree, binary_tree_df_multiple):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=binary_tree, trait_df=binary_tree_df_multiple
+        )
         data = {
             "individual_id": [0, 1, 0, 1],
             "genetic_value": [14, 16, 28, 32],
@@ -372,6 +394,7 @@ class Test_site_genotypes:
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
 
+    @pytest.fixture
     def binary_tree_different_individual(self):
         #  3.00   6
         #     ┊ ┏━┻━┓    ┊
@@ -425,6 +448,7 @@ class Test_site_genotypes:
 
         return ts
 
+    @pytest.fixture
     def binary_tree_different_individual_df(self):
         effect_size = {
             "site_id": np.arange(9),
@@ -435,7 +459,10 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
-    def binary_tree_different_individual_multiple_df(self):
+    @pytest.fixture
+    def binary_tree_different_individual_multiple_df(
+        self, binary_tree_different_individual_df
+    ):
         effect_size = {
             "site_id": np.arange(9),
             "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T"],
@@ -443,7 +470,7 @@ class Test_site_genotypes:
             "trait_id": np.ones(9),
         }
         effect_size_df = pd.DataFrame(effect_size)
-        df = pd.concat([self.binary_tree_different_individual_df(), effect_size_df])
+        df = pd.concat([binary_tree_different_individual_df, effect_size_df])
         effect_size = {
             "site_id": np.arange(9),
             "causal_state": ["T", "T", "T", "T", "T", "A", "C", "T", "T"],
@@ -458,21 +485,69 @@ class Test_site_genotypes:
 
         return df
 
-    def test_binary_tree_different_individual_genotype(self):
-        ts = self.binary_tree_different_individual()
-        trait_df = self.binary_tree_different_individual_df()
-        genetic = tstrait.GeneticValue(ts=ts, trait_df=trait_df)
-        tree = ts.first()
+    def test_binary_tree_different_individual_genotype(
+        self, binary_tree_different_individual, binary_tree_different_individual_df
+    ):
+        genetic = tstrait.GeneticValue(
+            ts=binary_tree_different_individual,
+            trait_df=binary_tree_different_individual_df,
+        )
+        tree = binary_tree_different_individual.first()
 
-        g1 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
-        g2 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
-        g3 = genetic._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
-        g4 = genetic._individual_genotype(tree, ts.site(3), "T", ts.num_nodes)
-        g5 = genetic._individual_genotype(tree, ts.site(4), "T", ts.num_nodes)
-        g6 = genetic._individual_genotype(tree, ts.site(5), "A", ts.num_nodes)
-        g7 = genetic._individual_genotype(tree, ts.site(6), "C", ts.num_nodes)
-        g8 = genetic._individual_genotype(tree, ts.site(7), "T", ts.num_nodes)
-        g9 = genetic._individual_genotype(tree, ts.site(8), "T", ts.num_nodes)
+        g1 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(0),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
+        g2 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(1),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
+        g3 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(2),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
+        g4 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(3),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
+        g5 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(4),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
+        g6 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(5),
+            "A",
+            binary_tree_different_individual.num_nodes,
+        )
+        g7 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(6),
+            "C",
+            binary_tree_different_individual.num_nodes,
+        )
+        g8 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(7),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
+        g9 = genetic._individual_genotype(
+            tree,
+            binary_tree_different_individual.site(8),
+            "T",
+            binary_tree_different_individual.num_nodes,
+        )
 
         assert np.array_equal(g1, np.array([1, 0]))
         assert np.array_equal(g2, np.array([1, 1]))
@@ -484,16 +559,24 @@ class Test_site_genotypes:
         assert np.array_equal(g8, np.array([0, 1]))
         assert np.array_equal(g9, np.array([1, 2]))
 
-    def test_binary_tree_different_individual_output(self):
-        ts = self.binary_tree_different_individual()
-        trait_df = self.binary_tree_different_individual_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_binary_tree_different_individual_output(
+        self, binary_tree_different_individual, binary_tree_different_individual_df
+    ):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=binary_tree_different_individual,
+            trait_df=binary_tree_different_individual_df,
+        )
         assert np.array_equal(genetic_df["genetic_value"], np.array([9, 10]))
 
-    def test_binary_tree_output_multiple_different_individual(self):
-        ts = self.binary_tree_different_individual()
-        trait_df = self.binary_tree_different_individual_multiple_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_binary_tree_output_multiple_different_individual(
+        self,
+        binary_tree_different_individual,
+        binary_tree_different_individual_multiple_df,
+    ):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=binary_tree_different_individual,
+            trait_df=binary_tree_different_individual_multiple_df,
+        )
         data = {
             "individual_id": [0, 1, 0, 1, 0, 1],
             "genetic_value": [9, 10, 18, 20, 27, 30],
@@ -502,6 +585,7 @@ class Test_site_genotypes:
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
 
+    @pytest.fixture
     def tree_internal_node(self):
         ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
 
@@ -537,6 +621,7 @@ class Test_site_genotypes:
 
         return ts
 
+    @pytest.fixture
     def tree_internal_node_df(self):
         effect_size = {
             "site_id": np.arange(3),
@@ -547,6 +632,7 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
+    @pytest.fixture
     def tree_internal_node_multiple_df(self):
         effect_size = {
             "site_id": [2, 2],
@@ -557,31 +643,45 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
-    def test_binary_tree_internal_node_genotype(self):
-        ts = self.tree_internal_node()
-        trait_df = self.tree_internal_node_df()
-        genetic = tstrait.GeneticValue(ts=ts, trait_df=trait_df)
-        tree = ts.first()
-        g1 = genetic._individual_genotype(tree, ts.site(0), "G", ts.num_nodes)
-        g2 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
-        g3 = genetic._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
-        g4 = genetic._individual_genotype(tree, ts.site(2), "G", ts.num_nodes)
+    def test_binary_tree_internal_node_genotype(
+        self, tree_internal_node, tree_internal_node_df
+    ):
+        genetic = tstrait.GeneticValue(
+            ts=tree_internal_node, trait_df=tree_internal_node_df
+        )
+        tree = tree_internal_node.first()
+        g1 = genetic._individual_genotype(
+            tree, tree_internal_node.site(0), "G", tree_internal_node.num_nodes
+        )
+        g2 = genetic._individual_genotype(
+            tree, tree_internal_node.site(1), "T", tree_internal_node.num_nodes
+        )
+        g3 = genetic._individual_genotype(
+            tree, tree_internal_node.site(2), "T", tree_internal_node.num_nodes
+        )
+        g4 = genetic._individual_genotype(
+            tree, tree_internal_node.site(2), "G", tree_internal_node.num_nodes
+        )
 
         assert np.array_equal(g1, np.array([1, 0, 2]))
         assert np.array_equal(g2, np.array([1, 1, 0]))
         assert np.array_equal(g3, np.array([1, 0, 0]))
         assert np.array_equal(g4, np.array([0, 1, 0]))
 
-    def test_binary_tree_internal_node_output(self):
-        ts = self.tree_internal_node()
-        trait_df = self.tree_internal_node_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_binary_tree_internal_node_output(
+        self, tree_internal_node, tree_internal_node_df
+    ):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=tree_internal_node, trait_df=tree_internal_node_df
+        )
         assert np.array_equal(genetic_df["genetic_value"], np.array([3, 1, 2]))
 
-    def test_different_causal_site(self):
-        ts = self.tree_internal_node()
-        trait_df = self.tree_internal_node_multiple_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_different_causal_site(
+        self, tree_internal_node, tree_internal_node_multiple_df
+    ):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=tree_internal_node, trait_df=tree_internal_node_multiple_df
+        )
         data = {
             "individual_id": [0, 1, 2, 0, 1, 2],
             "genetic_value": [1, 0, 0, 0, 2, 0],
@@ -590,6 +690,7 @@ class Test_site_genotypes:
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
 
+    @pytest.fixture
     def non_binary_tree(self):
         # 2.00      7
         #     ┊ ┏━┏━━┏━┻━━┓   ┊
@@ -624,6 +725,7 @@ class Test_site_genotypes:
 
         return ts
 
+    @pytest.fixture
     def non_binary_tree_df(self):
         effect_size = {
             "site_id": np.arange(3),
@@ -634,24 +736,29 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
-    def test_non_binary_tree_genotype(self):
-        ts = self.non_binary_tree()
-        trait_df = self.non_binary_tree_df()
-        genetic = tstrait.GeneticValue(ts=ts, trait_df=trait_df)
-        tree = ts.first()
-        g1 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
-        g2 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
-        g3 = genetic._individual_genotype(tree, ts.site(2), "C", ts.num_nodes)
+    def test_non_binary_tree_genotype(self, non_binary_tree, non_binary_tree_df):
+        genetic = tstrait.GeneticValue(ts=non_binary_tree, trait_df=non_binary_tree_df)
+        tree = non_binary_tree.first()
+        g1 = genetic._individual_genotype(
+            tree, non_binary_tree.site(0), "T", non_binary_tree.num_nodes
+        )
+        g2 = genetic._individual_genotype(
+            tree, non_binary_tree.site(1), "T", non_binary_tree.num_nodes
+        )
+        g3 = genetic._individual_genotype(
+            tree, non_binary_tree.site(2), "C", non_binary_tree.num_nodes
+        )
         assert np.array_equal(g1, np.array([0, 1, 2]))
         assert np.array_equal(g2, np.array([1, 0, 0]))
         assert np.array_equal(g3, np.array([0, 1, 1]))
 
-    def test_non_binary_tree_output(self):
-        ts = self.non_binary_tree()
-        trait_df = self.non_binary_tree_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_non_binary_tree_output(self, non_binary_tree, non_binary_tree_df):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=non_binary_tree, trait_df=non_binary_tree_df
+        )
         assert np.array_equal(genetic_df["genetic_value"], np.array([1, 2, 3]))
 
+    @pytest.fixture
     def multiple_node_tree(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
@@ -689,6 +796,7 @@ class Test_site_genotypes:
 
         return ts
 
+    @pytest.fixture
     def multiple_node_df(self):
         effect_size = {
             "site_id": np.arange(5),
@@ -700,16 +808,24 @@ class Test_site_genotypes:
 
         return effect_size_df
 
-    def test_multiple_node_genotype(self):
-        ts = self.multiple_node_tree()
-        trait_df = self.multiple_node_df()
-        genetic = tstrait.GeneticValue(ts=ts, trait_df=trait_df)
-        tree = ts.first()
-        g1 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
-        g2 = genetic._individual_genotype(tree, ts.site(1), "A", ts.num_nodes)
-        g3 = genetic._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
-        g4 = genetic._individual_genotype(tree, ts.site(3), "C", ts.num_nodes)
-        g5 = genetic._individual_genotype(tree, ts.site(4), "A", ts.num_nodes)
+    def test_multiple_node_genotype(self, multiple_node_tree, multiple_node_df):
+        genetic = tstrait.GeneticValue(ts=multiple_node_tree, trait_df=multiple_node_df)
+        tree = multiple_node_tree.first()
+        g1 = genetic._individual_genotype(
+            tree, multiple_node_tree.site(0), "T", multiple_node_tree.num_nodes
+        )
+        g2 = genetic._individual_genotype(
+            tree, multiple_node_tree.site(1), "A", multiple_node_tree.num_nodes
+        )
+        g3 = genetic._individual_genotype(
+            tree, multiple_node_tree.site(2), "T", multiple_node_tree.num_nodes
+        )
+        g4 = genetic._individual_genotype(
+            tree, multiple_node_tree.site(3), "C", multiple_node_tree.num_nodes
+        )
+        g5 = genetic._individual_genotype(
+            tree, multiple_node_tree.site(4), "A", multiple_node_tree.num_nodes
+        )
 
         assert np.array_equal(g1, np.array([2, 1]))
         assert np.array_equal(g2, np.array([3, 3]))
@@ -717,12 +833,13 @@ class Test_site_genotypes:
         assert np.array_equal(g4, np.array([0, 1]))
         assert np.array_equal(g5, np.array([3, 3]))
 
-    def test_multiple_node_output(self):
-        ts = self.multiple_node_tree()
-        trait_df = self.multiple_node_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_multiple_node_output(self, multiple_node_tree, multiple_node_df):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=multiple_node_tree, trait_df=multiple_node_df
+        )
         assert np.array_equal(genetic_df["genetic_value"], np.array([20, 20]))
 
+    @pytest.fixture
     def individual_tree(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
@@ -764,6 +881,7 @@ class Test_site_genotypes:
 
         return ts
 
+    @pytest.fixture
     def individual_tree_df(self):
         effect_size = {
             "site_id": np.arange(5),
@@ -774,16 +892,24 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
-    def test_individual_tree_genotype(self):
-        ts = self.individual_tree()
-        trait_df = self.individual_tree_df()
-        genetic = tstrait.GeneticValue(ts=ts, trait_df=trait_df)
-        tree = ts.first()
-        g1 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
-        g2 = genetic._individual_genotype(tree, ts.site(1), "A", ts.num_nodes)
-        g3 = genetic._individual_genotype(tree, ts.site(2), "T", ts.num_nodes)
-        g4 = genetic._individual_genotype(tree, ts.site(3), "C", ts.num_nodes)
-        g5 = genetic._individual_genotype(tree, ts.site(4), "A", ts.num_nodes)
+    def test_individual_tree_genotype(self, individual_tree, individual_tree_df):
+        genetic = tstrait.GeneticValue(ts=individual_tree, trait_df=individual_tree_df)
+        tree = individual_tree.first()
+        g1 = genetic._individual_genotype(
+            tree, individual_tree.site(0), "T", individual_tree.num_nodes
+        )
+        g2 = genetic._individual_genotype(
+            tree, individual_tree.site(1), "A", individual_tree.num_nodes
+        )
+        g3 = genetic._individual_genotype(
+            tree, individual_tree.site(2), "T", individual_tree.num_nodes
+        )
+        g4 = genetic._individual_genotype(
+            tree, individual_tree.site(3), "C", individual_tree.num_nodes
+        )
+        g5 = genetic._individual_genotype(
+            tree, individual_tree.site(4), "A", individual_tree.num_nodes
+        )
 
         assert np.array_equal(g1, np.array([0, 0, 0, 1, 1, 1]))
         assert np.array_equal(g2, np.array([1, 1, 1, 1, 1, 1]))
@@ -791,10 +917,10 @@ class Test_site_genotypes:
         assert np.array_equal(g4, np.array([0, 0, 1, 0, 0, 0]))
         assert np.array_equal(g5, np.array([1, 1, 1, 1, 1, 1]))
 
-    def test_individual_tree_output(self):
-        ts = self.individual_tree()
-        trait_df = self.individual_tree_df()
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+    def test_individual_tree_output(self, individual_tree, individual_tree_df):
+        genetic_df = tstrait.calculate_genetic_value(
+            ts=individual_tree, trait_df=individual_tree_df
+        )
         assert np.array_equal(
             genetic_df["genetic_value"], np.array([7, 10, 14, 8, 11, 11])
         )
@@ -802,7 +928,8 @@ class Test_site_genotypes:
 
 
 class Test_tree_sequence:
-    def sample_tree_sequence(self):
+    @pytest.fixture
+    def sample_ts(self):
         ts = all_trees_ts(4)
         tables = ts.dump_tables()
 
@@ -845,8 +972,7 @@ class Test_tree_sequence:
 
         return ts
 
-    def test_tree_sequence(self):
-        ts = self.sample_tree_sequence()
+    def test_tree_sequence(self, sample_ts):
         effect_size = {
             "site_id": np.arange(6),
             "causal_state": np.array(["T", "T", "C", "T", "C", "C"]),
@@ -854,11 +980,10 @@ class Test_tree_sequence:
             "trait_id": np.zeros(6),
         }
         trait_df = pd.DataFrame(effect_size)
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+        genetic_df = tstrait.calculate_genetic_value(ts=sample_ts, trait_df=trait_df)
         assert np.array_equal(genetic_df["genetic_value"], np.array([2, 8]))
 
-    def test_tree_sequence_multiple(self):
-        ts = self.sample_tree_sequence()
+    def test_tree_sequence_multiple(self, sample_ts):
         effect_size = {
             "site_id": [6, 7, 6, 7, 0],
             "causal_state": np.array(["C", "T", "T", "T", "A"]),
@@ -866,7 +991,7 @@ class Test_tree_sequence:
             "trait_id": [0, 0, 1, 1, 2],
         }
         trait_df = pd.DataFrame(effect_size)
-        genetic_df = tstrait.calculate_genetic_value(ts=ts, trait_df=trait_df)
+        genetic_df = tstrait.calculate_genetic_value(ts=sample_ts, trait_df=trait_df)
         data = {
             "individual_id": [0, 1, 0, 1, 0, 1],
             "genetic_value": [2, 0, 1, 1, 2, 0],
