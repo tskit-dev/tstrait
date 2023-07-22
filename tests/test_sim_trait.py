@@ -35,7 +35,7 @@ def all_trees_ts(n):
     return tables.tree_sequence()
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def sample_ts():
     ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
     ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
@@ -561,7 +561,7 @@ class Test_site_genotypes:
         assert c5 == {"A": 6}
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def sim_tree_seq():
     """
     The following tree sequence will be generated:

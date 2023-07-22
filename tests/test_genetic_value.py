@@ -107,7 +107,7 @@ class Test_output:
 
 
 class Test_genetic_value_input:
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def sample_ts(self):
         ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
         ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
@@ -188,7 +188,7 @@ class Test_genetic_value_input:
 
 
 class Test_site_genotypes:
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def binary_tree(self):
         #  3.00   6
         #     ┊ ┏━┻━┓    ┊
@@ -250,7 +250,7 @@ class Test_site_genotypes:
 
         return ts
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def binary_tree_df(self):
         effect_size = {
             "site_id": np.arange(12),
@@ -275,7 +275,7 @@ class Test_site_genotypes:
 
         return effect_size_df
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def binary_tree_df_multiple(self, binary_tree_df):
         effect_size = {
             "site_id": np.arange(12),
@@ -394,7 +394,7 @@ class Test_site_genotypes:
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def binary_tree_different_individual(self):
         #  3.00   6
         #     ┊ ┏━┻━┓    ┊
@@ -448,7 +448,7 @@ class Test_site_genotypes:
 
         return ts
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def binary_tree_different_individual_df(self):
         effect_size = {
             "site_id": np.arange(9),
@@ -459,7 +459,7 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def binary_tree_different_individual_multiple_df(
         self, binary_tree_different_individual_df
     ):
@@ -585,7 +585,7 @@ class Test_site_genotypes:
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def tree_internal_node(self):
         ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
 
@@ -621,7 +621,7 @@ class Test_site_genotypes:
 
         return ts
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def tree_internal_node_df(self):
         effect_size = {
             "site_id": np.arange(3),
@@ -632,7 +632,7 @@ class Test_site_genotypes:
         effect_size_df = pd.DataFrame(effect_size)
         return effect_size_df
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def tree_internal_node_multiple_df(self):
         effect_size = {
             "site_id": [2, 2],
@@ -690,7 +690,7 @@ class Test_site_genotypes:
         df = pd.DataFrame(data)
         pd.testing.assert_frame_equal(df, genetic_df, check_dtype=False)
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def non_binary_tree(self):
         # 2.00      7
         #     ┊ ┏━┏━━┏━┻━━┓   ┊
@@ -725,7 +725,7 @@ class Test_site_genotypes:
 
         return ts
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def non_binary_tree_df(self):
         effect_size = {
             "site_id": np.arange(3),
@@ -758,7 +758,7 @@ class Test_site_genotypes:
         )
         assert np.array_equal(genetic_df["genetic_value"], np.array([1, 2, 3]))
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def multiple_node_tree(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
@@ -796,7 +796,7 @@ class Test_site_genotypes:
 
         return ts
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def multiple_node_df(self):
         effect_size = {
             "site_id": np.arange(5),
@@ -839,7 +839,7 @@ class Test_site_genotypes:
         )
         assert np.array_equal(genetic_df["genetic_value"], np.array([20, 20]))
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def individual_tree(self):
         ts = tskit.Tree.generate_comb(6, span=10).tree_sequence
         tables = ts.dump_tables()
@@ -881,7 +881,7 @@ class Test_site_genotypes:
 
         return ts
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def individual_tree_df(self):
         effect_size = {
             "site_id": np.arange(5),
@@ -928,7 +928,7 @@ class Test_site_genotypes:
 
 
 class Test_tree_sequence:
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def sample_ts(self):
         ts = all_trees_ts(4)
         tables = ts.dump_tables()
