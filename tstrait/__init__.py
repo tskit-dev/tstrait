@@ -1,33 +1,43 @@
-from tstrait.simulate_effect_size import sim_trait
-from tstrait.simulate_effect_size import TraitSimulator
-from tstrait.simulate_phenotype import GenotypeResult
-from tstrait.simulate_phenotype import PhenotypeResult
-from tstrait.simulate_phenotype import PhenotypeSimulator
-from tstrait.simulate_phenotype import Result
-from tstrait.simulate_phenotype import sim_phenotype
-from tstrait.trait_model import trait_model
-from tstrait.trait_model import TraitModel
-from tstrait.trait_model import TraitModelExponential
-from tstrait.trait_model import TraitModelFixed
-from tstrait.trait_model import TraitModelGamma
-from tstrait.trait_model import TraitModelMultivariateNormal
-from tstrait.trait_model import TraitModelNormal
-from tstrait.trait_model import TraitModelT
+"""
+tstrait
+=======
+
+tstrait is a quantitative trait simulator of a tree sequence data.
+
+See https://tskit.dev/ for complete documentation.
+"""
+from .provenance import __version__  # NOQA
+from .simulate_effect_size import sim_trait
+from .simulate_effect_size import TraitSimulator
+from .simulate_phenotype import GenotypeResult
+from .simulate_phenotype import PhenotypeResult
+from .simulate_phenotype import PhenotypeSimulator
+from .simulate_phenotype import Result
+from .simulate_phenotype import sim_phenotype
+from .trait_model import trait_model
+from .trait_model import TraitModel
+from .trait_model import TraitModelExponential
+from .trait_model import TraitModelFixed
+from .trait_model import TraitModelGamma
+from .trait_model import TraitModelMultivariateNormal
+from .trait_model import TraitModelNormal
+from .trait_model import TraitModelT
 
 __all__ = [
-    "TraitSimulator",
+    "__version__",
     "sim_trait",
-    "sim_phenotype",
-    "PhenotypeSimulator",
-    "Result",
+    "TraitSimulator",
     "GenotypeResult",
     "PhenotypeResult",
+    "PhenotypeSimulator",
+    "Result",
+    "sim_phenotype",
     "trait_model",
     "TraitModel",
     "TraitModelExponential",
     "TraitModelFixed",
     "TraitModelGamma",
+    "TraitModelMultivariateNormal",
     "TraitModelNormal",
     "TraitModelT",
-    "TraitModelMultivariateNormal",
 ]
