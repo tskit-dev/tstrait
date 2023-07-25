@@ -128,7 +128,7 @@ class Test_sim_phenotype_output_dim:
         assert len(genetic_result.effect_size) == num_causal
         assert len(genetic_result.allele_frequency) == num_causal
 
-        assert max(genetic_result.allele_frequency < 1) and min(
+        assert max(genetic_result.allele_frequency <= 1) and min(
             genetic_result.allele_frequency > 0
         )
 

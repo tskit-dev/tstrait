@@ -1,4 +1,5 @@
-import setuptools
+from setuptools import setup
 
-if __name__ == "__main__":
-    setuptools.setup()
+setup(
+    use_scm_version={"write_to": "tstrait/_version.py"},
+)
