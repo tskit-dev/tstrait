@@ -6,6 +6,7 @@ tstrait is a quantitative trait simulator of a tree sequence data.
 
 See https://tskit.dev/ for complete documentation.
 """
+
 from .provenance import __version__  # NOQA
 from .simulate_effect_size import sim_trait
 from .simulate_effect_size import TraitSimulator
@@ -22,6 +23,11 @@ from .trait_model import TraitModelGamma
 from .trait_model import TraitModelMultivariateNormal
 from .trait_model import TraitModelNormal
 from .trait_model import TraitModelT
+<<<<<<< HEAD
+=======
+
+__version__ = _version.tstrait_version
+>>>>>>> 56b4da5 (Update __init__.py)
 
 __all__ = [
     "__version__",
