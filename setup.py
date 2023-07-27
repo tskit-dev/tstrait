@@ -1,5 +1,6 @@
-import setuptools
 import os
+
+import setuptools
 
 tstrait_version = None
 version_file = os.path.join("tstrait", "_version.py")
