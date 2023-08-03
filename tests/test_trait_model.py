@@ -20,6 +20,16 @@ def simulate(model, num_causal):
     )
 
 
+class TestTraitModel:
+    """
+    Test TraitModel superclass
+    """
+
+    tstrait.TraitModel.__abstractmethods__ = set()
+    model = tstrait.TraitModel("sample")
+    assert model.sim_effect_size() is None
+
+
 class TestInput:
     """This test will check that an informative error is raised when the input parameter
     does not have an appropriate type or value.
