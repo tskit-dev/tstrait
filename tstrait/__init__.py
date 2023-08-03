@@ -1,6 +1,5 @@
 """
 tstrait
-=======
 
 tstrait is a quantitative trait simulator of a tree sequence data.
 
