@@ -5,7 +5,7 @@ import scipy
 import tskit
 import tstrait
 from tstrait.base import _check_numeric_array
-from tstrait.tests.data import (
+from .data import (
     binary_tree,
     diff_ind_tree,
     non_binary_tree,
