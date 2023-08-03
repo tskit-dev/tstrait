@@ -25,52 +25,21 @@ def sample_trait_model():
     return tstrait.trait_model(distribution="normal", mean=0, var=1)
 
 
-@pytest.fixture(scope="class")
-def bad_type_param():
-    """This object does not have a valid type for sure for all parameters. It will be
-    used to check that the error is raised properly when the parameter doesn't match
-    any valid type.
-    """
-    return type("BadType", (), {})()
-
-
 class TestInput:
     """This test will check that an informative error is raised when the input parameter
     does not have an appropriate type or value.
     """
 
-    def test_input_type(self, sample_ts, sample_trait_model, bad_type_param):
+    def test_input_type(self, sample_ts, sample_trait_model):
         with pytest.raises(
             TypeError, match="ts must be a <class 'tskit.trees.TreeSequence'> instance"
         ):
-            tstrait.sim_trait(ts=bad_type_param, num_causal=1, model=sample_trait_model)
-        with pytest.raises(TypeError, match="num_causal must be an integer"):
-            tstrait.sim_trait(
-                ts=sample_ts, num_causal=bad_type_param, model=sample_trait_model
-            )
+            tstrait.sim_trait(ts=1, num_causal=1, model=sample_trait_model)
         with pytest.raises(
             TypeError,
             match="model must be a <class 'tstrait.trait_model.TraitModel'> instance",
         ):
-            tstrait.sim_trait(ts=sample_ts, num_causal=1, model=bad_type_param)
-        with pytest.raises(TypeError, match="alpha must be numeric"):
-            tstrait.sim_trait(
-                ts=sample_ts,
-                num_causal=1,
-                model=sample_trait_model,
-                alpha=bad_type_param,
-            )
-        with pytest.raises(
-            ValueError,
-            match=f"{bad_type_param!r} cannot be used to construct a new random "
-            "generator with numpy.random.default_rng",
-        ):
-            tstrait.sim_trait(
-                ts=sample_ts,
-                num_causal=1,
-                model=sample_trait_model,
-                random_seed=bad_type_param,
-            )
+            tstrait.sim_trait(ts=sample_ts, num_causal=1, model="model")
 
     def test_bad_input(self, sample_ts, sample_trait_model):
         ts = msprime.sim_ancestry(2, sequence_length=100_000, random_seed=1)
@@ -85,10 +54,6 @@ class TestInput:
             tstrait.sim_trait(
                 ts=sample_ts, num_causal=num_causal, model=sample_trait_model
             )
-        with pytest.raises(
-            ValueError, match="num_causal must be an integer not less than 0"
-        ):
-            tstrait.sim_trait(ts=sample_ts, num_causal=-1, model=sample_trait_model)
 
 
 class TestOutputDim:

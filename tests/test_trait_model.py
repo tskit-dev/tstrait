@@ -2,21 +2,14 @@ import numpy as np
 import pytest
 import tstrait
 from scipy import stats
-from tstrait.base import _define_rng
-
-
-@pytest.fixture(scope="class")
-def bad_type_param():
-    """This object does not have a valid type for sure for all parameters. It will
-    be used to check that the error is raised properly when the parameter doesn't
-    match any valid type.
-    """
-    return type("BadType", (), {})()
 
 
 def simulate(model, num_causal):
     return np.array(
-        [model.sim_effect_size(num_causal, _define_rng(i)) for i in range(num_causal)]
+        [
+            model.sim_effect_size(num_causal, np.random.default_rng(i))
+            for i in range(num_causal)
+        ]
     )
 
 
@@ -35,100 +28,37 @@ class TestInput:
     does not have an appropriate type or value.
     """
 
-    def test_input_distribution(self, bad_type_param):
+    def test_input_distribution(self):
         with pytest.raises(
             TypeError, match="distribution must be a <class 'str'> instance"
         ):
-            tstrait.trait_model(distribution=bad_type_param)
+            tstrait.trait_model(distribution=1)
         with pytest.raises(ValueError, match="Distribution 'bad' unknown..."):
             tstrait.trait_model(distribution="bad")
 
-    def test_normal(self, bad_type_param):
-        with pytest.raises(TypeError, match="mean must be numeric"):
-            tstrait.trait_model(distribution="normal", mean=bad_type_param, var=1)
-        with pytest.raises(TypeError, match="var must be numeric"):
-            tstrait.trait_model(distribution="normal", mean=0, var=bad_type_param)
-        with pytest.raises(ValueError, match="var must be a number greater than 0"):
-            tstrait.trait_model(distribution="normal", mean=0, var=-1)
-
-    def test_exponential(self, bad_type_param):
-        with pytest.raises(TypeError, match="scale must be numeric"):
-            tstrait.trait_model(distribution="exponential", scale=bad_type_param)
+    def test_exponential(self):
         with pytest.raises(
             TypeError, match="negative must be a <class 'bool'> instance"
         ):
-            tstrait.trait_model(
-                distribution="exponential", scale=1, negative=bad_type_param
-            )
-        with pytest.raises(ValueError, match="scale must be a number greater than 0"):
-            tstrait.trait_model(distribution="exponential", scale=0)
+            tstrait.trait_model(distribution="exponential", scale=1, negative=1)
 
-    def test_fixed(self, bad_type_param):
+    def test_fixed(self):
         with pytest.raises(TypeError, match="value must be numeric"):
-            tstrait.trait_model(distribution="fixed", value=bad_type_param)
+            tstrait.trait_model(distribution="fixed", value="1")
 
-    def test_t(self, bad_type_param):
-        with pytest.raises(TypeError, match="mean must be numeric"):
-            tstrait.trait_model(distribution="t", mean=bad_type_param, var=1, df=1)
-        with pytest.raises(TypeError, match="var must be numeric"):
-            tstrait.trait_model(distribution="t", mean=0, var=bad_type_param, df=1)
-        with pytest.raises(TypeError, match="df must be numeric"):
-            tstrait.trait_model(distribution="t", mean=0, var=1, df=bad_type_param)
-        with pytest.raises(ValueError, match="var must be a number greater than 0"):
-            tstrait.trait_model(distribution="t", mean=0, var=-1, df=1)
-        with pytest.raises(ValueError, match="df must be a number greater than 0"):
-            tstrait.trait_model(distribution="t", mean=0, var=1, df=0)
-
-    def test_gamma(self, bad_type_param):
-        with pytest.raises(TypeError, match="shape must be numeric"):
-            tstrait.trait_model(distribution="gamma", shape=bad_type_param, scale=1)
-        with pytest.raises(TypeError, match="scale must be numeric"):
-            tstrait.trait_model(distribution="gamma", shape=1, scale=bad_type_param)
+    def test_gamma(self):
         with pytest.raises(
             TypeError, match="negative must be a <class 'bool'> instance"
         ):
-            tstrait.trait_model(
-                distribution="gamma", shape=1, scale=1, negative=bad_type_param
-            )
-        with pytest.raises(ValueError, match="shape must be a number greater than 0"):
-            tstrait.trait_model(distribution="gamma", shape=-1, scale=1)
-        with pytest.raises(ValueError, match="scale must be a number greater than 0"):
-            tstrait.trait_model(distribution="gamma", shape=1, scale=-1)
+            tstrait.trait_model(distribution="gamma", shape=1, scale=1, negative=1)
 
 
 class TestMultivariate:
-    def test_input(self, bad_type_param):
-        with pytest.raises(TypeError, match="mean must be array-like"):
-            tstrait.trait_model(
-                distribution="multi_normal", mean=bad_type_param, cov=np.eye(2)
-            )
-        with pytest.raises(TypeError, match="cov must be array-like"):
-            tstrait.trait_model(
-                distribution="multi_normal", mean=np.zeros(2), cov=bad_type_param
-            )
-        with pytest.raises(ValueError, match="cov must be symmetric"):
-            tstrait.trait_model(
-                distribution="multi_normal",
-                mean=np.zeros(2),
-                cov=np.array([[1, 1], [0, 0]]),
-            )
-        with pytest.raises(ValueError, match="cov must be 2-dimensional and square"):
-            tstrait.trait_model(
-                distribution="multi_normal", mean=np.zeros(2), cov=np.ones(2)
-            )
-        with pytest.raises(
-            ValueError,
-            match="Input variables in mean and cov have inconsistent dimensions",
-        ):
-            tstrait.trait_model(
-                distribution="multi_normal", mean=np.zeros(2), cov=np.eye(3)
-            )
-
     def test_output_dim(self):
         model = tstrait.trait_model(
             distribution="multi_normal", mean=np.zeros(4), cov=np.eye(4)
         )
-        beta = model.sim_effect_size(10, _define_rng(1))
+        beta = model.sim_effect_size(10, np.random.default_rng(1))
         assert beta.shape == (4,)
         assert model.num_trait == 4
 

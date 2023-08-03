@@ -5,7 +5,7 @@ import pandas as pd
 import tskit
 import tstrait
 
-from .base import _define_rng, _check_val, _check_int, _check_instance  # noreorder
+from .base import _check_instance
 
 
 class TraitSimulator:
@@ -30,7 +30,7 @@ class TraitSimulator:
         self.num_causal = num_causal
         self.model = model
         self.alpha = alpha
-        self.rng = _define_rng(random_seed)
+        self.rng = np.random.default_rng(random_seed)
 
     def _choose_causal_site(self):
         """Randomly chooses causal site IDs among all the sites in the tree sequence
@@ -152,9 +152,7 @@ def sim_trait(ts, num_causal, model, alpha=0, random_seed=None):
     :rtype: pandas.DataFrame
     """
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
-    num_causal = _check_int(num_causal, "num_causal", minimum=0)
     model = _check_instance(model, "model", tstrait.TraitModel)
-    alpha = _check_val(alpha, "alpha")
     num_sites = ts.num_sites
     if num_sites == 0:
         raise ValueError("No mutation in the tree sequence input")

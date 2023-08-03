@@ -6,10 +6,7 @@ import numpy as np
 from .base import (
     _check_int,
     _check_val,
-    _check_symmetric,
     _check_instance,
-    _check_numeric_array,
-    _check_same_length,
 )  # noreorder
 
 
@@ -47,8 +44,8 @@ class TraitModelNormal(TraitModel):
     """
 
     def __init__(self, mean, var):
-        self.mean = _check_val(mean, "mean")
-        self.var = _check_val(var, "var", minimum=0)
+        self.mean = mean
+        self.var = var
         super().__init__("normal")
 
     def sim_effect_size(self, num_causal, rng):
@@ -83,7 +80,7 @@ class TraitModelExponential(TraitModel):
     """
 
     def __init__(self, scale, negative=False):
-        self.scale = _check_val(scale, "scale", minimum=0)
+        self.scale = scale
         self.negative = _check_instance(negative, "negative", bool)
         super().__init__("exponential")
 
@@ -145,9 +142,9 @@ class TraitModelT(TraitModel):
     """
 
     def __init__(self, mean, var, df):
-        self.mean = _check_val(mean, "mean")
-        self.var = _check_val(var, "var", minimum=0)
-        self.df = _check_val(df, "df", minimum=0)
+        self.mean = mean
+        self.var = var
+        self.df = df
         super().__init__("t")
 
     def sim_effect_size(self, num_causal, rng):
@@ -184,8 +181,8 @@ class TraitModelGamma(TraitModel):
     """
 
     def __init__(self, shape, scale, negative=False):
-        self.shape = _check_val(shape, "shape", minimum=0)
-        self.scale = _check_val(scale, "scale", minimum=0)
+        self.shape = shape
+        self.scale = scale
         self.negative = _check_instance(negative, "negative", bool)
         super().__init__("gamma")
 
@@ -221,9 +218,6 @@ class TraitModelMultivariateNormal(TraitModel):
     """
 
     def __init__(self, mean, cov):
-        mean = _check_numeric_array(mean, "mean")
-        cov = _check_symmetric(cov, "cov")
-        _check_same_length(mean, cov[0, :], "mean", "cov")
         self.num_trait = len(mean)
         self.mean = mean
         self.cov = cov
