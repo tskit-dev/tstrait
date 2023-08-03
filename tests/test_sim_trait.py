@@ -1,9 +1,9 @@
 import msprime
 import numpy as np
 import pytest
-import scipy
 import tskit
 import tstrait
+from scipy import stats
 from tstrait.base import _check_numeric_array
 from .data import (
     binary_tree,
@@ -282,7 +282,7 @@ class Test_KSTest:
     """
 
     def check_distribution(self, rvs, dist, args=()):
-        D, pval = scipy.stats.kstest(rvs, dist, args=args, N=1000)
+        D, pval = stats.kstest(rvs, dist, args=args, N=1000)
         if pval < 0.05:
             raise ValueError(f"KS test failed for distribution {dist}")
 

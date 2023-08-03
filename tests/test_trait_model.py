@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-import scipy
 import tstrait
+from scipy import stats
 from tstrait.base import _define_rng
 
 
@@ -145,7 +145,7 @@ class TestKSTest:
         rvs is array-like object of random variables, dist is a name of a distribution
         in scipy.stats, and args are the args for scipy.stats.dist(*args)
         """
-        D, pval = scipy.stats.kstest(rvs, distr, args=args, N=1000)
+        D, pval = stats.kstest(rvs, distr, args=args, N=1000)
         if pval < 0.05:
             raise ValueError(f"KS test failed for distribution {distr}")
 
