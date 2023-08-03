@@ -2,4 +2,5 @@ msprime
 numba
 numpy
 pandas
+scipy
 tskit==0.5.3
