@@ -8,7 +8,7 @@ def simulate(model, num_causal):
     return np.array(
         [
             model.sim_effect_size(num_causal, np.random.default_rng(i))
-            for i in range(num_causal)
+            for i in range(num_causal * 2)
         ]
     )
 

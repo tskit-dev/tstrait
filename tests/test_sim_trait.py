@@ -1,5 +1,6 @@
 import msprime
 import numpy as np
+import pandas as pd
 import pytest
 import tskit
 import tstrait
@@ -253,10 +254,13 @@ class Test_KSTest:
 
     @pytest.mark.parametrize("model, distr, args", model_list())
     def test_KStest(self, model, distr, args, sample_ts):
-        sim_result = tstrait.sim_trait(
-            ts=sample_ts, num_causal=1000, model=model, random_seed=2
-        )
-        self.check_distribution(sim_result["effect_size"], distr, args)
+        result = np.array([])
+        for i in range(2):
+            sim_result = tstrait.sim_trait(
+                ts=sample_ts, num_causal=1000, model=model, random_seed=i
+            )
+            result = np.concatenate((result, sim_result["effect_size"]))
+        self.check_distribution(result, distr, args)
 
     def test_fixed(self, sample_ts):
         """
@@ -280,12 +284,21 @@ class Test_KSTest:
         cov = np.dot(M, M.T)
         num_causal = 2000
         model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
-        sim_result = tstrait.sim_trait(ts=sample_ts, num_causal=num_causal, model=model)
+        sim_result = tstrait.sim_trait(
+            ts=sample_ts, num_causal=num_causal, model=model, random_seed=100
+        )
+        sim_result1 = tstrait.sim_trait(
+            ts=sample_ts, num_causal=num_causal, model=model, random_seed=201
+        )
+        sim_result = pd.concat([sim_result, sim_result1])
+
+        sim_result = sim_result.reset_index()
+        del sim_result["index"]
 
         const = np.random.randn(n)
         data_val = np.matmul(const, cov)
         data_sd = np.sqrt(np.matmul(data_val, const))
-        sum_data = np.zeros(num_causal)
+        sum_data = np.zeros(2 * num_causal)
 
         for i in range(n):
             df = sim_result.loc[sim_result.trait_id == i]
