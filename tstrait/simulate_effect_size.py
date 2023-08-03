@@ -1,10 +1,11 @@
 import collections
-import numbers
 
 import numpy as np
 import pandas as pd
 import tskit
 import tstrait
+
+from .base import _define_rng, _check_val, _check_int, _check_instance  # noreorder
 
 
 class TraitSimulator:
@@ -29,7 +30,7 @@ class TraitSimulator:
         self.num_causal = num_causal
         self.model = model
         self.alpha = alpha
-        self.rng = np.random.default_rng(random_seed)
+        self.rng = _define_rng(random_seed)
 
     def _choose_causal_site(self):
         """Randomly chooses causal site IDs among all the sites in the tree sequence
@@ -103,21 +104,16 @@ class TraitSimulator:
             beta_array[i] = beta
 
         df = pd.DataFrame(
-            {
-                "site_id": causal_site_array,
-                "causal_state": causal_state_array,
-                "effect_size": beta_array[:, 0],
-                "trait_id": np.zeros(self.num_causal),
-            }
+            columns=["site_id", "causal_state", "effect_size", "trait_id"]
         )
 
-        for i in range(self.model.num_trait - 1):
+        for i in range(self.model.num_trait):
             df_add = pd.DataFrame(
                 {
                     "site_id": causal_site_array,
                     "causal_state": causal_state_array,
-                    "effect_size": beta_array[:, i + 1],
-                    "trait_id": np.ones(self.num_causal) * (i + 1),
+                    "effect_size": beta_array[:, i],
+                    "trait_id": np.ones(self.num_causal) * i,
                 }
             )
             df = pd.concat([df, df_add])
@@ -155,24 +151,17 @@ def sim_trait(ts, num_causal, model, alpha=0, random_seed=None):
         function to simulate phenotypes.
     :rtype: pandas.DataFrame
     """
-    if not isinstance(ts, tskit.TreeSequence):
-        raise TypeError("Input must be a tree sequence data")
-    if not isinstance(num_causal, numbers.Number):
-        raise TypeError("Number of causal sites must be an integer")
-    if int(num_causal) != num_causal or num_causal <= 0:
-        raise ValueError("Number of causal sites must be a positive integer")
-    if not isinstance(model, tstrait.TraitModel):
-        raise TypeError("Trait model must be an instance of TraitModel")
+    ts = _check_instance(ts, "ts", tskit.TreeSequence)
+    num_causal = _check_int(num_causal, "num_causal", minimum=0)
+    model = _check_instance(model, "model", tstrait.TraitModel)
+    alpha = _check_val(alpha, "alpha")
     num_sites = ts.num_sites
     if num_sites == 0:
-        raise ValueError("No mutation in the provided data")
+        raise ValueError("No mutation in the tree sequence input")
     if num_causal > num_sites:
         raise ValueError(
-            "There are less number of sites in the tree sequence than the inputted "
-            "number of causal sites"
+            "num_causal must be an integer not greater than the number of sites in ts"
         )
-    if not isinstance(alpha, numbers.Number):
-        raise TypeError("Alpha must be a number")
 
     simulator = TraitSimulator(
         ts=ts,
