@@ -28,8 +28,7 @@ class TraitModel(metaclass=ABCMeta):
 
     def _check_parameter(self, num_causal, rng):
         num_causal = _check_int(num_causal, "num_causal", minimum=1)
-        if not isinstance(rng, np.random.Generator):
-            raise TypeError("rng must be a numpy random generator")
+        _check_instance(rng, "rng", np.random.Generator)
         return num_causal
 
     @abstractmethod
