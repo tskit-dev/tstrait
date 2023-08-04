@@ -1,9 +1,16 @@
-import numbers
+from abc import ABCMeta
+from abc import abstractmethod
 
 import numpy as np
 
+from .base import (
+    _check_int,
+    _check_val,
+    _check_instance,
+)  # noreorder
 
-class TraitModel:
+
+class TraitModel(metaclass=ABCMeta):
     """Superclass of the trait model. See the :ref:`sec_trait_model` section for
     more details on the available models and examples.
 
@@ -11,17 +18,19 @@ class TraitModel:
     :type model_name: str
     """
 
+    @abstractmethod
     def __init__(self, name):
         self.name = name
         self.num_trait = 1
 
     def _check_parameter(self, num_causal, rng):
-        if not isinstance(num_causal, numbers.Number):
-            raise TypeError("Number of causal sites must be an integer")
-        if int(num_causal) != num_causal or num_causal <= 0:
-            raise ValueError("Number of causal sites must be a positive integer")
-        if not isinstance(rng, np.random.Generator):
-            raise TypeError("rng must be a numpy random generator")
+        num_causal = _check_int(num_causal, "num_causal", minimum=1)
+        _check_instance(rng, "rng", np.random.Generator)
+        return num_causal
+
+    @abstractmethod
+    def sim_effect_size(self):
+        pass
 
 
 class TraitModelNormal(TraitModel):
@@ -35,15 +44,9 @@ class TraitModelNormal(TraitModel):
     """
 
     def __init__(self, mean, var):
-        if not isinstance(mean, numbers.Number):
-            raise TypeError("Mean must be a number")
-        if not isinstance(var, numbers.Number):
-            raise TypeError("Variance must be a number")
-        if var <= 0:
-            raise ValueError("Variance must be greater than 0")
-        super().__init__("normal")
         self.mean = mean
         self.var = var
+        super().__init__("normal")
 
     def sim_effect_size(self, num_causal, rng):
         """
@@ -56,7 +59,7 @@ class TraitModelNormal(TraitModel):
         :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        self._check_parameter(num_causal, rng)
+        num_causal = self._check_parameter(num_causal, rng)
         beta = rng.normal(
             loc=self.mean / num_causal, scale=np.sqrt(self.var) / num_causal
         )
@@ -77,15 +80,9 @@ class TraitModelExponential(TraitModel):
     """
 
     def __init__(self, scale, negative=False):
-        if not isinstance(scale, numbers.Number):
-            raise TypeError("Scale must be a number")
-        if scale <= 0:
-            raise ValueError("Scale must be greater than 0")
-        if not isinstance(negative, bool):
-            raise TypeError("Negative must be a boolean")
-        super().__init__("exponential")
         self.scale = scale
-        self.negative = negative
+        self.negative = _check_instance(negative, "negative", bool)
+        super().__init__("exponential")
 
     def sim_effect_size(self, num_causal, rng):
         """
@@ -98,7 +95,7 @@ class TraitModelExponential(TraitModel):
         :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        self._check_parameter(num_causal, rng)
+        num_causal = self._check_parameter(num_causal, rng)
         beta = rng.exponential(scale=self.scale / num_causal)
         if self.negative:
             beta *= rng.choice([-1, 1])
@@ -113,9 +110,7 @@ class TraitModelFixed(TraitModel):
     """
 
     def __init__(self, value):
-        if not isinstance(value, numbers.Number):
-            raise TypeError("Value must be a number")
-        self.value = value
+        self.value = _check_val(value, "value")
         super().__init__("fixed")
 
     def sim_effect_size(self, num_causal, rng):
@@ -129,7 +124,7 @@ class TraitModelFixed(TraitModel):
         :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        self._check_parameter(num_causal, rng)
+        num_causal = self._check_parameter(num_causal, rng)
         beta = self.value
         return beta
 
@@ -151,17 +146,6 @@ class TraitModelT(TraitModel):
         self.var = var
         self.df = df
         super().__init__("t")
-        if not isinstance(mean, numbers.Number):
-            raise TypeError("Mean must be a number")
-        if not isinstance(var, numbers.Number):
-            raise TypeError("Variance must be a number")
-        if var <= 0:
-            raise ValueError("Variance must be greater than 0")
-        if not isinstance(df, numbers.Number):
-            raise TypeError("Degrees of freedom must be a number")
-        if df <= 0:
-            raise ValueError("Degrees of freedom must be larger than 0")
-        self.df = df
 
     def sim_effect_size(self, num_causal, rng):
         """
@@ -174,7 +158,7 @@ class TraitModelT(TraitModel):
         :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        self._check_parameter(num_causal, rng)
+        num_causal = self._check_parameter(num_causal, rng)
         beta = rng.standard_t(self.df)
         beta = (beta * np.sqrt(self.var) + self.mean) / num_causal
         return beta
@@ -197,20 +181,10 @@ class TraitModelGamma(TraitModel):
     """
 
     def __init__(self, shape, scale, negative=False):
-        if not isinstance(shape, numbers.Number):
-            raise TypeError("Shape must be a number")
-        if shape <= 0:
-            raise ValueError("Shape must be greater than 0")
-        if not isinstance(scale, numbers.Number):
-            raise TypeError("Scale must be a number")
-        if scale <= 0:
-            raise ValueError("Scale must be greater than 0")
-        if not isinstance(negative, bool):
-            raise TypeError("Negative must be a boolean")
-        super().__init__("gamma")
         self.shape = shape
         self.scale = scale
-        self.negative = negative
+        self.negative = _check_instance(negative, "negative", bool)
+        super().__init__("gamma")
 
     def sim_effect_size(self, num_causal, rng):
         """
@@ -223,7 +197,7 @@ class TraitModelGamma(TraitModel):
         :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        self._check_parameter(num_causal, rng)
+        num_causal = self._check_parameter(num_causal, rng)
         beta = rng.gamma(self.shape, self.scale) / num_causal
         if self.negative:
             beta *= rng.choice([-1, 1])
@@ -239,54 +213,14 @@ class TraitModelMultivariateNormal(TraitModel):
     :param mean: Mean vector of the simulated effect sizes. The length of the vector
         should match the number of traits.
     :type mean: list or numpy.ndarray
-    :param var: Variance vector of the simulated effect sizes. The length of the
-        vector should match the number of traits.
-    :type var: list or numpy.ndarray
-    :param cor: Correlation matrix of simulated effect sizes.
-    :type cor: list or numpy.ndarray
+    :param cov: Covariance matrix of simulated effect sizes.
+    :type cov: list or numpy.ndarray
     """
 
-    def __init__(self, mean, var, cor):
-        if not isinstance(mean, list) and not isinstance(mean, np.ndarray):
-            raise TypeError("Mean must be a list or a numpy array")
-        if not isinstance(var, list) and not isinstance(var, np.ndarray):
-            raise TypeError("Variance must be a list or a numpy array")
-        for i in var:
-            if i <= 0:
-                raise ValueError("Variance must be greater than 0")
-        if not isinstance(cor, list) and not isinstance(cor, np.ndarray):
-            raise TypeError("Correlation matrix must be a list or a numpy array")
-
-        mean = np.array(mean)
-        var = np.array(var)
-        cor = np.array(cor)
-
-        num_trait = len(mean)
-
-        if len(var) != num_trait:
-            raise ValueError(
-                "The length of the trait variance vector does not match the length "
-                "of the trait mean vector"
-            )
-        if cor.shape != (num_trait, num_trait):
-            raise ValueError(
-                "The dimension of the correlation matrix does not match the dimension "
-                "of the trait mean and variance vector"
-            )
-        super().__init__("multi_normal")
-
-        self.num_trait = num_trait
+    def __init__(self, mean, cov):
+        self.num_trait = len(mean)
         self.mean = mean
-        self.var = var
-        self.cor = cor
-
-    def cov_matrix(self):
-        sd = np.sqrt(self.var)
-        diag_sd = np.diag(sd)
-        mat_mul = np.matmul(diag_sd, self.cor)
-        cov = np.matmul(mat_mul, diag_sd)
-
-        return cov
+        self.cov = cov
 
     def sim_effect_size(self, num_causal, rng):
         """
@@ -299,9 +233,8 @@ class TraitModelMultivariateNormal(TraitModel):
         :return: Simulated effect size of a causal mutation.
         :rtype: float
         """
-        self._check_parameter(num_causal, rng)
-        cov = self.cov_matrix()
-        beta = rng.multivariate_normal(mean=self.mean, cov=cov)
+        num_causal = self._check_parameter(num_causal, rng)
+        beta = rng.multivariate_normal(mean=self.mean, cov=self.cov)
         beta /= num_causal
         return beta
 
@@ -326,8 +259,7 @@ def trait_model(distribution, **kwargs):
     :return: The corresponding trait model.
     :rtype: TraitModel
     """
-    if not isinstance(distribution, str):
-        raise TypeError("Distribution must be a string")
+    distribution = _check_instance(distribution, "distribution", str)
     lower_model = distribution.lower()
     if lower_model not in MODEL_MAP:
         raise ValueError(
