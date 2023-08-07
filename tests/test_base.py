@@ -1,6 +1,7 @@
 import fractions
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from tstrait.base import (
@@ -8,6 +9,8 @@ from tstrait.base import (
     _check_val,
     _check_instance,
     _check_numeric_array,
+    _check_dataframe,
+    _check_non_decreasing,
 )  # noreorder
 
 
@@ -72,3 +75,36 @@ class TestNumericArray:
     def test_nonnumeric(self):
         with pytest.raises(TypeError, match="input must be numeric"):
             _check_numeric_array([1, "1"], "input")
+
+
+class TestDataFrame:
+    def test_type(self):
+        with pytest.raises(
+            TypeError,
+            match="df must be a <class 'pandas.core.frame.DataFrame'> instance",
+        ):
+            _check_dataframe(1, {"one"}, "df")
+
+    def test_dataframe(self):
+        df = pd.DataFrame({"first": [0, 1], "second": [3, 4]})
+
+        with pytest.raises(
+            ValueError, match="columns must be included in df dataframe"
+        ):
+            _check_dataframe(df, ["column"], "df")
+
+        pd.testing.assert_frame_equal(
+            _check_dataframe(df, ["first"], "df"), df[["first"]]
+        )
+
+        pd.testing.assert_frame_equal(
+            _check_dataframe(df, ["first", "second"], "df"), df
+        )
+
+
+class TestNonDecreasing:
+    def test_non_decreasing(self):
+        with pytest.raises(ValueError, match="array must be non-decreasing"):
+            _check_non_decreasing([0, 1, 0], "array")
+
+        _check_non_decreasing([0, 0, 1, 1, 4], "array")

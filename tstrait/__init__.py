@@ -28,6 +28,10 @@ from .trait_model import (
     TraitModelNormal,
     TraitModelT,
 )  # noreorder
+from .genetic_value import (
+    genetic_value,
+    GeneticValue,
+)  # noreorder
 
 __all__ = [
     "__version__",
@@ -46,4 +50,6 @@ __all__ = [
     "TraitModelMultivariateNormal",
     "TraitModelNormal",
     "TraitModelT",
+    "genetic_value",
+    "GeneticValue",
 ]

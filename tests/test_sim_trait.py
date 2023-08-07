@@ -8,9 +8,10 @@ from scipy import stats
 from tstrait.base import _check_numeric_array
 from .data import (
     binary_tree,
+    binary_tree_seq,
     diff_ind_tree,
     non_binary_tree,
-    binary_tree_seq,
+    triploid_tree,
 )  # noreorder
 
 
@@ -152,14 +153,18 @@ class Test_allele_freq:
         assert c2 == {"C": 1}
         assert c3 == {"C": 2, "T": 2}
 
-    def non_binary_tree(self, sample_trait_model):
-        ts = non_binary_tree()
+    @pytest.mark.parametrize("tree_seq", [non_binary_tree(), triploid_tree()])
+    def non_binary_tree(self, tree_seq, sample_trait_model):
         simulator = tstrait.TraitSimulator(
-            ts=ts, num_causal=4, model=sample_trait_model, alpha=0.3, random_seed=1
+            ts=tree_seq,
+            num_causal=4,
+            model=sample_trait_model,
+            alpha=0.3,
+            random_seed=1,
         )
-        tree = ts.first()
-        c0 = simulator._obtain_allele_count(tree, ts.site(0))
-        c1 = simulator._obtain_allele_count(tree, ts.site(1))
+        tree = tree_seq.first()
+        c0 = simulator._obtain_allele_count(tree, tree_seq.site(0))
+        c1 = simulator._obtain_allele_count(tree, tree_seq.site(1))
 
         assert c0 == {"T": 3}
         assert c1 == {"C": 2, "T": 1}

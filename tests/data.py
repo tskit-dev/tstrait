@@ -58,6 +58,10 @@ def diff_ind_tree():
     """
     ts = binary_tree()
     tables = ts.dump_tables()
+    tables.individuals.clear()
+    tables.individuals.add_row()
+    tables.individuals.add_row()
+    tables.individuals.add_row()
     individuals = tables.nodes.individual
     individuals[[0, 2]] = 1
     individuals[[1, 3]] = 2
@@ -102,6 +106,27 @@ def non_binary_tree():
     tables.mutations.add_row(site=1, node=6, derived_state="C", parent=1)
     tables.mutations.add_row(site=1, node=5, derived_state="T", parent=2)
 
+    ts = tables.tree_sequence()
+    return ts
+
+
+def triploid_tree():
+    """Same mutation and tree structure as non_binary_tree, but individuals have
+    different nodes and are triploids. See the details of the tree sequence
+    in the doctring for `non_binary_tree`.
+
+    Individual0: Node0, Node2 and Node4
+    Individual1: Node1, Node3 and Node5
+    """
+    ts = non_binary_tree()
+    tables = ts.dump_tables()
+    tables.individuals.clear()
+    tables.individuals.add_row()
+    tables.individuals.add_row()
+    individuals = tables.nodes.individual
+    individuals[[0, 2, 4]] = 0
+    individuals[[1, 3, 5]] = 1
+    tables.nodes.individual = individuals
     ts = tables.tree_sequence()
     return ts
 

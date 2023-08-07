@@ -87,10 +87,13 @@ class TraitSimulator:
         """
         causal_site_array = self._choose_causal_site()
         num_samples = self.ts.num_samples
+        num_trait = self.model.num_trait
         tree = tskit.Tree(self.ts)
 
         causal_state_array = np.zeros(self.num_causal, dtype=object)
-        beta_array = np.zeros((self.num_causal, self.model.num_trait))
+        beta_array = np.zeros((self.num_causal, num_trait), dtype=float)
+        trait_id_array = np.tile(np.arange(num_trait), self.num_causal)
+        site_id_array = np.repeat(causal_site_array, num_trait)
 
         for i, single_id in enumerate(causal_site_array):
             site = self.ts.site(single_id)
@@ -101,25 +104,18 @@ class TraitSimulator:
             allele_freq = counts[causal_state] / num_samples
             beta = self.model.sim_effect_size(num_causal=self.num_causal, rng=self.rng)
             beta *= self._frequency_dependence(allele_freq)
-            beta_array[i] = beta
+            beta_array[i, :] = beta
+
+        causal_state_array = np.repeat(causal_state_array, num_trait)
 
         df = pd.DataFrame(
-            columns=["site_id", "causal_state", "effect_size", "trait_id"]
+            {
+                "site_id": site_id_array,
+                "causal_state": causal_state_array,
+                "effect_size": beta_array.flatten(),
+                "trait_id": trait_id_array,
+            }
         )
-
-        for i in range(self.model.num_trait):
-            df_add = pd.DataFrame(
-                {
-                    "site_id": causal_site_array,
-                    "causal_state": causal_state_array,
-                    "effect_size": beta_array[:, i],
-                    "trait_id": np.ones(self.num_causal) * i,
-                }
-            )
-            df = pd.concat([df, df_add])
-
-        df = df.reset_index()
-        del df["index"]
 
         return df
 
