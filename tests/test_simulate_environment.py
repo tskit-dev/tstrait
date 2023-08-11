@@ -226,9 +226,16 @@ class Test_KSTest:
 
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
 
-        trait_df = tstrait.sim_trait(ts=ts, num_causal=num_causal, model=model)
+        trait_df = tstrait.sim_trait(
+            ts=ts, num_causal=num_causal, model=model, random_seed=10
+        )
         genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
-        phenotype_df = tstrait.sim_env(genetic_df=genetic_df, h2=h2)
+        phenotype_df = tstrait.sim_env(genetic_df=genetic_df, h2=h2, random_seed=20)
+        phenotype_df1 = tstrait.sim_env(genetic_df=genetic_df, h2=h2, random_seed=30)
+        phenotype_df = pd.concat([phenotype_df, phenotype_df1])
+
+        phenotype_df = phenotype_df.reset_index()
+        del phenotype_df["index"]
 
         self.check_env_dist(phenotype_df, h2)
 
