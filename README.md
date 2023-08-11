@@ -2,7 +2,7 @@
 
 **tstrait** is a quantitative trait simulator of [tskit](https://tskit.readthedocs.io/) tree sequences.
 
-- Documentation:
+- Documentation: https://tskit.dev/tstrait/docs/
 - Source code: https://github.com/tskit-dev/tstrait
 - Tree sequence documentation: https://tskit.dev/learn/
 

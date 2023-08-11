@@ -2,6 +2,7 @@ import numbers
 import operator
 
 import numpy as np
+import pandas as pd
 
 
 def _check_instance(data, name, input_type):
@@ -40,3 +41,22 @@ def _check_numeric_array(array, name):
     """Check if the input is a numeric array or not. This is used in unit tests."""
     result = np.array([_check_val(value, name) for value in array])
     return result
+
+
+def _check_dataframe(df, column, df_name):
+    """Check if `df` is a pandas dataframe or not and examine if `column` is a column
+    in `df` or not
+    column is the set of column names and df_name is the name of df
+    """
+
+    df = _check_instance(df, df_name, pd.DataFrame)
+    if not set(column).issubset(df.columns):
+        raise ValueError(f"{column} columns must be included in {df_name} dataframe")
+    return df[list(column)]
+
+
+def _check_non_decreasing(array, array_name):
+    """Check that the array is non-decreasing."""
+    diff = np.diff(array)
+    if np.min(diff) < 0:
+        raise ValueError(f"{array_name} must be non-decreasing")
