@@ -32,6 +32,10 @@ from .genetic_value import (
     genetic_value,
     GeneticValue,
 )  # noreorder
+from .simulate_environment import (
+    sim_env,
+    EnvSimulator,
+)  # noreorder
 
 __all__ = [
     "__version__",
@@ -52,4 +56,6 @@ __all__ = [
     "TraitModelT",
     "genetic_value",
     "GeneticValue",
+    "sim_env",
+    "EnvSimulator",
 ]
