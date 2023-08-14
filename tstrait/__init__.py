@@ -12,9 +12,6 @@ from .simulate_effect_size import (
     TraitSimulator,
 )  # noreorder
 from .simulate_phenotype import (
-    GenotypeResult,
-    PhenotypeResult,
-    PhenotypeSimulator,
     Result,
     sim_phenotype,
 )  # noreorder
@@ -41,9 +38,6 @@ __all__ = [
     "__version__",
     "sim_trait",
     "TraitSimulator",
-    "GenotypeResult",
-    "PhenotypeResult",
-    "PhenotypeSimulator",
     "Result",
     "sim_phenotype",
     "trait_model",
