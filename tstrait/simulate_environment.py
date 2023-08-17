@@ -8,15 +8,15 @@ from .base import _check_dataframe
 class EnvSimulator:
     """Simulator class to simulate environmental noise of individuals.
 
-    :param genetic_df: Pandas dataframe that includes genetic value of individuals.
-        It must include individual ID, genetic value and trait ID.
-    :type genetic_df: pandas.DataFrame
-    :param h2: Narrow-sense heritability, which will be used to simulate environmental
-        noise. Narrow-sense heritability must be between 0 and 1.
-    :type h2: float or list or numpy.ndarray
-    :param random_seed: The random seed. If this is not specified or None, simulation
-        will be done randomly.
-    :type random_seed: int
+    Parameters
+    ----------
+    genetic_df : pandas.DataFrame
+        Pandas dataframe that includes genetic value of individuals. It must include
+        individual ID, genetic value and trait ID.
+    h2 : float or array-like
+        Narrow-sense heritability.
+    random_seed : int
+        The random seed.
     """
 
     def __init__(self, genetic_df, h2, random_seed):
@@ -51,20 +51,61 @@ class EnvSimulator:
 
 
 def sim_env(genetic_df, h2, random_seed=None):
-    """Simulates environmental noise and obtain phenotype.
+    """
+    Simulates environmental noise.
 
-    :param genetic_df: Pandas dataframe that includes genetic value of individuals.
-        It must include individual ID, genetic value and trait ID.
-    :type genetic_df: pandas.DataFrame
-    :param h2: Narrow-sense heritability, which will be used to simulate environmental
-        noise. Narrow-sense heritability must be between 0 and 1.
-    :type h2: float or list or numpy.ndarray
-    :param random_seed: The random seed. If this is not specified or None, simulation
-        will be done randomly.
-    :type random_seed: int
-    :return: Returns a pandas dataframe that includes individual ID, genetic value,
-        environmental noise, phenotype, and trait ID.
-    :rtype: pandas.DataFrame
+    Parameters
+    ----------
+    genetic_df : pandas.DataFrame
+        Genetic value dataframe.
+    h2 : float or array-like
+        Narrow-sense heritability. The dimension of `h2` must match the number of traits
+        to be simulated.
+    random_seed : int, default None
+        Random seed of simulation. If None, simulation will be conducted randomly.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with simulated environmental noise.
+
+    Raises
+    ------
+    ValueError
+        If `h2` <= 0 or `h2` > 1
+
+    See Also
+    --------
+    sim_genetic : Return a dataclass with genetic value dataframe, which can be used as
+        `genetic_df` input.
+
+    Notes
+    -----
+    The `genetic_df` input has some requirements that will be noted below.
+
+    1. Columns
+
+    The following columns must be included in `genetic_df`:
+
+        * **trait_id**: Trait ID.
+        * **individual_id**: Individual ID inside the tree sequence input.
+        * **genetic_value**: Simulated genetic values.
+
+    2. Data requirement
+
+    Trait IDs in **trait_id** column must start from 0 and be consecutive.
+
+    The dataframe output has the following columns:
+
+        * **trait_id**: Trait ID.
+        * **individual_id**: Individual ID inside the tree sequence input.
+        * **genetic_value**: Simulated genetic values.
+        * **environmental_noise**: Simulated environmental noise.
+        * **phenotype**: Simulated phenotype.
+
+    Examples
+    --------
+    See :ref:`env_simulation` for worked examples.
     """
     genetic_df = _check_dataframe(
         genetic_df, ["trait_id", "individual_id", "genetic_value"], "genetic_df"

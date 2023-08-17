@@ -3,4 +3,4 @@ numba
 numpy
 pandas
 scipy
-tskit==0.5.3
+tskit>=0.5.5

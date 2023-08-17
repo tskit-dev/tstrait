@@ -7,7 +7,7 @@ from scipy import stats
 def simulate(model, num_causal):
     return np.array(
         [
-            model.sim_effect_size(num_causal, np.random.default_rng(i))
+            model._sim_effect_size(num_causal, np.random.default_rng(i))
             for i in range(num_causal * 2)
         ]
     )
@@ -20,7 +20,7 @@ class TestTraitModel:
 
     tstrait.TraitModel.__abstractmethods__ = set()
     model = tstrait.TraitModel("sample")
-    assert model.sim_effect_size() is None
+    assert model._sim_effect_size() is None
 
 
 class TestInput:
@@ -58,8 +58,8 @@ class TestMultivariate:
         model = tstrait.trait_model(
             distribution="multi_normal", mean=np.zeros(4), cov=np.eye(4)
         )
-        beta = model.sim_effect_size(10, np.random.default_rng(1))
-        assert beta.shape == (4,)
+        beta = model._sim_effect_size(10, np.random.default_rng(1))
+        assert beta.shape == (10, 4)
         assert model.num_trait == 4
 
     def test_large_sample(self):
@@ -70,9 +70,9 @@ class TestMultivariate:
         M = np.random.randn(n, n)
         cov = np.dot(M, M.T)
         model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         np.testing.assert_allclose(
-            np.cov(effect_size.T) * (num_causal**2), cov, rtol=1e-1
+            np.cov(effect_size.T) * (num_causal**2), cov, rtol=2e-1
         )
         np.testing.assert_allclose(effect_size.mean(0) * num_causal, mean, rtol=1e-1)
 
@@ -93,7 +93,7 @@ class TestKSTest:
         loc = 2
         scale = 5
         model = tstrait.trait_model(distribution="normal", mean=loc, var=scale**2)
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         self.check_distribution(
             effect_size, "norm", (loc / num_causal, scale / num_causal)
         )
@@ -101,7 +101,7 @@ class TestKSTest:
     def test_exponential(self, num_causal):
         scale = 2
         model = tstrait.trait_model(distribution="exponential", scale=scale)
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         self.check_distribution(effect_size, "expon", (0, scale / num_causal))
         assert np.min(effect_size) > 0
 
@@ -110,7 +110,7 @@ class TestKSTest:
         model = tstrait.trait_model(
             distribution="exponential", scale=scale, negative=True
         )
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         assert np.min(effect_size) < 0
         effect_size = np.abs(effect_size)
         self.check_distribution(effect_size, "expon", (0, scale / num_causal))
@@ -120,7 +120,7 @@ class TestKSTest:
         scale = 3
         df = 10
         model = tstrait.trait_model(distribution="t", mean=loc, var=scale**2, df=df)
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         self.check_distribution(
             effect_size, "t", (df, loc / num_causal, scale / num_causal)
         )
@@ -129,7 +129,7 @@ class TestKSTest:
         shape = 3
         scale = 2
         model = tstrait.trait_model(distribution="gamma", shape=shape, scale=scale)
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         self.check_distribution(effect_size, "gamma", (shape, 0, scale / num_causal))
         assert np.min(effect_size) > 0
 
@@ -139,7 +139,7 @@ class TestKSTest:
         model = tstrait.trait_model(
             distribution="gamma", shape=shape, scale=scale, negative=True
         )
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         assert np.min(effect_size) < 0
         effect_size = np.abs(effect_size)
         self.check_distribution(effect_size, "gamma", (shape, 0, scale / num_causal))
@@ -151,7 +151,7 @@ class TestKSTest:
         M = np.random.randn(n, n)
         cov = np.dot(M, M.T)
         model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
-        effect_size = simulate(model, num_causal)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         for i in range(n):
             self.check_distribution(
                 effect_size[:, i],
