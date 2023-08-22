@@ -1,18 +1,10 @@
-autodocsumm>=0.2.7
-jsonschema>=3.0.0
-jupyter-book>=0.12.1
-matplotlib
-msprime
-numba
-numpy
-pandas
-scipy
-sphinx==4.5
-sphinx-argparse
-sphinx-autodoc-typehints>=1.18.3
-sphinx-issues
-sphinx-jupyterbook-latex
-statsmodels
-tskit
-tskit-book-theme
-pydata_sphinx_theme>=0.7.2
+jupyter-book==0.15.1
+matplotlib==3.7.2
+msprime==1.2.0
+numba==0.57.1
+numpy==1.21.6 # for numba
+pandas==2.0.3
+sphinx-autodoc-typehints==1.19.1
+sphinx-book-theme # not pinned to enable easy updates
+sphinx-issues==3.0.1
+tskit==0.5.5
