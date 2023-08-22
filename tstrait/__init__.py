@@ -12,7 +12,7 @@ from .simulate_effect_size import (
     TraitSimulator,
 )  # noreorder
 from .simulate_phenotype import (
-    Result,
+    PhenotypeResult,
     sim_phenotype,
 )  # noreorder
 from .trait_model import (
@@ -26,7 +26,8 @@ from .trait_model import (
     TraitModelT,
 )  # noreorder
 from .genetic_value import (
-    genetic_value,
+    sim_genetic,
+    GeneticResult,
     GeneticValue,
 )  # noreorder
 from .simulate_environment import (
@@ -38,7 +39,7 @@ __all__ = [
     "__version__",
     "sim_trait",
     "TraitSimulator",
-    "Result",
+    "PhenotypeResult",
     "sim_phenotype",
     "trait_model",
     "TraitModel",
@@ -48,7 +49,8 @@ __all__ = [
     "TraitModelMultivariateNormal",
     "TraitModelNormal",
     "TraitModelT",
-    "genetic_value",
+    "sim_genetic",
+    "GeneticResult",
     "GeneticValue",
     "sim_env",
     "EnvSimulator",

@@ -2,17 +2,9 @@ import msprime
 import numpy as np
 import pandas as pd
 import pytest
-import tskit
 import tstrait
 from scipy import stats
 from tstrait.base import _check_numeric_array
-from .data import (
-    binary_tree,
-    binary_tree_seq,
-    diff_ind_tree,
-    non_binary_tree,
-    triploid_tree,
-)  # noreorder
 
 
 @pytest.fixture(scope="class")
@@ -65,10 +57,9 @@ class TestOutputDim:
 
     def check_dimensions(self, df, num_causal):
         assert len(df) == num_causal
-        assert df.shape[1] == 4
+        assert df.shape[1] == 3
         assert list(df.columns) == [
             "site_id",
-            "causal_state",
             "effect_size",
             "trait_id",
         ]
@@ -116,7 +107,6 @@ class TestOutputDim:
             ts=sample_ts,
             num_causal=num_causal,
             model=model,
-            alpha=0,
             random_seed=1,
         )
         trait_ids = df.trait_id.unique()
@@ -130,86 +120,6 @@ class TestOutputDim:
             0 <= np.min(df["site_id"]) and np.max(df["site_id"]) < sample_ts.num_sites
         )
         assert 0 <= np.min(df["trait_id"]) and np.max(df["trait_id"]) <= 1
-
-
-class Test_allele_freq:
-    @pytest.mark.parametrize("tree_seq", [binary_tree(), diff_ind_tree()])
-    def test_binary_tree(self, tree_seq, sample_trait_model):
-        simulator = tstrait.TraitSimulator(
-            ts=tree_seq,
-            num_causal=4,
-            model=sample_trait_model,
-            alpha=0.3,
-            random_seed=1,
-        )
-        tree = tree_seq.first()
-        c0 = simulator._obtain_allele_count(tree, tree_seq.site(0))
-        c1 = simulator._obtain_allele_count(tree, tree_seq.site(1))
-        c2 = simulator._obtain_allele_count(tree, tree_seq.site(2))
-        c3 = simulator._obtain_allele_count(tree, tree_seq.site(3))
-
-        assert c0 == {"T": 2}
-        assert c1 == {"C": 1, "T": 1}
-        assert c2 == {"C": 1}
-        assert c3 == {"C": 2, "T": 2}
-
-    @pytest.mark.parametrize("tree_seq", [non_binary_tree(), triploid_tree()])
-    def non_binary_tree(self, tree_seq, sample_trait_model):
-        simulator = tstrait.TraitSimulator(
-            ts=tree_seq,
-            num_causal=4,
-            model=sample_trait_model,
-            alpha=0.3,
-            random_seed=1,
-        )
-        tree = tree_seq.first()
-        c0 = simulator._obtain_allele_count(tree, tree_seq.site(0))
-        c1 = simulator._obtain_allele_count(tree, tree_seq.site(1))
-
-        assert c0 == {"T": 3}
-        assert c1 == {"C": 2, "T": 1}
-
-
-class TestAlleleFreq:
-    """Test the allele frequency dependence model by using a fixed trait model.
-    We will be using a tree sequence to also test that the simulation model works
-    in a tree sequence data.
-    """
-
-    def freqdep(self, alpha, freq):
-        return np.sqrt(pow(2 * freq * (1 - freq), alpha))
-
-    @pytest.mark.parametrize("alpha", [0, -1])
-    def test_fixed_freq_dependence(self, alpha):
-        ts = binary_tree_seq()
-        num_causal = ts.num_sites
-        value = 2
-        model = tstrait.trait_model(distribution="fixed", value=value)
-        sim_result = tstrait.sim_trait(
-            ts=ts, num_causal=num_causal, model=model, alpha=alpha
-        )
-
-        np.testing.assert_equal(sim_result["site_id"], np.arange(num_causal))
-        np.testing.assert_equal(sim_result["trait_id"], np.zeros(num_causal))
-        assert np.all(sim_result["causal_state"] != "A")
-
-        df0 = sim_result.loc[sim_result.site_id == 0]
-        df2 = sim_result.loc[sim_result.site_id == 2]
-
-        assert df0["causal_state"].values[0] == "T"
-        assert df0["effect_size"].values[0] == value * self.freqdep(alpha, 0.75)
-        assert df2["causal_state"].values[0] == "C"
-        assert df2["effect_size"].values[0] == value * self.freqdep(alpha, 0.5)
-
-    def test_allele_freq_one(self, sample_trait_model):
-        ts = tskit.Tree.generate_comb(6, span=2).tree_sequence
-        tables = ts.dump_tables()
-        tables.sites.add_row(0, "A")
-        tables.mutations.add_row(site=0, node=8, derived_state="T")
-        tables.mutations.add_row(site=0, node=8, derived_state="A", parent=0)
-        ts = tables.tree_sequence()
-        sim_result = tstrait.sim_trait(ts=ts, num_causal=1, model=sample_trait_model)
-        np.testing.assert_equal(sim_result["effect_size"], np.array([0]))
 
 
 def model_list():
@@ -275,7 +185,9 @@ class Test_KSTest:
         model = tstrait.trait_model(distribution="fixed", value=value)
         sim_result = tstrait.sim_trait(ts=sample_ts, num_causal=1000, model=model)
         data = sim_result.loc[sim_result.effect_size != 0]
-        np.testing.assert_allclose(data["effect_size"], np.ones(len(data)) * value)
+        np.testing.assert_allclose(
+            data["effect_size"], np.ones(len(data)) * value / 1000
+        )
 
     def test_multivariate(self, sample_ts):
         """

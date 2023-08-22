@@ -39,6 +39,10 @@ def sample_trait_model():
     return tstrait.trait_model(distribution="normal", mean=0, var=1)
 
 
+def freqdep(alpha, freq):
+    return np.sqrt(pow(2 * freq * (1 - freq), alpha))
+
+
 class TestInput:
     """This test will check that an informative error is raised when the input parameter
     does not have an appropriate type or value.
@@ -48,24 +52,24 @@ class TestInput:
         with pytest.raises(
             TypeError, match="ts must be a <class 'tskit.trees.TreeSequence'> instance"
         ):
-            tstrait.genetic_value(ts=1, trait_df=sample_df)
+            tstrait.sim_genetic(ts=1, trait_df=sample_df, random_seed=1)
         with pytest.raises(
             TypeError,
             match="trait_df must be a <class 'pandas.core.frame.DataFrame'> instance",
         ):
-            tstrait.genetic_value(ts=sample_ts, trait_df=1)
+            tstrait.sim_genetic(ts=sample_ts, trait_df=1, random_seed=1)
 
     def test_bad_input(self, sample_ts, sample_df):
         with pytest.raises(
             ValueError, match="columns must be included in trait_df dataframe"
         ):
             df = sample_df.drop(columns=["site_id"])
-            tstrait.genetic_value(ts=sample_ts, trait_df=df)
+            tstrait.sim_genetic(ts=sample_ts, trait_df=df, random_seed=1)
 
         with pytest.raises(ValueError, match="site_id must be non-decreasing"):
             df = sample_df.copy()
             df["site_id"] = [2, 0]
-            tstrait.genetic_value(ts=sample_ts, trait_df=df)
+            tstrait.sim_genetic(ts=sample_ts, trait_df=df, random_seed=1)
 
     @pytest.mark.parametrize("trait_id", [[2, 3], [0, 2]])
     def test_trait_id(self, sample_ts, sample_df, trait_id):
@@ -74,27 +78,47 @@ class TestInput:
         ):
             df = sample_df.copy()
             df["trait_id"] = trait_id
-            tstrait.genetic_value(ts=sample_ts, trait_df=df)
+            tstrait.sim_genetic(ts=sample_ts, trait_df=df, random_seed=1)
 
 
 class TestOutputDim:
     """Check that the genetic_value function gives the output with correct dimensions"""
 
-    def check_dimensions(self, df, nrow):
-        assert len(df) == nrow
-        assert df.shape[1] == 3
-        assert list(df.columns) == [
+    def check_dimensions(self, result, nrow, input_df):
+        genetic_df = result.genetic
+        effect_size_df = result.effect_size
+
+        np.testing.assert_array_equal(effect_size_df["site_id"], input_df["site_id"])
+        np.testing.assert_array_equal(effect_size_df["trait_id"], input_df["trait_id"])
+
+        assert list(effect_size_df.columns) == [
+            "site_id",
+            "effect_size",
+            "trait_id",
+            "causal_state",
+        ]
+
+        assert len(input_df) == len(effect_size_df)
+
+        _check_numeric_array(effect_size_df["effect_size"], "effect_size")
+
+        assert len(genetic_df) == nrow
+        assert genetic_df.shape[1] == 3
+        assert list(genetic_df.columns) == [
             "trait_id",
             "individual_id",
             "genetic_value",
         ]
-        _check_numeric_array(df["individual_id"], "individual_id")
-        _check_numeric_array(df["genetic_value"], "genetic_value")
-        _check_numeric_array(df["trait_id"], "trait_id")
+
+        _check_numeric_array(genetic_df["individual_id"], "individual_id")
+        _check_numeric_array(genetic_df["genetic_value"], "genetic_value")
+        _check_numeric_array(genetic_df["trait_id"], "trait_id")
 
     def test_output_simple(self, sample_ts, sample_df):
-        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=sample_df)
-        self.check_dimensions(genetic_df, sample_ts.num_individuals)
+        genetic_result = tstrait.sim_genetic(
+            ts=sample_ts, trait_df=sample_df, random_seed=5
+        )
+        self.check_dimensions(genetic_result, sample_ts.num_individuals, sample_df)
 
     @pytest.mark.parametrize(
         "trait_model",
@@ -111,13 +135,16 @@ class TestOutputDim:
         trait_df = tstrait.sim_trait(
             ts=sample_ts, num_causal=num_causal, model=trait_model
         )
-        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
-        self.check_dimensions(genetic_df, sample_ts.num_individuals)
+        genetic_result = tstrait.sim_genetic(
+            ts=sample_ts, trait_df=trait_df, random_seed=100
+        )
+        self.check_dimensions(genetic_result, sample_ts.num_individuals, trait_df)
         np.testing.assert_equal(
-            genetic_df["trait_id"], np.zeros(sample_ts.num_individuals)
+            genetic_result.genetic["trait_id"], np.zeros(sample_ts.num_individuals)
         )
         np.testing.assert_equal(
-            genetic_df["individual_id"], np.arange(sample_ts.num_individuals)
+            genetic_result.genetic["individual_id"],
+            np.arange(sample_ts.num_individuals),
         )
 
     def test_output_multivariate(self, sample_ts):
@@ -127,43 +154,46 @@ class TestOutputDim:
         num_causal = 10
         model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
         trait_df = tstrait.sim_trait(ts=sample_ts, num_causal=num_causal, model=model)
-        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
-        self.check_dimensions(genetic_df, sample_ts.num_individuals * num_trait)
-        ind_id = np.arange(sample_ts.num_individuals)
-        trait_id = np.ones(sample_ts.num_individuals)
-        np.testing.assert_equal(
-            genetic_df["individual_id"], np.concatenate((ind_id, ind_id, ind_id))
+        genetic_result = tstrait.sim_genetic(
+            ts=sample_ts, trait_df=trait_df, random_seed=6
+        )
+        self.check_dimensions(
+            genetic_result, sample_ts.num_individuals * num_trait, trait_df
         )
         np.testing.assert_equal(
-            genetic_df["trait_id"],
-            np.concatenate((trait_id * 0, trait_id * 1, trait_id * 2)),
+            genetic_result.genetic["individual_id"],
+            np.tile(np.arange(sample_ts.num_individuals), 3),
+        )
+        np.testing.assert_equal(
+            genetic_result.genetic["trait_id"],
+            np.repeat(np.arange(3), sample_ts.num_individuals),
         )
 
     def test_additional_row(self, sample_ts, sample_df):
         """Check that adding unexpected rows to trait_df won't cause any errors"""
         df = sample_df.copy()
         df["height"] = [170, 180]
-        tstrait.genetic_value(ts=sample_ts, trait_df=df)
+        tstrait.sim_genetic(ts=sample_ts, trait_df=df, random_seed=1000)
 
 
 class TestGenotype:
-    """Test the `_individual_genotype` method and check if it can accurately detect
-    the individual genotype. Afterwards, we will check the output of `sim_trait`.
+    """Test the `_individual_genotype` and `_obtain_allele_count` method and check they
+    it can accurately detect the individual genotype. Afterwards, we will check the
+    output of `sim_trait`.
     """
 
     def test_binary_tree(self):
         trait_df = pd.DataFrame(
             {
-                "site_id": [0, 1, 2, 3],
-                "causal_state": ["T", "T", "C", "C"],
-                "effect_size": [1, 10, 100, 1000],
-                "trait_id": [0, 0, 0, 0],
+                "site_id": [0, 2],
+                "effect_size": [1, 10],
+                "trait_id": [0, 0],
             }
         )
 
         ts = binary_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, trait_df)
+        genetic = tstrait.GeneticValue(ts, trait_df, alpha=-1, random_seed=1)
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
         g2 = genetic._individual_genotype(tree, ts.site(2), "C", ts.num_nodes)
@@ -174,31 +204,56 @@ class TestGenotype:
         np.testing.assert_equal(g2, np.array([0, 1, 0]))
         np.testing.assert_equal(g3, np.array([1, 2, 0]))
 
-        genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        c0 = genetic._obtain_allele_count(tree, ts.site(0))
+        c1 = genetic._obtain_allele_count(tree, ts.site(1))
+        c2 = genetic._obtain_allele_count(tree, ts.site(2))
+        c3 = genetic._obtain_allele_count(tree, ts.site(3))
 
-        result_df = pd.DataFrame(
+        assert c0 == {"T": 2}
+        assert c1 == {"C": 1, "T": 1}
+        assert c2 == {"C": 1}
+        assert c3 == {"C": 2, "T": 2}
+
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-1, random_seed=2
+        )
+        first = 1 * freqdep(-1, 1 / 2)
+        second = 10 * freqdep(-1, 1 / 4)
+        effect_size_df = pd.DataFrame(
+            {
+                "site_id": [0, 2],
+                "effect_size": [first, second],
+                "trait_id": [0, 0],
+                "causal_state": ["T", "C"],
+            }
+        )
+        genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 0],
                 "individual_id": [0, 1, 2],
-                "genetic_value": [1011, 2110, 2],
+                "genetic_value": [first, second, first * 2],
             }
         )
 
-        pd.testing.assert_frame_equal(genetic_df, result_df, check_dtype=False)
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )
 
     def test_diff_ind_tree(self):
         trait_df = pd.DataFrame(
             {
-                "site_id": [0, 1, 2, 3],
-                "causal_state": ["T", "T", "C", "C"],
-                "effect_size": [1, 10, 100, 1000],
-                "trait_id": [0, 0, 0, 0],
+                "site_id": [0, 2],
+                "effect_size": [1, 10],
+                "trait_id": [0, 0],
             }
         )
 
         ts = diff_ind_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, trait_df)
+        genetic = tstrait.GeneticValue(ts, trait_df, alpha=0, random_seed=1)
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
         g2 = genetic._individual_genotype(tree, ts.site(2), "C", ts.num_nodes)
@@ -209,79 +264,178 @@ class TestGenotype:
         np.testing.assert_equal(g2, np.array([0, 1, 0]))
         np.testing.assert_equal(g3, np.array([1, 1, 1]))
 
-        genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        c0 = genetic._obtain_allele_count(tree, ts.site(0))
+        c1 = genetic._obtain_allele_count(tree, ts.site(1))
+        c2 = genetic._obtain_allele_count(tree, ts.site(2))
+        c3 = genetic._obtain_allele_count(tree, ts.site(3))
 
-        result_df = pd.DataFrame(
+        assert c0 == {"T": 2}
+        assert c1 == {"C": 1, "T": 1}
+        assert c2 == {"C": 1}
+        assert c3 == {"C": 2, "T": 2}
+
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-0.5, random_seed=2
+        )
+        first = 1 * freqdep(-0.5, 1 / 2)
+        second = 10 * freqdep(-0.5, 1 / 4)
+        effect_size_df = pd.DataFrame(
+            {
+                "site_id": [0, 2],
+                "effect_size": [first, second],
+                "trait_id": [0, 0],
+                "causal_state": ["T", "C"],
+            }
+        )
+        genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 0],
                 "individual_id": [0, 1, 2],
-                "genetic_value": [1011, 1101, 1011],
+                "genetic_value": [first, first + second, first],
             }
         )
 
-        pd.testing.assert_frame_equal(genetic_df, result_df, check_dtype=False)
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )
 
     def test_non_binary_tree(self):
         trait_df = pd.DataFrame(
             {
-                "site_id": [0, 1],
-                "causal_state": ["T", "C"],
-                "effect_size": [1, 10],
-                "trait_id": [0, 0],
+                "site_id": [0],
+                "effect_size": [1],
+                "trait_id": [0],
             }
         )
 
         ts = non_binary_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, trait_df)
+        genetic = tstrait.GeneticValue(ts, trait_df, alpha=-1, random_seed=0)
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "C", ts.num_nodes)
 
         np.testing.assert_equal(g0, np.array([0, 1, 2]))
         np.testing.assert_equal(g1, np.array([0, 1, 1]))
 
-        genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        c0 = genetic._obtain_allele_count(tree, ts.site(0))
+        c1 = genetic._obtain_allele_count(tree, ts.site(1))
 
-        result_df = pd.DataFrame(
+        assert c0 == {"T": 3}
+        assert c1 == {"C": 2, "T": 1}
+
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-1, random_seed=2
+        )
+        effect_size_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [freqdep(-1, 1 / 2)],
+                "trait_id": [0],
+                "causal_state": ["T"],
+            }
+        )
+        genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 0],
                 "individual_id": [0, 1, 2],
-                "genetic_value": [0, 11, 12],
+                "genetic_value": [0, freqdep(-1, 1 / 2), 2 * freqdep(-1, 1 / 2)],
             }
         )
 
-        pd.testing.assert_frame_equal(genetic_df, result_df, check_dtype=False)
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )
 
     def test_triploid(self, sample_df):
         trait_df = pd.DataFrame(
             {
-                "trait_id": [0, 0],
-                "site_id": [0, 1],
-                "causal_state": ["T", "C"],
-                "effect_size": [1, 10],
+                "site_id": [0],
+                "effect_size": [1],
+                "trait_id": [0],
             }
         )
 
         ts = triploid_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, sample_df)
+        genetic = tstrait.GeneticValue(ts, sample_df, alpha=-1, random_seed=1)
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "C", ts.num_nodes)
 
         np.testing.assert_equal(g0, np.array([1, 2]))
         np.testing.assert_equal(g1, np.array([1, 1]))
 
-        genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        c0 = genetic._obtain_allele_count(tree, ts.site(0))
+        c1 = genetic._obtain_allele_count(tree, ts.site(1))
 
-        result_df = pd.DataFrame(
+        assert c0 == {"T": 3}
+        assert c1 == {"C": 2, "T": 1}
+
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-1, random_seed=2
+        )
+        effect_size_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [freqdep(-1, 1 / 2)],
+                "trait_id": [0],
+                "causal_state": ["T"],
+            }
+        )
+        genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0],
                 "individual_id": [0, 1],
-                "genetic_value": [11, 12],
+                "genetic_value": [freqdep(-1, 1 / 2), 2 * freqdep(-1, 1 / 2)],
             }
         )
 
-        pd.testing.assert_frame_equal(genetic_df, result_df, check_dtype=False)
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )
+
+    def test_allele_freq_one(self, sample_trait_model):
+        ts = binary_tree()
+        tables = ts.dump_tables()
+        tables.sites.add_row(4, "A")
+        tables.mutations.add_row(site=4, node=0, derived_state="T")
+        tables.mutations.add_row(site=4, node=0, derived_state="A", parent=9)
+        ts = tables.tree_sequence()
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [4],
+                "effect_size": [1],
+                "trait_id": [0],
+            }
+        )
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-1, random_seed=2
+        )
+        effect_size_df = pd.DataFrame(
+            {"site_id": [4], "effect_size": [0], "trait_id": [0], "causal_state": ["A"]}
+        )
+        genetic_df = pd.DataFrame(
+            {
+                "trait_id": np.zeros(3),
+                "individual_id": np.arange(3),
+                "genetic_value": np.zeros(3),
+            }
+        )
+
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )
 
 
 class TestTreeSeq:
@@ -291,44 +445,81 @@ class TestTreeSeq:
         ts = binary_tree_seq()
         trait_df = pd.DataFrame(
             {
-                "site_id": [0, 1, 2],
-                "causal_state": ["T", "G", "C"],
-                "effect_size": [1, 10, 100],
-                "trait_id": [0, 0, 0],
+                "site_id": [0, 2],
+                "effect_size": [1, 10],
+                "trait_id": [0, 0],
             }
         )
 
-        genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-1, random_seed=2
+        )
 
-        result_df = pd.DataFrame(
+        first = freqdep(-1, 3 / 4)
+        second = 10 * freqdep(-1, 1 / 2)
+        effect_size_df = pd.DataFrame(
+            {
+                "site_id": [0, 2],
+                "effect_size": [first, second],
+                "trait_id": [0, 0],
+                "causal_state": ["T", "C"],
+            }
+        )
+        genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0],
                 "individual_id": [0, 1],
-                "genetic_value": [101, 122],
+                "genetic_value": [first + second, 2 * first + second],
             }
         )
 
-        pd.testing.assert_frame_equal(genetic_df, result_df, check_dtype=False)
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )
 
     def test_tree_seq_multiple_trait(self):
         ts = binary_tree_seq()
         trait_df = pd.DataFrame(
             {
-                "trait_id": np.tile([0, 1], 3),
-                "site_id": np.repeat([0, 1, 2], 2),
-                "causal_state": np.repeat(["T", "G", "C"], 2),
-                "effect_size": [1, 2, 10, 20, 100, 200],
+                "trait_id": np.tile([0, 1], 2),
+                "site_id": np.repeat([0, 2], 2),
+                "effect_size": [1, 2, 10, 20],
             }
         )
 
-        genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.sim_genetic(
+            ts=ts, trait_df=trait_df, alpha=-0.5, random_seed=2
+        )
 
-        result_df = pd.DataFrame(
+        first = freqdep(-0.5, 3 / 4)
+        second = 10 * freqdep(-0.5, 1 / 2)
+        effect_size_df = pd.DataFrame(
             {
-                "trait_id": [0, 0, 1, 1],
-                "individual_id": [0, 1, 0, 1],
-                "genetic_value": [101, 122, 202, 244],
+                "site_id": np.repeat([0, 2], 2),
+                "effect_size": [first, first * 2, second, second * 2],
+                "trait_id": np.tile([0, 1], 2),
+                "causal_state": np.repeat(["T", "C"], 2),
+            }
+        )
+        genetic_df = pd.DataFrame(
+            {
+                "trait_id": np.repeat([0, 1], 2),
+                "individual_id": np.tile([0, 1], 2),
+                "genetic_value": [
+                    first + second,
+                    2 * first + second,
+                    2 * (first + second),
+                    2 * (2 * first + second),
+                ],
             }
         )
 
-        pd.testing.assert_frame_equal(genetic_df, result_df, check_dtype=False)
+        pd.testing.assert_frame_equal(
+            effect_size_df, genetic_result.effect_size, check_dtype=False
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df, genetic_result.genetic, check_dtype=False
+        )

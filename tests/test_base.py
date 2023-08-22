@@ -108,3 +108,4 @@ class TestNonDecreasing:
             _check_non_decreasing([0, 1, 0], "array")
 
         _check_non_decreasing([0, 0, 1, 1, 4], "array")
+        _check_non_decreasing([0], "array")

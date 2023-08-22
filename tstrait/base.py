@@ -57,6 +57,7 @@ def _check_dataframe(df, column, df_name):
 
 def _check_non_decreasing(array, array_name):
     """Check that the array is non-decreasing."""
-    diff = np.diff(array)
-    if np.min(diff) < 0:
-        raise ValueError(f"{array_name} must be non-decreasing")
+    if len(array) > 1:
+        diff = np.diff(array)
+        if np.min(diff) < 0:
+            raise ValueError(f"{array_name} must be non-decreasing")
