@@ -5,7 +5,7 @@ import numpy as np
 from .base import _check_dataframe
 
 
-class EnvSimulator:
+class _EnvSimulator:
     """Simulator class to simulate environmental noise of individuals.
 
     Parameters
@@ -33,7 +33,7 @@ class EnvSimulator:
 
         return env_noise
 
-    def sim_environment(self):
+    def _sim_environment(self):
         """Simulate environmental values based on genetic values of individuals and
         narrow-sense heritability
         """
@@ -59,8 +59,8 @@ def sim_env(genetic_df, h2, random_seed=None):
     genetic_df : pandas.DataFrame
         Genetic value dataframe.
     h2 : float or array-like
-        Narrow-sense heritability. The dimension of `h2` must match the number of traits
-        to be simulated.
+        Narrow-sense heritability. When it is 0, environmental noise will be a vector of
+        zeros. The dimension of `h2` must match the number of traits to be simulated.
     random_seed : int, default None
         Random seed of simulation. If None, simulation will be conducted randomly.
 
@@ -105,7 +105,7 @@ def sim_env(genetic_df, h2, random_seed=None):
 
     Examples
     --------
-    See :ref:`env_simulation` for worked examples.
+    See :ref:`environment` for worked examples.
     """
     genetic_df = _check_dataframe(
         genetic_df, ["trait_id", "individual_id", "genetic_value"], "genetic_df"
@@ -125,12 +125,12 @@ def sim_env(genetic_df, h2, random_seed=None):
     if np.min(h2) <= 0 or np.max(h2) > 1:
         raise ValueError("Narrow-sense heritability must be 0 < h2 <= 1")
 
-    simulator = EnvSimulator(
+    simulator = _EnvSimulator(
         genetic_df=genetic_df,
         h2=h2,
         random_seed=random_seed,
     )
 
-    phenotype_df = simulator.sim_environment()
+    phenotype_df = simulator._sim_environment()
 
     return phenotype_df

@@ -18,6 +18,8 @@ class TraitModel(metaclass=ABCMeta):
     ----------
     name : str
         Name of the trait model.
+    num_trait : int
+        Number of traits to be simulated.
 
     See Also
     --------
@@ -30,8 +32,8 @@ class TraitModel(metaclass=ABCMeta):
     TraitModelMultivariateNormal : Return a multivariate normal distribution
         trait model.
 
-    Note
-    ----
+    Notes
+    -----
     This is the base class for all trait models in tstrait. All trait models
     should set all parameters in their ``__init__`` as arguments.
     """
@@ -72,13 +74,13 @@ class TraitModelNormal(TraitModel):
     trait_model : Construct a trait model.
     numpy.random.Generator.normal : Details on the input parameters and distribution.
 
-    Note
-    ----
-    This is a trait model built on top of :py:func:`numpy.random.Generator.normal`, so
+    Notes
+    -----
+    This is a trait model built on top of :py:meth:`numpy.random.Generator.normal`, so
     please see its documentation for the details of the normal distribution simulation.
 
-    Example
-    -------
+    Examples
+    --------
     Please see the docstring example of :func:`trait_model` for constructing a normal
     distribution trait model.
     """
@@ -134,16 +136,16 @@ class TraitModelExponential(TraitModel):
     --------
     trait_model : Construct a trait model.
     numpy.random.Generator.exponential : Details on the input parameters and
-    distribution.
+        distribution.
 
-    Note
-    ----
-    This is a trait model built on top of :py:func:`numpy.random.Generator.exponential`,
+    Notes
+    -----
+    This is a trait model built on top of :py:meth:`numpy.random.Generator.exponential`,
     so please see its documentation for the details of the exponential distribution
     simulation.
 
-    Example
-    -------
+    Examples
+    --------
     Please see the docstring example of :func:`trait_model` for constructing an
     exponential distribution trait model.
     """
@@ -194,13 +196,13 @@ class TraitModelFixed(TraitModel):
     --------
     trait_model : Construct a trait model.
 
-    Note
-    ----
+    Notes
+    -----
     This is a trait model that only gives the fixed value that is specified in
     `value`.
 
-    Example
-    -------
+    Examples
+    --------
     Please see the docstring example of :func:`trait_model` for constructing a
     fixed value trait model.
     """
@@ -253,14 +255,14 @@ class TraitModelT(TraitModel):
     trait_model : Construct a trait model.
     numpy.random.Generator.standard_t : Details on the input parameters and distribution.
 
-    Note
-    ----
-    This is a trait model built on top of :py:func:`numpy.random.Generator.standard_t`,
+    Notes
+    -----
+    This is a trait model built on top of :py:meth:`numpy.random.Generator.standard_t`,
     so please see its documentation for the details of the normal distribution
     simulation.
 
-    Example
-    -------
+    Examples
+    --------
     Please see the docstring example of :func:`trait_model` for constructing a student's
     t distribution trait model.
     """
@@ -318,14 +320,14 @@ class TraitModelGamma(TraitModel):
     trait_model : Construct a trait model.
     numpy.random.Generator.gamma : Details on the input parameters and distribution.
 
-    Note
-    ----
-    This is a trait model built on top of :py:func:`numpy.random.Generator.gamma`,
+    Notes
+    -----
+    This is a trait model built on top of :py:meth:`numpy.random.Generator.gamma`,
     so please see its documentation for the details of the gamma distribution
     simulation.
 
-    Example
-    -------
+    Examples
+    --------
     Please see the docstring example of :func:`trait_model` for constructing an
     gamma distribution trait model.
     """
@@ -382,17 +384,18 @@ class TraitModelMultivariateNormal(TraitModel):
     numpy.random.Generator.multivariate_normal : Details on the input parameters
         and distribution.
 
-    Note
-    ----
+    Notes
+    -----
     Multivariate normal distribution simulation is used in multi-trait simulation,
     which is described in :ref:`multi_trait`.
 
     This is a trait model built on top of
-    :py:func:`random.Generator.multivariate_normal`, so please see its documentation
-    for the details of the multivariate normal distribution simulation.
+    :py:meth:`numpy.random.Generator.multivariate_normal`, so please see its
+    documentation for the details of the multivariate normal distribution
+    simulation.
 
-    Example
-    -------
+    Examples
+    --------
     Please see the docstring example of :func:`trait_model` for constructing a
     multivariate normal distribution trait model.
     """

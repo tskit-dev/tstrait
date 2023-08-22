@@ -9,7 +9,6 @@ See https://tskit.dev/ for complete documentation.
 from .provenance import __version__  # NOQA
 from .simulate_effect_size import (
     sim_trait,
-    TraitSimulator,
 )  # noreorder
 from .simulate_phenotype import (
     PhenotypeResult,
@@ -28,17 +27,14 @@ from .trait_model import (
 from .genetic_value import (
     sim_genetic,
     GeneticResult,
-    GeneticValue,
 )  # noreorder
 from .simulate_environment import (
     sim_env,
-    EnvSimulator,
 )  # noreorder
 
 __all__ = [
     "__version__",
     "sim_trait",
-    "TraitSimulator",
     "PhenotypeResult",
     "sim_phenotype",
     "trait_model",
@@ -51,7 +47,5 @@ __all__ = [
     "TraitModelT",
     "sim_genetic",
     "GeneticResult",
-    "GeneticValue",
     "sim_env",
-    "EnvSimulator",
 ]

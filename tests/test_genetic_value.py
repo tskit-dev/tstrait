@@ -96,6 +96,7 @@ class TestOutputDim:
             "effect_size",
             "trait_id",
             "causal_state",
+            "allele_frequency",
         ]
 
         assert len(input_df) == len(effect_size_df)
@@ -193,7 +194,9 @@ class TestGenotype:
 
         ts = binary_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, trait_df, alpha=-1, random_seed=1)
+        genetic = tstrait.genetic_value._GeneticValue(
+            ts, trait_df, alpha=-1, random_seed=1
+        )
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
         g2 = genetic._individual_genotype(tree, ts.site(2), "C", ts.num_nodes)
@@ -225,6 +228,7 @@ class TestGenotype:
                 "effect_size": [first, second],
                 "trait_id": [0, 0],
                 "causal_state": ["T", "C"],
+                "allele_frequency": [1 / 2, 1 / 4],
             }
         )
         genetic_df = pd.DataFrame(
@@ -253,7 +257,9 @@ class TestGenotype:
 
         ts = diff_ind_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, trait_df, alpha=0, random_seed=1)
+        genetic = tstrait.genetic_value._GeneticValue(
+            ts, trait_df, alpha=0, random_seed=1
+        )
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "T", ts.num_nodes)
         g2 = genetic._individual_genotype(tree, ts.site(2), "C", ts.num_nodes)
@@ -285,6 +291,7 @@ class TestGenotype:
                 "effect_size": [first, second],
                 "trait_id": [0, 0],
                 "causal_state": ["T", "C"],
+                "allele_frequency": [1 / 2, 1 / 4],
             }
         )
         genetic_df = pd.DataFrame(
@@ -313,7 +320,9 @@ class TestGenotype:
 
         ts = non_binary_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, trait_df, alpha=-1, random_seed=0)
+        genetic = tstrait.genetic_value._GeneticValue(
+            ts, trait_df, alpha=-1, random_seed=0
+        )
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "C", ts.num_nodes)
 
@@ -335,6 +344,7 @@ class TestGenotype:
                 "effect_size": [freqdep(-1, 1 / 2)],
                 "trait_id": [0],
                 "causal_state": ["T"],
+                "allele_frequency": [1 / 2],
             }
         )
         genetic_df = pd.DataFrame(
@@ -363,7 +373,9 @@ class TestGenotype:
 
         ts = triploid_tree()
         tree = ts.first()
-        genetic = tstrait.GeneticValue(ts, sample_df, alpha=-1, random_seed=1)
+        genetic = tstrait.genetic_value._GeneticValue(
+            ts, sample_df, alpha=-1, random_seed=1
+        )
         g0 = genetic._individual_genotype(tree, ts.site(0), "T", ts.num_nodes)
         g1 = genetic._individual_genotype(tree, ts.site(1), "C", ts.num_nodes)
 
@@ -385,6 +397,7 @@ class TestGenotype:
                 "effect_size": [freqdep(-1, 1 / 2)],
                 "trait_id": [0],
                 "causal_state": ["T"],
+                "allele_frequency": [1 / 2],
             }
         )
         genetic_df = pd.DataFrame(
@@ -420,7 +433,13 @@ class TestGenotype:
             ts=ts, trait_df=trait_df, alpha=-1, random_seed=2
         )
         effect_size_df = pd.DataFrame(
-            {"site_id": [4], "effect_size": [0], "trait_id": [0], "causal_state": ["A"]}
+            {
+                "site_id": [4],
+                "effect_size": [0],
+                "trait_id": [0],
+                "causal_state": ["A"],
+                "allele_frequency": [1],
+            }
         )
         genetic_df = pd.DataFrame(
             {
@@ -463,6 +482,7 @@ class TestTreeSeq:
                 "effect_size": [first, second],
                 "trait_id": [0, 0],
                 "causal_state": ["T", "C"],
+                "allele_frequency": [3 / 4, 1 / 2],
             }
         )
         genetic_df = pd.DataFrame(
@@ -502,6 +522,7 @@ class TestTreeSeq:
                 "effect_size": [first, first * 2, second, second * 2],
                 "trait_id": np.tile([0, 1], 2),
                 "causal_state": np.repeat(["T", "C"], 2),
+                "allele_frequency": np.repeat([3 / 4, 1 / 2], 2),
             }
         )
         genetic_df = pd.DataFrame(

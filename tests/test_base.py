@@ -31,7 +31,7 @@ class TestVal:
     )
     def test_val(self, n):
         n = _check_val(n, "n")
-        assert type(n) == float
+        assert isinstance(n, float)
 
     @pytest.mark.parametrize("n", [4j, np.array([4]), "1"])
     def test_val_bad(self, n):
