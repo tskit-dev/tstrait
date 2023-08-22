@@ -16,7 +16,7 @@ launch_buttons:
   binderhub_url: ""
 
 repository:
-  url: https://github.com/daikitag/tstrait
+  url: https://github.com/tskit-dev/tstrait
   branch: main
   path_to_book: docs
 
@@ -24,10 +24,10 @@ html:
   use_issues_button: true
   use_repository_button: true
   use_edit_page_button: true
-  
-  ## How do I set this for my package?
-  #extra_navbar: __TSKIT_VERSION__
-  #extra_footer: __TSKIT_VERSION__
+
+  # NOTE this gets replaced by the build infrastructure during deployment
+  extra_navbar: __TSTRAIT_VERSION__
+  extra_footer: __TSTRAIT_VERSION__
 
 sphinx:
     extra_extensions:
@@ -38,18 +38,17 @@ sphinx:
     - sphinx.ext.viewcode
     - sphinx.ext.intersphinx
     - sphinx_issues
-    - sphinxarg.ext
     - IPython.sphinxext.ipython_console_highlighting
 
     config:
-      html_theme: tskit_book_theme
+      html_theme: sphinx_book_theme
       pygments_style: monokai
       myst_enable_extensions:
       - colon_fence
       - deflist
       - dollarmath
       - substitution
-      issues_github_path: daikitag/tstrait
+      issues_github_path: tskit-dev/tstrait
       todo_include_todos: true
       intersphinx_mapping:
         python: ["https://docs.python.org/3/", null]
