@@ -14,7 +14,7 @@ class GeneticResult:
     """
     Data class that contains effect size and genetic value dataframe.
 
-    Parameters
+    Attributes
     ----------
     effect_size : pandas.DataFrame
         Dataframe that includes simulated effect sizes.
@@ -70,7 +70,7 @@ def _traversal_genotype(
     return genotype
 
 
-class GeneticValue:
+class _GeneticValue:
     """GeneticValue class to compute genetic values of individuals.
 
     Parameters
@@ -150,7 +150,7 @@ class GeneticValue:
 
         return genotype
 
-    def compute_genetic_value(self):
+    def _compute_genetic_value(self):
         """Computes genetic values of individuals.
 
         Returns
@@ -165,6 +165,7 @@ class GeneticValue:
         genetic_val_array = np.zeros((num_trait, num_ind))
         causal_state_array = np.zeros(len(self.trait_df), dtype=object)
         freq_dep = np.zeros(len(self.trait_df))
+        allele_freq_array = np.zeros(len(self.trait_df))
         num_nodes = self.ts.num_nodes
         tree = tskit.Tree(self.ts)
 
@@ -176,6 +177,7 @@ class GeneticValue:
             causal_state_array[i] = causal_state
             allele_freq = counts[causal_state] / num_samples
             freq_dep[i] = self._frequency_dependence(allele_freq)
+            allele_freq_array[i] = allele_freq
 
             individual_genotype = self._individual_genotype(
                 tree=tree,
@@ -197,6 +199,7 @@ class GeneticValue:
 
         self.trait_df["effect_size"] = np.multiply(self.trait_df.effect_size, freq_dep)
         self.trait_df["causal_state"] = causal_state_array
+        self.trait_df["allele_frequency"] = allele_freq_array
 
         genetic_result = GeneticResult(effect_size=self.trait_df, genetic=df)
 
@@ -248,11 +251,11 @@ def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
 
     2. Data requirements
 
-    * Site IDs in **site_id** column must be sorted in an ascending order. Please refer
-      to :func:`pandas.DataFrame.sort_values` for details on sorting values in a
-      :class:`pandas.DataFrame`.
+        * Site IDs in **site_id** column must be sorted in an ascending order. Please
+          refer to :py:meth:`pandas.DataFrame.sort_values` for details on sorting
+          values in a :class:`pandas.DataFrame`.
 
-    * Trait IDs in **trait_id** column must start from zero and be consecutive.
+        * Trait IDs in **trait_id** column must start from zero and be consecutive.
 
     The simulation outputs of effect sizes and phenotypes are given as a
     :py:class:`pandas.DataFrame`.
@@ -261,9 +264,10 @@ def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
     resulting object and contains the following columns:
 
         * **site_id**: ID of sites that have causal mutation.
-        * **causal_state**: Causal state.
         * **effect_size**: Simulated effect size of causal mutation.
         * **trait_id**: Trait ID.
+        * **causal_state**: Causal state.
+        * **allele_frequency**: Allele frequency of causal mutation.
 
     The genetic value dataframe can be extracted by using ``.genetic`` in the resulting
     object and contains the following columns:
@@ -288,10 +292,10 @@ def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
     if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
         raise ValueError("trait_id must be consecutive and start from 0")
 
-    genetic = GeneticValue(
+    genetic = _GeneticValue(
         ts=ts, trait_df=trait_df, alpha=alpha, random_seed=random_seed
     )
 
-    genetic_result = genetic.compute_genetic_value()
+    genetic_result = genetic._compute_genetic_value()
 
     return genetic_result

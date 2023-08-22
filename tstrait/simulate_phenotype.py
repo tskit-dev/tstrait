@@ -9,7 +9,7 @@ class PhenotypeResult:
     """
     Dataclass that contains effect size dataframe and phenotype dataframe.
 
-    Parameters
+    Attributes
     ----------
     effect_size : pandas.DataFrame
         Dataframe that includes simulated effect sizes.
@@ -45,8 +45,8 @@ def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
     model : tstrait.TraitModel
         Trait model that will be used to simulate effect sizes.
     h2 : float or array-like
-        Narrow-sense heritability. The dimension of `h2` must match the number of
-        traits to be simulated.
+        Narrow-sense heritability. When it is 0, environmental noise will be a vector of
+        zeros. The dimension of `h2` must match the number of traits to be simulated.
     alpha : float, default 0
         Parameter that determines the degree of the frequency dependence model. Please
         see :ref:`frequency_dependence` for details on how this parameter influences
@@ -79,10 +79,11 @@ def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
     The effect size dataframe can be extracted by using ``.effect_size`` in the
     resulting object and contains the following columns:
 
-        * **site_id**: Site IDs that have causal mutation.
+        * **site_id**: ID of sites that have causal mutation
+        * **effect_size**: Genetic effect size of causal mutation
+        * **trait_id**: Trait ID and will be used in multi-trait simulation.
         * **causal_state**: Causal state.
-        * **effect_size**: Simulated effect size of causal mutation.
-        * **trait_id**: Trait ID.
+        * **allele_frequency**: Allele frequency of causal mutation.
 
     The phenotype dataframe can be extracted by using ``.phenotype`` in the resulting
     object and contains the following columns:

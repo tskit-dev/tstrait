@@ -6,7 +6,7 @@ import tstrait
 from .base import _check_instance
 
 
-class TraitSimulator:
+class _TraitSimulator:
     """Simulator class to select causal alleles and simulate effect sizes of causal
     mutations.
 
@@ -42,7 +42,7 @@ class TraitSimulator:
 
         return site_id
 
-    def sim_causal_mutation(self):
+    def _sim_causal_mutation(self):
         """This method randomly chooses causal sites and the corresponding causal state
         based on the `num_causal` input. Afterwards, effect size of each causal site
         is simulated based on the trait model given by the `model` input.
@@ -105,8 +105,8 @@ def sim_trait(ts, num_causal, model, random_seed=None):
     sim_genetic : The trait dataframe output can be used as an input to simulate
         genetic values.
 
-    Note
-    ----
+    Notes
+    -----
     The simulation output is given as a :py:class:`pandas.DataFrame` and contains the
     following columns:
 
@@ -128,12 +128,12 @@ def sim_trait(ts, num_causal, model, random_seed=None):
             "num_causal must be an integer not greater than the number of sites in ts"
         )
 
-    simulator = TraitSimulator(
+    simulator = _TraitSimulator(
         ts=ts,
         num_causal=num_causal,
         model=model,
         random_seed=random_seed,
     )
-    trait_df = simulator.sim_causal_mutation()
+    trait_df = simulator._sim_causal_mutation()
 
     return trait_df
