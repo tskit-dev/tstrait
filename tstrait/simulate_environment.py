@@ -105,7 +105,7 @@ def sim_env(genetic_df, h2, random_seed=None):
 
     Examples
     --------
-    See :ref:`environment` for worked examples.
+    See :ref:`environment_noise` for worked examples.
     """
     genetic_df = _check_dataframe(
         genetic_df, ["trait_id", "individual_id", "genetic_value"], "genetic_df"
