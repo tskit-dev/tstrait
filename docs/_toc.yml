@@ -1,8 +1,27 @@
 format: jb-book
-root: intro
-chapters:
-- file: installation
-- file: quickstart
-- file: simulation
-- file: model
-- file: api
+root: index
+parts:
+- caption: Getting started
+  chapters:
+  - file: intro
+  - file: install
+  - file: quick-start
+
+- caption: Simulation framework
+  chapters:
+  - file: effect-size
+  - file: genetic
+  - file: environment
+  - file: multi-trait
+
+- caption: Interfaces
+  chapters:
+  - file: api
+
+- caption: Extras
+  chapters:
+  - file: citation
+  - file: contributing
+  - file: release/index
+  - url: https://tskit.dev/community/
+    title: Community
