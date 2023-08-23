@@ -14,7 +14,7 @@ class TraitModel(metaclass=ABCMeta):
     """
     Superclass of the trait model.
 
-    Parameters
+    Attributes
     ----------
     name : str
         Name of the trait model.
@@ -479,64 +479,66 @@ def trait_model(distribution, **kwargs):
 
     Examples
     --------
+    >>> import tstrait
+
     Constructing a normal distribution trait model with mean :math:`0` and
     variance :math:`1`.
 
+    >>> import tstrait
     >>> model = tstrait.trait_model(distribution="normal", mean=0, var=1)
     >>> model.name
-    "normal"
+    'normal'
 
     Constructing a student's t-distribution trait model with mean :math:`0`,
     variance :math:`1` and degrees of freedom :math:`1`.
 
     >>> model = tstrait.trait_model(distribution="t", mean=0, var=1, df=1)
     >>> model.name
-    "t"
+    't'
 
     Constructing a fixed value trait model with value :math:`1`.
 
     >>> model = tstrait.trait_model(distribution="fixed", value=1)
     >>> model.name
-    "fixed"
+    'fixed'
 
     Constructing an exponential distribution trait model with scale
     :math:`1`.
 
     >>> model = tstrait.trait_model(distribution="exponential", scale=1)
     >>> model.name
-    "exponential"
+    'exponential'
 
     Constructing an exponential distribution trait model with scale
     :math:`1`, and enable simulation of negative values.
 
-    >>> model = tstrait.trait_model(distribution="exponential", scale=1,
-    >>> ...                         negative=True)
+    >>> model = tstrait.trait_model(distribution="exponential", scale=1, \
+                                    negative=True)
 
     Constructing a gamma distribution trait model with shape :math:`1`
     and scale :math:`2`.
 
-    >>> model = tstrait.trait_model(distribution="gamma", shape=1,
-    >>> ...                         scale=2)
+    >>> model = tstrait.trait_model(distribution="gamma", shape=1, scale=2)
     >>> model.name
-    "gamma"
+    'gamma'
 
     Constructing a gamma distribution trait model with shape :math:`1`,
     scale :math:`2`, and allow simulation of negative values.
 
-    >>> model = tstrait.trait_model(distribution="gamma", shape=1,
-    >>> ...                         scale=2, negative=True)
+    >>> model = tstrait.trait_model(distribution="gamma", shape=1, scale=2, \
+                                    negative=True)
     >>> model.name
-    "gamma"
+    'gamma'
 
     Constructing a multivariate normal distribution trait model with
     mean vector :math:`[0, 0]` and covariance matrix being an
     identity matrix.
 
     >>> import numpy as np
-    >>> model = tstrait.trait_model(distribution="multi_normal",
-    >>> ...                         mean=np.zeros(2), cov=np.eye(2))
+    >>> model = tstrait.trait_model(distribution="multi_normal", \
+                                    mean=np.zeros(2), cov=np.eye(2))
     >>> model.name
-    "multi_normal"
+    'multi_normal'
     >>> model.num_trait
     2
     """

@@ -278,7 +278,7 @@ def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
 
     Examples
     --------
-    See :ref:`genetic` for worked examples.
+    See :ref:`genetic_value` for worked examples.
     """
 
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
