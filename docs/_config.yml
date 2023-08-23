@@ -6,9 +6,6 @@ author: Tskit Developers
 copyright: "2023"
 only_build_toc_files: true
 
-## How can we create logo like tskit, tsinfer, tsdate, etc?
-#logo: logo.svg
-
 execute:
   execute_notebooks: cache
 
@@ -31,37 +28,35 @@ html:
 
 sphinx:
     extra_extensions:
+    - numpydoc
+    - sphinx_copybutton
+    - sphinx_design
     - sphinx.ext.autodoc
-    - sphinx_autodoc_typehints
     - sphinx.ext.autosummary
-    - sphinx.ext.todo
+    - sphinx.ext.doctest
     - sphinx.ext.viewcode
     - sphinx.ext.intersphinx
     - sphinx_issues
-    - IPython.sphinxext.ipython_console_highlighting
 
     config:
       html_theme: sphinx_book_theme
-      pygments_style: monokai
       myst_enable_extensions:
       - colon_fence
       - deflist
       - dollarmath
-      - substitution
       issues_github_path: tskit-dev/tstrait
-      todo_include_todos: true
       intersphinx_mapping:
         python: ["https://docs.python.org/3/", null]
+        matplotlib: ["https://matplotlib.org/stable", null]
+        numpy: ["https://numpy.org/doc/stable/", null]
+        pandas: ["https://pandas.pydata.org/pandas-docs/stable", null]
+        pyslim: ["https://tskit.dev/pyslim/docs/latest/", null]
         tskit: ["https://tskit.dev/tskit/docs/stable/", null]
         tskit-tutorials: ["https://tskit.dev/tutorials/", null]
         msprime: ["https://tskit.dev/msprime/docs/stable/", null]
-        stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
-        numpy: ["https://numpy.org/doc/stable/", null]
+        stdpopsim: ["https://popsim-consortium.github.io/stdpopsim-docs/stable/", null]
 
       autodoc_member_order: bysource
 
-      # Without this option, autodoc tries to put links for all return types
-      # in terms of the fully-qualified classnames which we don't want, and also
-      # leads to broken links and nitpick failures. So, until we tackle
-      # typehints fully, this is the simplest approach.
-      autodoc_typehints: none
+      suppress_warnings: etoc.toctree
+
