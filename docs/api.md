@@ -1,52 +1,49 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.11.5
-kernelspec:
-  display_name: Python 3
-  language: python
-  name: python3
----
+(reference)=
 
-# Python API
-
-This lists the detailed documentation for the tstrait Python API.
-
-## Summary
+# API Reference
 
 ```{eval-rst}
 .. currentmodule:: tstrait
 ```
 
-### Phenotype Simulation
+This page provides a detailed explanation of all public tstrait objects and functions.
+
+## Simulation functions
 
 ```{eval-rst}
-.. autofunction:: tstrait.sim_phenotype
+.. autosummary::
+    :toctree: _api
+
+    sim_phenotype
+    sim_trait
+    sim_genetic
+    sim_env
 ```
 
-### Trait Model
+(effect_size_distribution)=
+
+## Effect size distributions
 
 ```{eval-rst}
-.. autoclass:: tstrait.TraitModelAdditive
+.. autosummary::
+    :toctree: _api
+
+    trait_model
+    TraitModel
+    TraitModelNormal
+    TraitModelT
+    TraitModelFixed
+    TraitModelExponential
+    TraitModelGamma
+    TraitModelMultivariateNormal
 ```
 
-```{eval-rst}
-.. autoclass:: tstrait.TraitModelAlleleFrequency
-```
-
-### Result
+## Result data classes
 
 ```{eval-rst}
-.. autoclass:: tstrait.Result
-```
+.. autosummary::
+    :toctree: _api
 
-```{eval-rst}
-.. autoclass:: tstrait.PhenotypeResult
-```
-
-```{eval-rst}
-.. autoclass:: tstrait.GenotypeResult
+    PhenotypeResult
+    GeneticResult
 ```

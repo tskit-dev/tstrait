@@ -58,5 +58,7 @@ sphinx:
 
       autodoc_member_order: bysource
 
-      suppress_warnings: etoc.toctree
+      suppress_warnings:
+      - etoc.toctree
+      - ref
 
