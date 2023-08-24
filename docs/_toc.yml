@@ -22,6 +22,6 @@ parts:
   chapters:
   - file: citation
   - file: contributing
-  - file: release/index
+  - file: CHANGELOG
   - url: https://tskit.dev/community/
     title: Community
