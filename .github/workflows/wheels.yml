@@ -24,26 +24,14 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Build sdist
+      - name: Build wheel and sdist
         shell: bash
         run: |
-          python setup.py sdist
+          python -m build
 
-      - name: Upload sdist
+      - name: Upload wheel and sdist
         uses: actions/upload-artifact@v2
         with:
-          name: sdist
-          path: dist
-
-      - name: Build wheels in docker
-        shell: bash
-        run: |
-          docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2010_x86_64 bash .github/workflows/docker/buildwheel.sh
-
-      - name: Upload Wheels
-        uses: actions/upload-artifact@v2
-        with:
-          name: wheels
           path: dist
 
   OSX-test:
@@ -51,7 +39,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.8, 3.9, "3.10", "3.11"]
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
@@ -73,7 +61,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.8, 3.9, "3.10", "3.11"]
         wordsize: [64]
     steps:
       - name: Download wheels
