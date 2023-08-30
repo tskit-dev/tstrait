@@ -107,6 +107,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     needs: ['windows-test', 'OSX-test', 'linux-test']
+    permissions:
+      id-token: write
     steps:
       - name: Download all
         uses: actions/download-artifact@v3
@@ -118,10 +120,7 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
       - name: Publish distribution to PRODUCTION PyPI
         if: github.event_name == 'release'
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.pypi_password }}
