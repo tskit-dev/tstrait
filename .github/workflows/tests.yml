@@ -19,8 +19,9 @@ jobs:
         with:
           python-version: '3.10'
       - uses: pre-commit/action@v3.0.0
+
   test:
-    name: Python
+    name: Suite
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -39,17 +40,45 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install pytest
-          pip install pytest-cov
-          pip install pytest-xdist
-          pip install -r requirements/CI-tests-pip/requirements.txt
+          python3 -m pip install -r requirements/CI-tests-pip/requirements.txt
       - name: Test with pytest
         run: |
-          pytest --cov=tstrait --cov-report=xml --cov-branch -n 0 tests
+          python3 -m pytest --cov=tstrait --cov-report=xml --cov-branch -n 0 tests
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
-        env: 
+        env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Delete coverage
         run: |
             rm .coverage
+
+  dist-tests:
+    name: Distribution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }}
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install twine build
+      - name: Build sdist and wheel
+        run: |
+          python -m build
+      - name: Check distribution artefacts
+        run: |
+          python3 -m twine check dist/*
+      - name: Install wheel
+        run: |
+          python3 -m pip install dist/*.whl
+      - name: Import package
+        # Don't import from current dir
+        run: |
+          cd /
+          python3 -c "import tstrait"
