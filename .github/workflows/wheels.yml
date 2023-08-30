@@ -105,6 +105,7 @@ jobs:
 
   PyPI_Upload:
     runs-on: ubuntu-latest
+    environment: release
     needs: ['windows-test', 'OSX-test', 'linux-test']
     steps:
       - name: Download all
