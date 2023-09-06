@@ -22,10 +22,11 @@ html:
   use_repository_button: true
   use_edit_page_button: true
 
-  # NOTE this gets replaced by the build infrastructure during deployment
-  extra_navbar: __TSTRAIT_VERSION__
-  extra_footer: __TSTRAIT_VERSION__
-
+  extra_footer: |
+    <div>
+    tstrait __TSTRAIT_VERSION__
+    </div>
+  
 sphinx:
     extra_extensions:
     - numpydoc
@@ -61,4 +62,5 @@ sphinx:
       suppress_warnings:
       - etoc.toctree
       - ref
+
 

@@ -1,5 +1,5 @@
 
-# Need to set PYTHONPATH so that we pick up the local msprime
+# Need to set PYTHONPATH so that we pick up the local tstrait
 PYPATH=${PWD}/..
 TSTRAIT_VERSION:=$(shell PYTHONPATH=${PYPATH} \
    python3 -c 'import tstrait; print(tstrait.__version__.split("+")[0])')
