@@ -80,6 +80,14 @@ class TestInput:
             df["trait_id"] = trait_id
             tstrait.sim_genetic(ts=sample_ts, trait_df=df, random_seed=1)
 
+    def test_no_individual(self, sample_df):
+        ts = msprime.simulate(100, length=10000, mutation_rate=1e-2)
+        df = sample_df.copy()
+        with pytest.raises(
+            ValueError, match="No individuals in the provided tree sequence dataset"
+        ):
+            tstrait.sim_genetic(ts=ts, trait_df=df, random_seed=1)
+
 
 class TestOutputDim:
     """Check that the genetic_value function gives the output with correct dimensions"""
