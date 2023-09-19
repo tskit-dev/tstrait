@@ -282,6 +282,8 @@ def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
     """
 
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
+    if ts.num_individuals == 0:
+        raise ValueError("No individuals in the provided tree sequence dataset")
     trait_df = _check_dataframe(
         trait_df, ["site_id", "effect_size", "trait_id"], "trait_df"
     )
