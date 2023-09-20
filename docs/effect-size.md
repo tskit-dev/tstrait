@@ -50,6 +50,9 @@ $$
 where $V_G=Var(X\beta)$ and $h^2$ is the narrow-sense heritability that is defined by the
 user.
 
+The genetic values ($X\beta$) are obtained by simply adding up over all the genomes in each individual,
+regardless of ploidy.
+
 :::{seealso}
 - [](genetic_value) for simulating the genetic value $X\beta$.
 - [](environment_noise) for simulating environmental noise $\epsilon$.
