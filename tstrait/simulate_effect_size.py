@@ -4,6 +4,7 @@ import tskit
 import tstrait
 
 from .base import _check_instance
+from .base import _check_int
 
 
 class _TraitSimulator:
@@ -120,6 +121,7 @@ def sim_trait(ts, num_causal, model, random_seed=None):
     """
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
     model = _check_instance(model, "model", tstrait.TraitModel)
+    num_causal = _check_int(num_causal, "num_causal", minimum=1)
     num_sites = ts.num_sites
     if num_sites == 0:
         raise ValueError("No mutation in the tree sequence input")

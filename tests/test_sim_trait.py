@@ -49,6 +49,17 @@ class TestInput:
                 ts=sample_ts, num_causal=num_causal, model=sample_trait_model
             )
 
+    @pytest.mark.parametrize("num_causal", [0, -1])
+    def test_num_causal_input(self, sample_ts, sample_trait_model, num_causal):
+        with pytest.raises(TypeError, match="num_causal must be an integer"):
+            tstrait.sim_trait(ts=sample_ts, num_causal=1.0, model=sample_trait_model)
+        with pytest.raises(
+            ValueError, match="num_causal must be an integer not less than 1"
+        ):
+            tstrait.sim_trait(
+                ts=sample_ts, num_causal=num_causal, model=sample_trait_model
+            )
+
 
 class TestOutputDim:
     """Check that the sim_trait function gives the correct output regardless of the
