@@ -79,6 +79,10 @@ class TraitModelNormal(TraitModel):
     This is a trait model built on top of :py:meth:`numpy.random.Generator.normal`, so
     please see its documentation for the details of the normal distribution simulation.
 
+    This trait model simulates an effect size from a normal distribution with mean equal
+    to the `mean` input divided by the number of causal sites and variance equal to the
+    `var` input divided by the number of causal sites.
+
     Examples
     --------
     Please see the docstring example of :func:`trait_model` for constructing a normal
@@ -109,7 +113,7 @@ class TraitModelNormal(TraitModel):
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.normal(
             loc=self.mean / num_causal,
-            scale=np.sqrt(self.var) / num_causal,
+            scale=np.sqrt(self.var / num_causal),
             size=num_causal,
         )
         return beta
@@ -144,6 +148,10 @@ class TraitModelExponential(TraitModel):
     so please see its documentation for the details of the exponential distribution
     simulation.
 
+    This trait model simulates an effect size from an exponential distribution by
+    using the input parameters of the model, and divides it by the square root of the
+    number of causal sites.
+
     Examples
     --------
     Please see the docstring example of :func:`trait_model` for constructing an
@@ -172,7 +180,8 @@ class TraitModelExponential(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = rng.exponential(scale=self.scale / num_causal, size=num_causal)
+        beta = rng.exponential(scale=self.scale, size=num_causal)
+        beta /= np.sqrt(num_causal)
         if self.negative:
             beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
         return beta
@@ -201,6 +210,9 @@ class TraitModelFixed(TraitModel):
     This is a trait model that only gives the fixed value that is specified in
     `value`.
 
+    The effect sizes will be divided by the square root of the number of causal
+    sites.
+
     Examples
     --------
     Please see the docstring example of :func:`trait_model` for constructing a
@@ -228,7 +240,7 @@ class TraitModelFixed(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = self.value / num_causal
+        beta = self.value / np.sqrt(num_causal)
         return np.repeat(beta, num_causal)
 
 
@@ -258,8 +270,12 @@ class TraitModelT(TraitModel):
     Notes
     -----
     This is a trait model built on top of :py:meth:`numpy.random.Generator.standard_t`,
-    so please see its documentation for the details of the normal distribution
-    simulation.
+    so please see its documentation for the details of the t distribution simulation.
+
+    This trait model simulates effect sizes from a standard t-distribution with `df`
+    degrees of freedom. Afterwards, it will be multiplied by the square root of
+    `var` input divided by the number of causal sites, and then the quotient of
+    `mean` input and the number of causal sites will be added.
 
     Examples
     --------
@@ -291,7 +307,7 @@ class TraitModelT(TraitModel):
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.standard_t(self.df, size=num_causal)
-        beta = (beta * np.sqrt(self.var) + self.mean) / num_causal
+        beta = beta * np.sqrt(self.var) / np.sqrt(num_causal) + self.mean / num_causal
         return beta
 
 
@@ -326,6 +342,10 @@ class TraitModelGamma(TraitModel):
     so please see its documentation for the details of the gamma distribution
     simulation.
 
+    This trait model simulates effect sizes from a Gamma distribution by using the
+    input parameters of the model, and then it divides it by the square root of the
+    number of causal sites.
+
     Examples
     --------
     Please see the docstring example of :func:`trait_model` for constructing an
@@ -355,7 +375,7 @@ class TraitModelGamma(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = rng.gamma(self.shape, self.scale, size=num_causal) / num_causal
+        beta = rng.gamma(self.shape, self.scale, size=num_causal) / np.sqrt(num_causal)
         if self.negative:
             beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
         return beta
@@ -394,6 +414,10 @@ class TraitModelMultivariateNormal(TraitModel):
     documentation for the details of the multivariate normal distribution
     simulation.
 
+    This trait model simulates effect sizes from a multivariate normal distribution
+    with mean vector being `mean` input divided by the number of causal sites, and
+    covariance matrix being `cov` divided by the number of causal sites.
+
     Examples
     --------
     Please see the docstring example of :func:`trait_model` for constructing a
@@ -423,8 +447,11 @@ class TraitModelMultivariateNormal(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = rng.multivariate_normal(mean=self.mean, cov=self.cov, size=num_causal)
-        beta /= num_causal
+        beta = rng.multivariate_normal(
+            mean=np.array(self.mean) / num_causal,
+            cov=np.array(self.cov) / num_causal,
+            size=num_causal,
+        )
         return beta
 
 

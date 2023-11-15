@@ -138,27 +138,35 @@ def model_list():
     loc = 2
     scale = 5
     df = 10
-    shape = 5
     distr = [
         (
             tstrait.trait_model(distribution="normal", mean=loc, var=scale**2),
             "norm",
-            (loc / num_causal, scale / num_causal),
-        ),
-        (
-            tstrait.trait_model(distribution="exponential", scale=scale),
-            "expon",
-            (0, scale / num_causal),
+            (loc / num_causal, scale / np.sqrt(num_causal)),
         ),
         (
             tstrait.trait_model(distribution="t", mean=loc, var=scale**2, df=df),
             "t",
-            (df, loc / num_causal, scale / num_causal),
+            (df, loc / num_causal, scale / np.sqrt(num_causal)),
         ),
+    ]
+
+    return distr
+
+
+def model_gamma_expon():
+    scale = 5
+    shape = 10
+    distr = [
         (
             tstrait.trait_model(distribution="gamma", shape=shape, scale=scale),
             "gamma",
-            (shape, 0, scale / num_causal),
+            (shape, 0, scale),
+        ),
+        (
+            tstrait.trait_model(distribution="exponential", scale=scale),
+            "expon",
+            (0, scale),
         ),
     ]
 
@@ -188,16 +196,29 @@ class Test_KSTest:
             result = np.concatenate((result, sim_result["effect_size"]))
         self.check_distribution(result, distr, args)
 
+    @pytest.mark.parametrize("model, distr, args", model_gamma_expon())
+    def test_KStest_expon_gamma(self, model, distr, args, sample_ts):
+        result = np.array([])
+        num_causal = 1000
+        for i in range(2):
+            sim_result = tstrait.sim_trait(
+                ts=sample_ts, num_causal=num_causal, model=model, random_seed=i
+            )
+            sim_result["effect_size"] *= np.sqrt(num_causal)
+            result = np.concatenate((result, sim_result["effect_size"]))
+        self.check_distribution(result, distr, args)
+
     def test_fixed(self, sample_ts):
         """
         Some effect sizes are 0, as there are sites with only ancestral states
         """
         value = 4
+        num_causal = 1000
         model = tstrait.trait_model(distribution="fixed", value=value)
-        sim_result = tstrait.sim_trait(ts=sample_ts, num_causal=1000, model=model)
+        sim_result = tstrait.sim_trait(ts=sample_ts, num_causal=num_causal, model=model)
         data = sim_result.loc[sim_result.effect_size != 0]
         np.testing.assert_allclose(
-            data["effect_size"], np.ones(len(data)) * value / 1000
+            data["effect_size"], np.ones(len(data)) * value / np.sqrt(num_causal)
         )
 
     def test_multivariate(self, sample_ts):
@@ -233,7 +254,7 @@ class Test_KSTest:
             self.check_distribution(
                 df["effect_size"],
                 "norm",
-                (mean[i] / num_causal, np.sqrt(cov[i, i]) / num_causal),
+                (mean[i] / num_causal, np.sqrt(cov[i, i] / num_causal)),
             )
             sum_data += df["effect_size"] * const[i]
 
