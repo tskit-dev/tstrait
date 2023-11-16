@@ -162,33 +162,7 @@ The trait dataframe has 3 columns:
 > - **effect_size**: Simulated effect size of causal mutation.
 > - **trait_id**: Trait ID.
 
-:::{note}
-The simulated effect sizes will be divided by the number of causal sites, such that the overall
-trait variance does not explode. Please keep this in mind while selecting the parameters of the
-trait model.
-:::
-
-This division can be illustrated by using a fixed value trait model.
-
-```{code-cell}
-
-  model = tstrait.trait_model(distribution="fixed", value=1)
-  trait_df = tstrait.sim_trait(ts, num_causal=1, model=model, random_seed=1)
-  trait_df
-```
-
-The effect size will be 1.0, as there is 1 causal site. When the number of causal sites is
-selected to be 4, the effect size will be 1/4=0.25, even though it is using the same
-trait model.
-
-```{code-cell}
-
-  trait_df = tstrait.sim_trait(ts, num_causal=4, model=model, random_seed=1)
-  trait_df
-```
-
-The {py:func}`sim_trait` function simulates effect sizes from the distribution specified in the
-`model` input and divides it by the number of causal sites. The site ID represents the IDs of causal
+The site ID in **site_id** column represents the IDs of causal
 sites, and information regarding the site can be extracted by using `` .site() ``.
 
 ```{code-cell}

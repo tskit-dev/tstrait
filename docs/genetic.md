@@ -338,6 +338,90 @@ size output of {py:func}`sim_trait`:
 
 :::{note}
 The effect size output of {py:func}`sim_genetic` is used in simulating
-the genetic values, and not the `trait_df` input in the frequency dependent
-model.
+the genetic values, as it represents the effect sizes after the frequency
+dependence architecture is accounted.
 :::
+
+## Example: Infinitesimal Model Simulation
+
+In this section, we will be using the infinitesimal model simulation as
+described in [Barton et al. (2023)](https://doi.org/10.1093/genetics/iyad133) to
+illustrate the importance of scaling the simulated effect sizes by the number of
+causal sites.
+
+Their simulation algorithm is using a simple addtive model where the effect sizes will be
+$\pm\frac{\alpha}{\sqrt{M}}$, where $M$ is the number of causal sites. This can be simulated
+by using the Bernoulli trait model (TODO: Add this to tstrait) in tstrait.
+
+(TODO: The following example uses a fixed trait model, but we should be using the Bernoulli
+trait model afterwards)
+
+At first, we will be simulating traits without scaling the effect sizes by the number of causal
+sites. The following distribution will be simulating traits under the infinitesimal model with
+$\alpha=1$.
+
+```{code-cell}
+
+  ts = msprime.sim_ancestry(
+      samples=1000,
+      recombination_rate=1e-7,
+      sequence_length=1_000_000,
+      population_size=10_000,
+      random_seed=100,
+  )
+  ts = msprime.sim_mutations(ts, rate=1e-6, random_seed=150)
+
+  num_causal = 1000
+  model = tstrait.trait_model(distribution="fixed", value=1)
+  trait_df = tstrait.sim_trait(ts, num_causal=num_causal, model=model, random_seed=10)
+  genetic_result = tstrait.sim_genetic(ts, trait_df, random_seed=500)
+
+  plt.hist(genetic_result.genetic["genetic_value"])
+  plt.title("Simulated Genetic Value")
+  plt.show()
+```
+
+We see that the simulated genetic values follow an asymptotic normal distribution. However,
+we see that the variance of the simulated traits will be a very large number, as shown
+in the below output.
+
+```{code-cell}
+
+import numpy as np
+print(np.var(genetic_result.genetic["genetic_value"]))
+```
+
+:::{note}
+It is advisable that you scale the simulated effect sizes by the number of causal sites, as the
+phenotypic variance will become larger with increased number of causal sites. Please keep this
+in mind while selecting the parameters of the trait model.
+:::
+
+As a next step, we will be simulating the effect sizes from a Bernoulli trait model, where
+the simulated effect sizes will be $\pm\frac{\alpha}{\sqrt{M}}$.
+
+```{code-cell}
+
+  num_causal = 1000
+  model = tstrait.trait_model(distribution="fixed", value=1/np.sqrt(num_causal))
+  trait_df = tstrait.sim_trait(ts, num_causal=num_causal, model=model, random_seed=10)
+  genetic_result = tstrait.sim_genetic(ts, trait_df, random_seed=500)
+
+  plt.hist(genetic_result.genetic["genetic_value"])
+  plt.title("Simulated Genetic Value")
+  plt.show()
+```
+
+We will next be showing the variance of the simulated genetic values.
+
+```{code-cell}
+
+import numpy as np
+print(np.var(genetic_result.genetic["genetic_value"]))
+```
+
+We see that the variance of the simulated genetic values is scaling well to the
+number of causal sites. Thus, it is advisable to factor the parameters of the
+trait model by the number of causal sites when doing your simulations.
+
+  
