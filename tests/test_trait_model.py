@@ -71,10 +71,8 @@ class TestMultivariate:
         cov = np.dot(M, M.T)
         model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
-        np.testing.assert_allclose(
-            np.cov(effect_size.T) * (num_causal**2), cov, rtol=2e-1
-        )
-        np.testing.assert_allclose(effect_size.mean(0) * num_causal, mean, rtol=1e-1)
+        np.testing.assert_allclose(np.cov(effect_size.T), cov, rtol=2e-1)
+        np.testing.assert_allclose(effect_size.mean(0), mean, rtol=1e-1)
 
 
 @pytest.mark.parametrize("num_causal", [1000])
@@ -94,15 +92,13 @@ class TestKSTest:
         scale = 5
         model = tstrait.trait_model(distribution="normal", mean=loc, var=scale**2)
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
-        self.check_distribution(
-            effect_size, "norm", (loc / num_causal, scale / num_causal)
-        )
+        self.check_distribution(effect_size, "norm", (loc, scale))
 
     def test_exponential(self, num_causal):
         scale = 2
         model = tstrait.trait_model(distribution="exponential", scale=scale)
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
-        self.check_distribution(effect_size, "expon", (0, scale / num_causal))
+        self.check_distribution(effect_size, "expon", (0, scale))
         assert np.min(effect_size) > 0
 
     def test_exponential_negative(self, num_causal):
@@ -113,7 +109,7 @@ class TestKSTest:
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         assert np.min(effect_size) < 0
         effect_size = np.abs(effect_size)
-        self.check_distribution(effect_size, "expon", (0, scale / num_causal))
+        self.check_distribution(effect_size, "expon", (0, scale))
 
     def test_t(self, num_causal):
         loc = 2
@@ -121,16 +117,14 @@ class TestKSTest:
         df = 10
         model = tstrait.trait_model(distribution="t", mean=loc, var=scale**2, df=df)
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
-        self.check_distribution(
-            effect_size, "t", (df, loc / num_causal, scale / num_causal)
-        )
+        self.check_distribution(effect_size, "t", (df, loc, scale))
 
     def test_gamma(self, num_causal):
         shape = 3
         scale = 2
         model = tstrait.trait_model(distribution="gamma", shape=shape, scale=scale)
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
-        self.check_distribution(effect_size, "gamma", (shape, 0, scale / num_causal))
+        self.check_distribution(effect_size, "gamma", (shape, 0, scale))
         assert np.min(effect_size) > 0
 
     def test_gamma_negative(self, num_causal):
@@ -142,7 +136,7 @@ class TestKSTest:
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         assert np.min(effect_size) < 0
         effect_size = np.abs(effect_size)
-        self.check_distribution(effect_size, "gamma", (shape, 0, scale / num_causal))
+        self.check_distribution(effect_size, "gamma", (shape, 0, scale))
 
     def test_multivariate(self, num_causal):
         np.random.seed(20)
@@ -156,12 +150,10 @@ class TestKSTest:
             self.check_distribution(
                 effect_size[:, i],
                 "norm",
-                (mean[i] / num_causal, np.sqrt(cov[i, i]) / num_causal),
+                (mean[i], np.sqrt(cov[i, i])),
             )
         const = np.random.randn(n)
         data = np.matmul(effect_size, const)
         data_val = np.matmul(const, cov)
         data_sd = np.sqrt(np.matmul(data_val, const))
-        self.check_distribution(
-            data, "norm", (np.matmul(const, mean) / num_causal, data_sd / num_causal)
-        )
+        self.check_distribution(data, "norm", (np.matmul(const, mean), data_sd))
