@@ -186,6 +186,10 @@ class TraitModelFixed(TraitModel):
     ----------
     value : float
         Value of the simulated effect size.
+    random_sign : bool, default False
+        If True, :math:`1` or :math:`-1` will be randomly multiplied to the
+        simulated effect sizes, such that we can simulate constant value effect
+        sizes with randomly chosen signs.
 
     Returns
     -------
@@ -207,8 +211,9 @@ class TraitModelFixed(TraitModel):
     fixed value trait model.
     """
 
-    def __init__(self, value):
+    def __init__(self, value, random_sign=False):
         self.value = _check_val(value, "value")
+        self.random_sign = _check_instance(random_sign, "random_sign", bool)
         super().__init__("fixed")
 
     def _sim_effect_size(self, num_causal, rng):
@@ -228,8 +233,10 @@ class TraitModelFixed(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = self.value
-        return np.repeat(beta, num_causal)
+        beta = np.repeat(self.value, num_causal)
+        if self.random_sign:
+            beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
+        return beta
 
 
 class TraitModelT(TraitModel):
