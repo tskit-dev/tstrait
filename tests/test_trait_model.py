@@ -46,6 +46,11 @@ class TestInput:
         with pytest.raises(TypeError, match="value must be numeric"):
             tstrait.trait_model(distribution="fixed", value="1")
 
+        with pytest.raises(
+            TypeError, match="random_sign must be a <class 'bool'> instance"
+        ):
+            tstrait.trait_model(distribution="fixed", value=1, random_sign=1)
+
     def test_gamma(self):
         with pytest.raises(
             TypeError, match="negative must be a <class 'bool'> instance"
@@ -73,6 +78,22 @@ class TestMultivariate:
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         np.testing.assert_allclose(np.cov(effect_size.T), cov, rtol=2e-1)
         np.testing.assert_allclose(effect_size.mean(0), mean, rtol=1e-1)
+
+
+class TestFixed:
+    def test_value(self):
+        num_causal = 100
+        value = 2
+        model = tstrait.trait_model(distribution="fixed", value=value)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
+        np.testing.assert_array_equal(np.unique(effect_size), np.array([value]))
+
+    def test_negative_value(self):
+        num_causal = 100
+        value = 2
+        model = tstrait.trait_model(distribution="fixed", value=value, random_sign=True)
+        effect_size = model._sim_effect_size(num_causal, np.random.default_rng(2))
+        np.testing.assert_array_equal(np.unique(effect_size), np.array([-value, value]))
 
 
 @pytest.mark.parametrize("num_causal", [1000])
