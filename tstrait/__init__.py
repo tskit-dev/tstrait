@@ -27,6 +27,8 @@ from .trait_model import (
 from .genetic_value import (
     sim_genetic,
     GeneticResult,
+    sim_effect_size,
+    genetic_value,
 )  # noreorder
 from .simulate_environment import (
     sim_env,
@@ -48,4 +50,6 @@ __all__ = [
     "sim_genetic",
     "GeneticResult",
     "sim_env",
+    "sim_effect_size",
+    "genetic_value",
 ]

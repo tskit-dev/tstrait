@@ -5,6 +5,7 @@ import numba
 import numpy as np
 import pandas as pd
 import tskit
+import tstrait
 
 from .base import _check_instance, _check_dataframe, _check_non_decreasing  # noreorder
 
@@ -85,7 +86,7 @@ class _GeneticValue:
     """
 
     def __init__(self, ts, trait_df, alpha, random_seed):
-        self.trait_df = trait_df[["site_id", "effect_size", "trait_id"]]
+        self.trait_df = trait_df
         self.ts = ts
         self.alpha = alpha
         self.rng = np.random.default_rng(random_seed)
@@ -205,6 +206,72 @@ class _GeneticValue:
 
         return genetic_result
 
+    def _compute_genetic_value_from_df(self):
+        """Computes genetic values of individuals.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Dataframe with simulated genetic value, individual ID, and trait ID.
+        """
+
+        num_ind = self.ts.num_individuals
+        num_trait = np.max(self.trait_df.trait_id) + 1
+        genetic_val_array = np.zeros((num_trait, num_ind))
+        num_nodes = self.ts.num_nodes
+        tree = tskit.Tree(self.ts)
+
+        for data in self.trait_df.itertuples():
+            site = self.ts.site(data.site_id)
+            tree.seek(site.position)
+
+            individual_genotype = self._individual_genotype(
+                tree=tree,
+                site=site,
+                causal_state=data.causal_state,
+                num_nodes=num_nodes,
+            )
+            genetic_val_array[data.trait_id, :] += (
+                individual_genotype * data.effect_size
+            )
+
+        df = pd.DataFrame(
+            {
+                "trait_id": np.repeat(np.arange(num_trait), num_ind),
+                "individual_id": np.tile(np.arange(num_ind), num_trait),
+                "genetic_value": genetic_val_array.flatten(),
+            }
+        )
+
+        return df
+
+    def _sim_freq_dep_effect_size(self):
+        """
+        Obtain the allele frequency and scale effect sizes with the frequency
+        dependence architecture.
+        """
+        num_samples = self.ts.num_samples
+        causal_state_array = np.zeros(len(self.trait_df), dtype=object)
+        freq_dep = np.zeros(len(self.trait_df))
+        allele_freq_array = np.zeros(len(self.trait_df))
+        tree = tskit.Tree(self.ts)
+
+        for i, data in enumerate(self.trait_df.itertuples()):
+            site = self.ts.site(data.site_id)
+            tree.seek(site.position)
+            counts = self._obtain_allele_count(tree, site)
+            causal_state = self.rng.choice(list(counts))
+            causal_state_array[i] = causal_state
+            allele_freq = counts[causal_state] / num_samples
+            freq_dep[i] = self._frequency_dependence(allele_freq)
+            allele_freq_array[i] = allele_freq
+
+        self.trait_df["effect_size"] = np.multiply(self.trait_df.effect_size, freq_dep)
+        self.trait_df["causal_state"] = causal_state_array
+        self.trait_df["allele_frequency"] = allele_freq_array
+
+        return self.trait_df
+
 
 def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
     """
@@ -301,3 +368,86 @@ def sim_genetic(ts, trait_df, alpha=0, random_seed=None):
     genetic_result = genetic._compute_genetic_value()
 
     return genetic_result
+
+
+def sim_effect_size(ts, num_causal, model, alpha=0, random_seed=None):
+    """
+    Simulates effect sizes.
+
+    Parameters
+    ----------
+    ts : tskit.TreeSequence
+        The tree sequence data that will be used in the effect size simulation.
+    num_causal : int
+        Number of causal sites.
+    model : tstrait.TraitModel
+        Trait model that will be used to simulate effect sizes.
+    alpha : float, default 0
+        Parameter that determines the degree of the frequency dependence model. Please
+        see :ref:`frequency_dependence` for details on how this parameter influences
+        effect size simulation.
+    random_seed : int, default None
+        Random seed of simulation. If None, simulation will be conducted randomly.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas dataframe that includes information regarding simulated effect sizes.
+
+    Raises
+    ------
+    ValueError
+        If the number of mutations in `ts` is smaller than `num_causal`.
+
+    See Also
+    --------
+    TODO: Add some functions here
+
+    Notes
+    -----
+    The effect size simulation output is given as a :py:class:`pandas.DataFrame`.
+    The dataframe contains the following columns:
+
+        * **site_id**: ID of sites that have causal mutation.
+        * **effect_size**: Simulated effect size of causal mutation.
+        * **trait_id**: Trait ID.
+        * **causal_state**: Causal state.
+        * **allele_frequency**: Allele frequency of causal mutation.
+
+    Examples
+    --------
+    TODO: Reference to the documentation for effect size simulation.
+
+    """
+    trait_df = tstrait.sim_trait(
+        ts=ts, num_causal=num_causal, model=model, random_seed=random_seed
+    )
+    genetic = _GeneticValue(
+        ts=ts, trait_df=trait_df, alpha=alpha, random_seed=random_seed
+    )
+
+    effect_size_df = genetic._sim_freq_dep_effect_size()
+
+    return effect_size_df
+
+
+def genetic_value(ts, effect_size_df):
+    """
+    Determines genetic value dataframe.
+
+    Parameters
+    ----------
+    ts : tskit.TreeSequence
+        The tree sequence data that will be used in the effect size simulation.
+    effect_size_df : pandas.DataFrame
+        Effect size dataframe.
+
+    TODO: Add explanations
+    """
+    # TODO: It is not good to put alpha here. We need to make alpha as an input
+    # of the method and not when initializing the class
+    # TODO: Same thing as above can be said to random_seed
+    genetic = _GeneticValue(ts=ts, trait_df=effect_size_df, alpha=0, random_seed=1)
+    genetic_value_df = genetic._compute_genetic_value_from_df()
+
+    return genetic_value_df
