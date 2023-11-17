@@ -108,8 +108,8 @@ class TraitModelNormal(TraitModel):
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.normal(
-            loc=self.mean / num_causal,
-            scale=np.sqrt(self.var) / num_causal,
+            loc=self.mean,
+            scale=np.sqrt(self.var),
             size=num_causal,
         )
         return beta
@@ -172,7 +172,7 @@ class TraitModelExponential(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = rng.exponential(scale=self.scale / num_causal, size=num_causal)
+        beta = rng.exponential(scale=self.scale, size=num_causal)
         if self.negative:
             beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
         return beta
@@ -228,7 +228,7 @@ class TraitModelFixed(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = self.value / num_causal
+        beta = self.value
         return np.repeat(beta, num_causal)
 
 
@@ -291,7 +291,7 @@ class TraitModelT(TraitModel):
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.standard_t(self.df, size=num_causal)
-        beta = (beta * np.sqrt(self.var) + self.mean) / num_causal
+        beta = beta * np.sqrt(self.var) + self.mean
         return beta
 
 
@@ -355,7 +355,7 @@ class TraitModelGamma(TraitModel):
             Simulated effect size of a causal mutation.
         """
         num_causal = self._check_parameter(num_causal, rng)
-        beta = rng.gamma(self.shape, self.scale, size=num_causal) / num_causal
+        beta = rng.gamma(self.shape, self.scale, size=num_causal)
         if self.negative:
             beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
         return beta
@@ -424,7 +424,6 @@ class TraitModelMultivariateNormal(TraitModel):
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.multivariate_normal(mean=self.mean, cov=self.cov, size=num_causal)
-        beta /= num_causal
         return beta
 
 

@@ -134,7 +134,6 @@ class TestOutputDim:
 
 
 def model_list():
-    num_causal = 1000
     loc = 2
     scale = 5
     df = 10
@@ -143,22 +142,22 @@ def model_list():
         (
             tstrait.trait_model(distribution="normal", mean=loc, var=scale**2),
             "norm",
-            (loc / num_causal, scale / num_causal),
+            (loc, scale),
         ),
         (
             tstrait.trait_model(distribution="exponential", scale=scale),
             "expon",
-            (0, scale / num_causal),
+            (0, scale),
         ),
         (
             tstrait.trait_model(distribution="t", mean=loc, var=scale**2, df=df),
             "t",
-            (df, loc / num_causal, scale / num_causal),
+            (df, loc, scale),
         ),
         (
             tstrait.trait_model(distribution="gamma", shape=shape, scale=scale),
             "gamma",
-            (shape, 0, scale / num_causal),
+            (shape, 0, scale),
         ),
     ]
 
@@ -196,9 +195,7 @@ class Test_KSTest:
         model = tstrait.trait_model(distribution="fixed", value=value)
         sim_result = tstrait.sim_trait(ts=sample_ts, num_causal=1000, model=model)
         data = sim_result.loc[sim_result.effect_size != 0]
-        np.testing.assert_allclose(
-            data["effect_size"], np.ones(len(data)) * value / 1000
-        )
+        np.testing.assert_allclose(data["effect_size"], np.ones(len(data)) * value)
 
     def test_multivariate(self, sample_ts):
         """
@@ -233,12 +230,12 @@ class Test_KSTest:
             self.check_distribution(
                 df["effect_size"],
                 "norm",
-                (mean[i] / num_causal, np.sqrt(cov[i, i]) / num_causal),
+                (mean[i], np.sqrt(cov[i, i])),
             )
             sum_data += df["effect_size"] * const[i]
 
         self.check_distribution(
             sum_data,
             "norm",
-            (np.matmul(const, mean) / num_causal, data_sd / num_causal),
+            (np.matmul(const, mean), data_sd),
         )
