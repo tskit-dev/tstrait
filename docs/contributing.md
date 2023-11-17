@@ -94,3 +94,26 @@ Almost all codes in the documentation are written by using the
 [IPython directive](https://matplotlib.org/sampledoc/ipython_directive.html) Sphinx
 extension. The code examples in the documentation are run during the doc building, so
 the code examples will always be up to date.
+
+### Statistical Tests
+
+To ensure that tstrait is simulating the correct process we run many statistical tests.
+There are multiple Kolmogorov–Smirnov tests implemented in unit tests, and the fix value
+trait model is frequently implemented in unit tests to ensure that tstrait is capturing
+the correct mutations in a tree sequence.
+
+We have also implemented tests to compare the performance of tstrait against
+[AlphaSimR](https://doi.org/10.1093/g3journal/jkaa017), which is an R package for
+simulating animal breeding. The script has some extra dependencies listed in the
+`requirements/verification.txt`, which can be installed using `pip install -r` or
+`conda install --file`. Please ensure that R is installed on your computer, and run
+this script using:
+
+```
+python3 verification.py
+```
+
+The output of the statistical tests are given in `data` directory.
+
+Please the comments at the top of the `verification.py` script for details on how to
+run these tests.

@@ -1,0 +1,1 @@
+Directory to store AlphaSimR simulation results.
