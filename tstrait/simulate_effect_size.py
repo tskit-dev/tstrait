@@ -224,12 +224,13 @@ def sim_trait(ts, model, *, num_causal=None, alpha=0, random_seed=None):
         * **site_id**: Site IDs that have causal allele.
         * **effect_size**: Simulated effect size of causal allele.
         * **causal_allele**: Causal allele.
-        * **allele_freq**: Allele frequency of causal allele.
+        * **allele_freq**: Allele frequency of causal allele. It is described in detail
+          in :ref:`trait_frequency_dependence`.
         * **trait_id**: Trait ID.
 
     Examples
     --------
-    See :ref:`effect_size_sim` for worked examples.
+    See :ref:`sim_trait` for worked examples.
     """
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
     model = _check_instance(model, "model", tstrait.TraitModel)
