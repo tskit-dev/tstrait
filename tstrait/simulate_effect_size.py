@@ -74,11 +74,10 @@ class _TraitSimulator:
         return causal_allele
 
     def _obtain_allele_count(self, tree, site, causal_allele):
-        """Obtain a dictionary of allele counts, and the ancestral state is not
-        included in the dictionary. Input is the tree sequence site (`ts.site(ID)`)
-        instead of site ID, as obtaining `ts.site(ID)` can be time consuming. The
-        ancestral state is not deleted if the ancestral state is the only allele
-        at that site.
+        """
+        Obtain number of samples with the `causal_allele` in a tree. Input is the tree
+        sequence site (`ts.site(ID)`) instead of site ID, as obtaining `ts.site(ID)` can
+        be time consuming.
         """
         if site.ancestral_state == causal_allele:
             counts = self.ts.num_samples
@@ -146,10 +145,10 @@ class _TraitSimulator:
     def _run(self):
         """
         This method runs a simulation based on the input parameters. This method randomly
-        chooses causal sites and the corresponding causal state based on the `num_causal`
-        input. Afterwards, effect size of each causal site is simulated based on the
-        trait model given by the `model` input. If `alpha` is non-zero, frequency
-        dependence architecture is used.
+        chooses causal sites and the corresponding causal allele based on the
+        `num_causal` input. Afterwards, effect size of each causal site is simulated
+        based on the trait model given by the `model` input. If `alpha` is non-zero,
+        frequency dependence architecture is used.
         """
         site_id_array = self._choose_causal_site()
         causal_allele_array = []

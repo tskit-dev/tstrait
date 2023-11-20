@@ -57,18 +57,18 @@ h2
 
 ```{code-cell}
 
-  import tstrait
-  import msprime
+import tstrait
+import msprime
 
-  ts = msprime.sim_ancestry(
-      samples=10_000,
-      recombination_rate=1e-8,
-      sequence_length=100_000,
-      population_size=10_000,
-      random_seed=100,
-  )
-  ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=101)
-  ts.num_individuals
+ts = msprime.sim_ancestry(
+    samples=10_000,
+    recombination_rate=1e-8,
+    sequence_length=100_000,
+    population_size=10_000,
+    random_seed=100,
+)
+ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=101)
+ts.num_individuals
 ```
 
 Here, we have simulated a sample tree sequence with 10,000 individuals in [msprime](msprime:sec_intro).
@@ -76,35 +76,37 @@ We will be using it in {func}`sim_phenotype` to simulate quantitative traits.
 
 ```{code-cell}
 
-  model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-  sim_result = tstrait.sim_phenotype(
-      ts=ts, num_causal=100, model=model, h2=0.3, random_seed=1
-  )
+model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+sim_result = tstrait.sim_phenotype(
+    ts=ts, num_causal=100, model=model, h2=0.3, random_seed=1
+)
 ```
 
-The `sim_result` variable created above contains simulated information of phenotype and genetic effect sizes
+The `sim_result` variable created above contains simulated information of phenotypes and traits,
 which will be shown below.
 
 (effect_size_output)=
 
-## Effect Size Output
+## Trait Dataframe
 
-Simulated effect sizes from {func}`sim_phenotype` can be extracted through `.effect_size`.
+Simulated traits from {func}`sim_phenotype` can be extracted through `.trait`.
 
 ```{code-cell}
 
-  effect_size_df = sim_result.effect_size
-  effect_size_df.columns
-  effect_size_df.head()
+trait_df = sim_result.trait
+trait_df.columns
+trait_df.head()
 ```
 
-The `effect_size_df` is a {class}`pandas.DataFrame` object that includes the following 4 columns:
+The `trait_df` is a {class}`pandas.DataFrame` object that includes the following 6 columns:
 
-> - **site_id**: ID of sites that have causal mutation
-> - **effect_size**: Genetic effect size of causal mutation
-> - **trait_id**: Trait ID and will be used in multi-trait simulation.
-> - **causal_state**: Causal state.
-> - **allele_frequency**: Allele frequency of causal mutation.
+> - **position**: Position of sites that have causal allele in genome coordinates.
+> - **site_id**: Site IDs that have causal allele.
+> - **effect_size**: Simulated effect size of causal allele.
+> - **causal_allele**: Causal allele.
+> - **allele_freq**: Allele frequency of causal allele.
+> - **trait_id**: Trait ID that will be used in multi-trait simulation (See
+[](multi_trait) for details).
 
 (phenotype_output)=
 
@@ -127,22 +129,22 @@ The `phenotype_df` is a {class}`pandas.DataFrame` object that includes the follo
 > - **environmental_noise**: Simulated environmental noise of individuals.
 > - **phenotype**: Simulated phenotype, and it is a sum of **genetic_value** and **environmental_noise**.
 
-We will be using {mod}`matplotlib <matplotlib>` to create a histogram of the simulated phenotype and
-environmental noise.
+Next, we will be showing the distribution of simulated phenotype and environmental noise by creating
+a histogram through using {mod}`matplotlib <matplotlib>`.
 
 ```{code-cell}
 
-  import matplotlib.pyplot as plt
-  plt.hist(phenotype_df["phenotype"], bins=40)
-  plt.title("Phenotype")
-  plt.show()
+import matplotlib.pyplot as plt
+plt.hist(phenotype_df["phenotype"], bins=40)
+plt.title("Phenotype")
+plt.show()
 ```
 
 ```{code-cell}
 
-  plt.hist(phenotype_df["environmental_noise"], bins=40)
-  plt.title("Environmental Noise")
-  plt.show()
+plt.hist(phenotype_df["environmental_noise"], bins=40)
+plt.title("Environmental Noise")
+plt.show()
 ```
 
 The environmental noise in tstrait follows a normal distribution. Please see [](phenotype_model)

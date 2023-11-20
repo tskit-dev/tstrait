@@ -16,7 +16,7 @@ jupytext:
 
 (sim_trait)=
 
-# Trait Simulation
+# Trait simulation
 
 This page describes how tstrait simulates traits and how to specify the effect size
 distribution.
@@ -56,7 +56,7 @@ The genetic values ($X\beta$) are obtained by simply adding up over all the geno
 regardless of ploidy.
 
 :::{seealso}
-- [](genetic_value) for obtaining the genetic value $X\beta$.
+- [](genetic_value_doc) for obtaining the genetic value $X\beta$.
 - [](environment_noise) for simulating environmental noise $\epsilon$.
 :::
 
@@ -171,23 +171,16 @@ The trait dataframe has 6 columns:
 > - **trait_id**: Trait ID that will be used in multi-trait simulation (See
 [](multi_trait) for details).
 
-We will be illustrating this with a normal distribution trait model.
-
-```{code-cell}
-
-model = tstrait.trait_model(distribution="normal", mean=0, var=1)
-trait_df = tstrait.sim_trait(ts, num_causal=1000, model=model, random_seed=1)
-trait_df.head()
-```
-
-The above output shows the overview of the trait dataframe simulated by using
-{py:func}`sim_trait`. The distribution of the simulated effect sizes is shown
-below.
+Next, we will be showing the distribution of simulated effect sizes by using
+a normal distribution trait model with 1,000 causal sites.
 
 ```{code-cell}
 
 import matplotlib.pyplot as plt
 
+model = tstrait.trait_model(distribution="normal", mean=0, var=1)
+trait_df = tstrait.sim_trait(ts, num_causal=1000, model=model, random_seed=1)
+trait_df.head()
 plt.hist(trait_df["effect_size"], bins=40)
 plt.title("Simulated Effect Size")
 plt.show()
@@ -202,8 +195,7 @@ The site ID represents the IDs of causal sites, and information regarding the si
 extracted by using `` .site() ``.
 :::
 
-The below code is used to extract information of site with ID 0 from `ts` tree sequence
-data.
+The below code is used to extract information of site with ID 0 from `ts` tree sequence.
 
 ```{code-cell}
 
@@ -234,7 +226,7 @@ In the frequency dependence model, the following value is multiplied to the effe
 
 In the above expression, $p$ is the frequency of the causal allele, and
 $\alpha$ is the `alpha` input of {py:func}`sim_phenotype` and
-{py:func}`sim_genetic`. Putting a negative $\alpha$ value increases the
+{py:func}`sim_trait`. Putting a negative $\alpha$ value increases the
 magnitude of effect sizes on rare variants.
 
 :::{note}
