@@ -122,10 +122,11 @@ class TraitModelExponential(TraitModel):
     ----------
     scale : float
         Scale of the exponential distribution. Must be non-negative.
-    negative : bool, default False
-        Determine if a negative can be simulated from the trait model. If it is set
-        to be True, :math:`1` or :math:`-1` will be randomly multiplied to the
-        simulated effect sizes.
+    random_sign : bool, default False
+        If True, :math:`1` or :math:`-1` will be randomly multiplied to the
+        simulated effect sizes, such that we can simulate effect sizes with
+        randomly chosen signs. If False, only positive values are being
+        simulated as part of the property of the exponential distribution.
 
     Returns
     -------
@@ -150,9 +151,9 @@ class TraitModelExponential(TraitModel):
     exponential distribution trait model.
     """
 
-    def __init__(self, scale, negative=False):
+    def __init__(self, scale, random_sign=False):
         self.scale = scale
-        self.negative = _check_instance(negative, "negative", bool)
+        self.random_sign = _check_instance(random_sign, "random_sign", bool)
         super().__init__("exponential")
 
     def _sim_effect_size(self, num_causal, rng):
@@ -173,7 +174,7 @@ class TraitModelExponential(TraitModel):
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.exponential(scale=self.scale, size=num_causal)
-        if self.negative:
+        if self.random_sign:
             beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
         return beta
 
@@ -202,8 +203,9 @@ class TraitModelFixed(TraitModel):
 
     Notes
     -----
-    This is a trait model that only gives the fixed value that is specified in
-    `value`.
+    This is a trait model that gives the fixed value that is specified in `value`
+    if `random_sign` is False. If it is true, this simulates effect sizes with
+    randomly chosen signs.
 
     Examples
     --------
@@ -312,10 +314,11 @@ class TraitModelGamma(TraitModel):
         Shape of the gamma distribution. Must be non-negative.
     scale : float
         Scale of the gamma distribution. Must be non-negative.
-    negative : bool, default False
-        Determine if a negative can be simulated from the trait model. If it is set
-        to be True, :math:`1` or :math:`-1` will be randomly multiplied to the
-        simulated effect sizes.
+    random_sign : bool, default False
+        If True, :math:`1` or :math:`-1` will be randomly multiplied to the
+        simulated effect sizes, such that we can simulate effect sizes with
+        randomly chosen signs. If False, only positive values are being
+        simulated as part of the property of the gamma distribution.
 
     Returns
     -------
@@ -339,10 +342,10 @@ class TraitModelGamma(TraitModel):
     gamma distribution trait model.
     """
 
-    def __init__(self, shape, scale, negative=False):
+    def __init__(self, shape, scale, random_sign=False):
         self.shape = shape
         self.scale = scale
-        self.negative = _check_instance(negative, "negative", bool)
+        self.random_sign = _check_instance(random_sign, "random_sign", bool)
         super().__init__("gamma")
 
     def _sim_effect_size(self, num_causal, rng):
@@ -363,7 +366,7 @@ class TraitModelGamma(TraitModel):
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.gamma(self.shape, self.scale, size=num_causal)
-        if self.negative:
+        if self.random_sign:
             beta = np.multiply(rng.choice([-1, 1], size=num_causal), beta)
         return beta
 
@@ -400,6 +403,10 @@ class TraitModelMultivariateNormal(TraitModel):
     :py:meth:`numpy.random.Generator.multivariate_normal`, so please see its
     documentation for the details of the multivariate normal distribution
     simulation.
+
+    The number of dimensions of mean vector and covariance matrix should match,
+    and the length of the mean vector specifies the number of traits that will
+    be simulated by using this model.
 
     Examples
     --------
@@ -519,7 +526,7 @@ def trait_model(distribution, **kwargs):
     :math:`1`, and enable simulation of negative values.
 
     >>> model = tstrait.trait_model(distribution="exponential", scale=1, \
-                                    negative=True)
+                                    random_sign=True)
 
     Constructing a gamma distribution trait model with shape :math:`1`
     and scale :math:`2`.
@@ -532,7 +539,7 @@ def trait_model(distribution, **kwargs):
     scale :math:`2`, and allow simulation of negative values.
 
     >>> model = tstrait.trait_model(distribution="gamma", shape=1, scale=2, \
-                                    negative=True)
+                                    random_sign=True)
     >>> model.name
     'gamma'
 

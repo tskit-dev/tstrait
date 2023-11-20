@@ -38,9 +38,9 @@ class TestInput:
 
     def test_exponential(self):
         with pytest.raises(
-            TypeError, match="negative must be a <class 'bool'> instance"
+            TypeError, match="random_sign must be a <class 'bool'> instance"
         ):
-            tstrait.trait_model(distribution="exponential", scale=1, negative=1)
+            tstrait.trait_model(distribution="exponential", scale=1, random_sign=1)
 
     def test_fixed(self):
         with pytest.raises(TypeError, match="value must be numeric"):
@@ -53,9 +53,9 @@ class TestInput:
 
     def test_gamma(self):
         with pytest.raises(
-            TypeError, match="negative must be a <class 'bool'> instance"
+            TypeError, match="random_sign must be a <class 'bool'> instance"
         ):
-            tstrait.trait_model(distribution="gamma", shape=1, scale=1, negative=1)
+            tstrait.trait_model(distribution="gamma", shape=1, scale=1, random_sign=1)
 
 
 class TestMultivariate:
@@ -122,10 +122,10 @@ class TestKSTest:
         self.check_distribution(effect_size, "expon", (0, scale))
         assert np.min(effect_size) > 0
 
-    def test_exponential_negative(self, num_causal):
+    def test_exponential_random_sign(self, num_causal):
         scale = 3
         model = tstrait.trait_model(
-            distribution="exponential", scale=scale, negative=True
+            distribution="exponential", scale=scale, random_sign=True
         )
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         assert np.min(effect_size) < 0
@@ -148,11 +148,11 @@ class TestKSTest:
         self.check_distribution(effect_size, "gamma", (shape, 0, scale))
         assert np.min(effect_size) > 0
 
-    def test_gamma_negative(self, num_causal):
+    def test_gamma_random_sign(self, num_causal):
         shape = 6
         scale = 2
         model = tstrait.trait_model(
-            distribution="gamma", shape=shape, scale=scale, negative=True
+            distribution="gamma", shape=shape, scale=scale, random_sign=True
         )
         effect_size = model._sim_effect_size(num_causal, np.random.default_rng(1))
         assert np.min(effect_size) < 0
