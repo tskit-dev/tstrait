@@ -17,7 +17,7 @@ This page provides a detailed explanation of all public tstrait objects and func
 
    sim_phenotype
    sim_trait
-   sim_genetic
+   genetic_value
    sim_env
 ```
 
@@ -44,7 +44,6 @@ This page provides a detailed explanation of all public tstrait objects and func
 .. autosummary::
 
    PhenotypeResult
-   GeneticResult
 ```
 
 ## Reference documentation
@@ -60,7 +59,7 @@ This page provides a detailed explanation of all public tstrait objects and func
 ```
 
 ```{eval-rst}
-.. autofunction:: tstrait.sim_genetic
+.. autofunction:: tstrait.genetic_value
 ```
 
 ```{eval-rst}
@@ -105,8 +104,4 @@ This page provides a detailed explanation of all public tstrait objects and func
 
 ```{eval-rst}
 .. autoclass:: tstrait.PhenotypeResult
-```
-
-```{eval-rst}
-.. autoclass:: tstrait.GeneticResult
 ```

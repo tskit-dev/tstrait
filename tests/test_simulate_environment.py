@@ -141,12 +141,10 @@ class TestOutputDim:
     def test_output_sim_env(self, sample_ts, trait_model):
         num_causal = 10
         trait_df = tstrait.sim_trait(
-            ts=sample_ts, num_causal=num_causal, model=trait_model
+            ts=sample_ts, num_causal=num_causal, model=trait_model, random_seed=100
         )
-        genetic_result = tstrait.sim_genetic(
-            ts=sample_ts, trait_df=trait_df, random_seed=10
-        )
-        phenotype_df = tstrait.sim_env(genetic_df=genetic_result.genetic, h2=0.3)
+        genetic_result = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(genetic_df=genetic_result, h2=0.3)
 
         self.check_dimensions(phenotype_df, sample_ts.num_individuals)
 
@@ -163,13 +161,11 @@ class TestOutputDim:
         cov = np.eye(num_trait)
         num_causal = 10
         model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
-        trait_df = tstrait.sim_trait(ts=sample_ts, num_causal=num_causal, model=model)
-        genetic_result = tstrait.sim_genetic(
-            ts=sample_ts, trait_df=trait_df, random_seed=10
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=num_causal, model=model, random_seed=30
         )
-        phenotype_df = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=np.ones(3) * 0.3
-        )
+        genetic_result = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(genetic_df=genetic_result, h2=np.ones(3) * 0.3)
 
         self.check_dimensions(phenotype_df, sample_ts.num_individuals * num_trait)
 
@@ -235,12 +231,10 @@ class Test_KSTest:
         trait_df = tstrait.sim_trait(
             ts=ts, num_causal=num_causal, model=model, random_seed=10
         )
-        genetic_result = tstrait.sim_genetic(ts=ts, trait_df=trait_df, random_seed=10)
-        phenotype_df = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=h2, random_seed=20
-        )
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(genetic_df=genetic_result, h2=h2, random_seed=20)
         phenotype_df1 = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=h2, random_seed=30
+            genetic_df=genetic_result, h2=h2, random_seed=30
         )
         phenotype_df = pd.concat([phenotype_df, phenotype_df1])
 
@@ -270,12 +264,10 @@ class Test_KSTest:
         trait_df = tstrait.sim_trait(
             ts=ts, num_causal=num_causal, model=model_multiple, random_seed=11
         )
-        genetic_result = tstrait.sim_genetic(ts=ts, trait_df=trait_df, random_seed=1)
-        phenotype_df = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=h2, random_seed=10
-        )
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(genetic_df=genetic_result, h2=h2, random_seed=10)
         phenotype_df1 = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=h2, random_seed=20
+            genetic_df=genetic_result, h2=h2, random_seed=20
         )
 
         phenotype_df = pd.concat([phenotype_df, phenotype_df1])

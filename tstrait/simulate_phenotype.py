@@ -11,10 +11,10 @@ class PhenotypeResult:
 
     Attributes
     ----------
-    effect_size : pandas.DataFrame
-        Dataframe that includes simulated effect sizes.
+    trait : pandas.DataFrame
+        Trait dataframe that includes simulated effect sizes.
     phenotype : pandas.DataFrame
-        Dataframe that includes simulated phenotype.
+        Phenotype dataframe that includes simulated phenotype.
 
     See Also
     --------
@@ -22,16 +22,16 @@ class PhenotypeResult:
 
     Examples
     --------
-    See :ref:`effect_size_output` for details on extracting the effect size
+    See :ref:`effect_size_output` for details on extracting the trait
     dataframe, and :ref:`phenotype_output` for details on extracting the
     phenotype dataframe.
     """
 
-    effect_size: pd.DataFrame
+    trait: pd.DataFrame
     phenotype: pd.DataFrame
 
 
-def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
+def sim_phenotype(ts, model, h2, *, num_causal=None, alpha=0, random_seed=None):
     """
     Simulate quantitative traits.
 
@@ -40,13 +40,13 @@ def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
     ts : tskit.TreeSequence
         The tree sequence data that will be used in the quantitative trait
         simulation.
-    num_causal : int
-        Number of causal sites.
     model : tstrait.TraitModel
         Trait model that will be used to simulate effect sizes.
     h2 : float or array-like
         Narrow-sense heritability. When it is 0, environmental noise will be a vector of
         zeros. The dimension of `h2` must match the number of traits to be simulated.
+    num_causal : int, default None
+        Number of causal sites. If None, number of causal sites will be 1.
     alpha : float, default 0
         Parameter that determines the degree of the frequency dependence model. Please
         see :ref:`frequency_dependence` for details on how this parameter influences
@@ -57,7 +57,7 @@ def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
     Returns
     -------
     PhenotypeResult
-        Dataclass object that includes phenotype and effect size dataframe.
+        Dataclass object that includes phenotype and trait dataframe.
 
     Raises
     ------
@@ -68,22 +68,27 @@ def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
 
     See Also
     --------
-    trait_model : Return a trait model, which can be used as `model` input.
+    trait_model : Returns a trait model, which can be used as `model` input.
     PhenotypeResult : Dataclass object that will be used as an output.
+    sim_trait : Used to simulate a trait dataframe.
+    genetic_value : Used to determine genetic value of individuals.
+    sim_env : Used to simulate environmental noise.
 
     Notes
     -----
-    The simulation outputs of effect sizes and phenotypes are given as a
+    The simulation outputs of traits and phenotypes are given as a
     :py:class:`pandas.DataFrame`.
 
-    The effect size dataframe can be extracted by using ``.effect_size`` in the
+    The trait dataframe can be extracted by using ``.trait`` in the
     resulting object and contains the following columns:
 
-        * **site_id**: ID of sites that have causal mutation
-        * **effect_size**: Genetic effect size of causal mutation
-        * **trait_id**: Trait ID and will be used in multi-trait simulation.
-        * **causal_state**: Causal state.
-        * **allele_frequency**: Allele frequency of causal mutation.
+        * **position**: Position of sites that have causal allele in genome coordinates.
+        * **site_id**: Site IDs that have causal allele.
+        * **effect_size**: Simulated effect size of causal allele.
+        * **causal_allele**: Causal allele.
+        * **allele_freq**: Allele frequency of causal allele. It is described in detail
+          in :ref:`trait_frequency_dependence`.
+        * **trait_id**: Trait ID.
 
     The phenotype dataframe can be extracted by using ``.phenotype`` in the resulting
     object and contains the following columns:
@@ -103,17 +108,13 @@ def sim_phenotype(ts, num_causal, model, h2, alpha=0, random_seed=None):
 
     """
     trait_df = tstrait.sim_trait(
-        ts=ts, num_causal=num_causal, model=model, random_seed=random_seed
+        ts=ts, model=model, num_causal=num_causal, alpha=alpha, random_seed=random_seed
     )
-    genetic_result = tstrait.sim_genetic(
-        ts=ts, trait_df=trait_df, alpha=alpha, random_seed=random_seed
-    )
+    genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
     phenotype_df = tstrait.sim_env(
-        genetic_df=genetic_result.genetic, h2=h2, random_seed=random_seed
+        genetic_df=genetic_df, h2=h2, random_seed=random_seed
     )
 
-    result = tstrait.PhenotypeResult(
-        effect_size=genetic_result.effect_size, phenotype=phenotype_df
-    )
+    result = tstrait.PhenotypeResult(trait=trait_df, phenotype=phenotype_df)
 
     return result

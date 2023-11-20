@@ -90,28 +90,28 @@ class TestModel:
         num_causal = 10
         h2 = 0.3
         alpha = -0.3
+        random_seed = 1
         result = tstrait.sim_phenotype(
             ts=sample_ts,
-            num_causal=10,
+            num_causal=num_causal,
             model=trait_model,
             h2=h2,
             alpha=alpha,
-            random_seed=1,
+            random_seed=random_seed,
         )
         trait_df = tstrait.sim_trait(
             ts=sample_ts,
             num_causal=num_causal,
             model=trait_model,
-            random_seed=1,
+            alpha=alpha,
+            random_seed=random_seed,
         )
-        genetic_result = tstrait.sim_genetic(
-            ts=sample_ts, trait_df=trait_df, alpha=alpha, random_seed=1
-        )
+        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
         phenotype_df = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=h2, random_seed=1
+            genetic_df=genetic_df, h2=h2, random_seed=random_seed
         )
 
-        pd.testing.assert_frame_equal(result.effect_size, genetic_result.effect_size)
+        pd.testing.assert_frame_equal(result.trait, trait_df)
         pd.testing.assert_frame_equal(result.phenotype, phenotype_df)
 
     def test_multivariate(self, sample_ts):
@@ -121,26 +121,26 @@ class TestModel:
         trait_model = tstrait.trait_model(
             distribution="multi_normal", mean=[1, 2], cov=[[1, 0.3], [0.3, 1]]
         )
+        random_seed = 10
         result = tstrait.sim_phenotype(
             ts=sample_ts,
-            num_causal=10,
+            num_causal=num_causal,
             model=trait_model,
             h2=h2,
             alpha=alpha,
-            random_seed=1,
+            random_seed=random_seed,
         )
         trait_df = tstrait.sim_trait(
             ts=sample_ts,
             num_causal=num_causal,
             model=trait_model,
-            random_seed=1,
+            alpha=alpha,
+            random_seed=random_seed,
         )
-        genetic_result = tstrait.sim_genetic(
-            ts=sample_ts, trait_df=trait_df, alpha=alpha, random_seed=1
-        )
+        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
         phenotype_df = tstrait.sim_env(
-            genetic_df=genetic_result.genetic, h2=h2, random_seed=1
+            genetic_df=genetic_df, h2=h2, random_seed=random_seed
         )
 
-        pd.testing.assert_frame_equal(result.effect_size, genetic_result.effect_size)
+        pd.testing.assert_frame_equal(result.trait, trait_df)
         pd.testing.assert_frame_equal(result.phenotype, phenotype_df)
