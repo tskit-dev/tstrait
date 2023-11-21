@@ -83,7 +83,7 @@ class TestInput:
         with pytest.raises(
             ValueError, match="Length of h2 must match the number of traits"
         ):
-            tstrait.sim_env(genetic_df=sample_two_trait_df, h2=0.3)
+            tstrait.sim_env(genetic_df=sample_two_trait_df, h2=[0.3])
 
         with pytest.raises(
             ValueError, match="Narrow-sense heritability must be 0 < h2 <= 1"
@@ -198,6 +198,19 @@ class TestOutputDim:
             two_trait_df["environmental_noise"], np.zeros(len(two_trait_df))
         )
 
+    def test_h2_one_default(self, sample_df, sample_two_trait_df):
+        single_df = tstrait.sim_env(genetic_df=sample_df)
+        self.check_dimensions(single_df, len(sample_df))
+        np.testing.assert_equal(
+            single_df["environmental_noise"], np.zeros(len(single_df))
+        )
+
+        two_trait_df = tstrait.sim_env(genetic_df=sample_two_trait_df)
+        self.check_dimensions(two_trait_df, len(sample_two_trait_df))
+        np.testing.assert_equal(
+            two_trait_df["environmental_noise"], np.zeros(len(two_trait_df))
+        )
+
 
 class Test_KSTest:
     """Test the distribution of environmental noise by using a Kolmogorov-Smirnov test"""
@@ -284,6 +297,64 @@ class Test_KSTest:
             df = phenotype_df.loc[phenotype_df.trait_id == i]
             var = np.var(df["genetic_value"])
             sd = np.sqrt((1 - h2[i]) / h2[i] * var)
+            self.check_distribution(
+                df["environmental_noise"],
+                "norm",
+                (0, sd),
+            )
+            sum_data += df["environmental_noise"] * const[i]
+            sd_array[i] = sd
+
+        sd = np.dot(sd_array, const)
+
+        self.check_distribution(
+            sum_data,
+            "norm",
+            (0, sd),
+        )
+
+    def test_env_multiple_single_h2(self):
+        num_ind = 10_000
+        num_causal = 1_000
+
+        np.random.seed(10)
+        n = 3
+        mean = np.random.randn(n)
+        M = np.random.randn(n, n)
+        cov = np.dot(M, M.T)
+
+        h2 = 0.3
+        ts = msprime.sim_ancestry(num_ind, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+
+        model_multiple = tstrait.trait_model(
+            distribution="multi_normal", mean=mean, cov=cov
+        )
+
+        trait_df = tstrait.sim_trait(
+            ts=ts, num_causal=num_causal, model=model_multiple, random_seed=11
+        )
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(genetic_df=genetic_result, h2=h2, random_seed=10)
+        phenotype_df1 = tstrait.sim_env(
+            genetic_df=genetic_result, h2=h2, random_seed=20
+        )
+
+        phenotype_df = pd.concat([phenotype_df, phenotype_df1])
+
+        phenotype_df = phenotype_df.reset_index()
+        del phenotype_df["index"]
+
+        const = np.random.randn(n)
+        sd_array = np.zeros(3)
+
+        sum_data = np.zeros(2 * num_ind)
+
+        h2_array = np.ones(n) * h2
+        for i in range(n):
+            df = phenotype_df.loc[phenotype_df.trait_id == i]
+            var = np.var(df["genetic_value"])
+            sd = np.sqrt((1 - h2_array[i]) / h2_array[i] * var)
             self.check_distribution(
                 df["environmental_noise"],
                 "norm",

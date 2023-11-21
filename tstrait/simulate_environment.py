@@ -50,7 +50,7 @@ class _EnvSimulator:
         return df
 
 
-def sim_env(genetic_df, h2, random_seed=None):
+def sim_env(genetic_df, *, h2=None, random_seed=None):
     """
     Simulates environmental noise.
 
@@ -58,9 +58,10 @@ def sim_env(genetic_df, h2, random_seed=None):
     ----------
     genetic_df : pandas.DataFrame
         Genetic value dataframe.
-    h2 : float or array-like
-        Narrow-sense heritability. When it is 0, environmental noise will be a vector of
-        zeros. The dimension of `h2` must match the number of traits to be simulated.
+    h2 : float or array-like, default None.
+        Narrow-sense heritability. When it is 1, environmental noise will be a vector of
+        zeros. If `h2` is array-like, the dimension of `h2` must match the number of
+        traits to be simulated. If None, h2 will be 1.
     random_seed : int, default None
         Random seed of simulation. If None, simulation will be conducted randomly.
 
@@ -116,8 +117,9 @@ def sim_env(genetic_df, h2, random_seed=None):
     if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
         raise ValueError("trait_id must be consecutive and start from 0")
 
+    h2 = 1 if h2 is None else h2
     if isinstance(h2, numbers.Real):
-        h2 = np.array([h2])
+        h2 = np.ones(len(trait_id)) * h2
 
     if len(h2) != len(trait_id):
         raise ValueError("Length of h2 must match the number of traits")

@@ -31,7 +31,7 @@ class PhenotypeResult:
     phenotype: pd.DataFrame
 
 
-def sim_phenotype(ts, model, h2, *, num_causal=None, alpha=0, random_seed=None):
+def sim_phenotype(ts, model, *, num_causal=None, alpha=None, h2=None, random_seed=None):
     """
     Simulate quantitative traits.
 
@@ -42,15 +42,16 @@ def sim_phenotype(ts, model, h2, *, num_causal=None, alpha=0, random_seed=None):
         simulation.
     model : tstrait.TraitModel
         Trait model that will be used to simulate effect sizes.
-    h2 : float or array-like
-        Narrow-sense heritability. When it is 0, environmental noise will be a vector of
-        zeros. The dimension of `h2` must match the number of traits to be simulated.
     num_causal : int, default None
         Number of causal sites. If None, number of causal sites will be 1.
-    alpha : float, default 0
+    alpha : float, default None
         Parameter that determines the degree of the frequency dependence model. Please
         see :ref:`frequency_dependence` for details on how this parameter influences
-        effect size simulation.
+        effect size simulation. If None, alpha will be 0.
+    h2 : float or array-like, default None.
+        Narrow-sense heritability. When it is 1, environmental noise will be a vector of
+        zeros. If `h2` is array-like, the dimension of `h2` must match the number of
+        traits to be simulated. If None, h2 will be 1.
     random_seed : int, default None
         Random seed of simulation. If None, simulation will be conducted randomly.
 

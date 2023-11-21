@@ -64,7 +64,7 @@ class TestInput:
                 ts=sample_ts, num_causal=5, model=trait_model, h2=[0.1, 0]
             )
 
-    @pytest.mark.parametrize("h2", [0.1, [0.2, 0.3, 0.4]])
+    @pytest.mark.parametrize("h2", [[0.1], [0.2, 0.3, 0.4]])
     def test_h2_dim(self, sample_ts, h2):
         with pytest.raises(
             ValueError, match="Length of h2 must match the number of traits"
