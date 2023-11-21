@@ -177,7 +177,7 @@ class _TraitSimulator:
         return trait_df
 
 
-def sim_trait(ts, model, *, num_causal=None, alpha=0, random_seed=None):
+def sim_trait(ts, model, *, num_causal=None, alpha=None, random_seed=None):
     """
     Randomly selects causal sites and the corresponding causal allele, and simulates
     effect sizes for each of the chosen causal site.
@@ -189,12 +189,12 @@ def sim_trait(ts, model, *, num_causal=None, alpha=0, random_seed=None):
         simulation.
     model : tstrait.TraitModel
         Trait model that will be used to simulate effect sizes.
-    num_causal : int, default 1
+    num_causal : int, default None
         Number of causal sites. If None, number of causal sites will be 1.
-    alpha : float, default 0
+    alpha : float, default None
         Parameter that determines the degree of the frequency dependence model. Please
         see :ref:`frequency_dependence` for details on how this parameter influences
-        effect size simulation.
+        effect size simulation. If None, alpha will be 0.
     random_seed : int, default None
         Random seed of simulation. If None, simulation will be conducted randomly.
 
@@ -235,6 +235,7 @@ def sim_trait(ts, model, *, num_causal=None, alpha=0, random_seed=None):
     model = _check_instance(model, "model", tstrait.TraitModel)
     num_causal = 1 if num_causal is None else num_causal
     num_causal = _check_int(num_causal, "num_causal", minimum=1)
+    alpha = 0 if alpha is None else alpha
     alpha = _check_val(alpha, "alpha")
     num_sites = ts.num_sites
     if num_sites == 0:
