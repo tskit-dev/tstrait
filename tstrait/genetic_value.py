@@ -76,7 +76,7 @@ class _GeneticValue:
             if allele == causal_allele:
                 stack.append(node)
 
-        if len(stack) == 0:  # pragma: no cover
+        if len(stack) == 0:
             genetic_value = np.zeros(self.ts.num_individuals)
         else:
             genetic_value = _traversal_genetic_value(

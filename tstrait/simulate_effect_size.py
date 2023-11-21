@@ -88,7 +88,7 @@ class _TraitSimulator:
             if m.parent != tskit.NULL:
                 current_state = self.ts.mutation(m.parent).derived_state
             # Silent mutations do nothing
-            if current_state != m.derived_state:  # pragma: no cover
+            if current_state != m.derived_state:
                 if m.derived_state == causal_allele:
                     counts += tree.num_samples(m.node)
                 elif current_state == causal_allele:
