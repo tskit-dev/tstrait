@@ -117,17 +117,17 @@ The following effect size distributions are supported in tstrait, and please ref
 
    * - ``"fixed"``
      - Fixed value
-     - ``value``
+     - ``value, random_sign``
      - :py:class:`TraitModelFixed`
 
    * - ``"exponential"``
      - Exponential distribution
-     - ``scale, negative``
+     - ``scale, random_sign``
      - :py:class:`TraitModelExponential`
 
    * - ``"gamma"``
      - Gamma distribution
-     - ``shape, scale, negative``
+     - ``shape, scale, random_sign``
      - :py:class:`TraitModelGamma`
 
    * - ``"multi_normal"``
