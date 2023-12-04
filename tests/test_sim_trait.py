@@ -195,6 +195,56 @@ class TestOutputDim:
         )
         assert 0 <= np.min(df["trait_id"]) and np.max(df["trait_id"]) <= 1
 
+    def test_multiple_causal_sites(self, sample_ts):
+        mean = [0, 1]
+        cov = [[4, 1], [1, 4]]
+        causal_sites = [5, 10, 0]
+        model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
+        df = tstrait.sim_trait(
+            ts=sample_ts,
+            causal_sites=[5, 3, 0],
+            model=model,
+            random_seed=1,
+        )
+        trait_ids = df.trait_id.unique()
+        np.testing.assert_equal(trait_ids, np.array([0, 1]))
+        assert len(df) == len(causal_sites) * 2
+        df0 = df[df.trait_id == 0]
+        df1 = df[df.trait_id == 1]
+        self.check_dimensions(df0, len(causal_sites))
+        self.check_dimensions(df1, len(causal_sites))
+
+        np.array_equal(df0.site_id, np.sort(causal_sites))
+        np.array_equal(df1.site_id, np.sort(causal_sites))
+
+    def test_position_floor(self, sample_trait_model):
+        ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1, discrete_genome=False)
+        causal_sites = [0, 2]
+        df = tstrait.sim_trait(
+            ts=ts,
+            causal_sites=causal_sites,
+            model=sample_trait_model,
+            alpha=-1,
+            random_seed=1,
+        )
+        position = np.array(ts.sites_position[causal_sites], dtype=float)
+        np.array_equal(df.position, position)
+        assert df.position.dtype == float
+
+    def test_position_floor_int(self, sample_trait_model, sample_ts):
+        causal_sites = [0, 2]
+        df = tstrait.sim_trait(
+            ts=sample_ts,
+            causal_sites=causal_sites,
+            model=sample_trait_model,
+            alpha=-1,
+            random_seed=1,
+        )
+        position = np.array(sample_ts.sites_position[causal_sites])
+        position = position.astype(int)
+        np.array_equal(df.position, position)
+
 
 def model_list():
     loc = 2
@@ -321,7 +371,11 @@ class TestGenotype:
         fixed_model = tstrait.trait_model(distribution="fixed", value=value)
         tree = ts.first()
         simulator = _TraitSimulator(
-            ts, num_causal=ts.num_sites, model=fixed_model, alpha=alpha, random_seed=1
+            ts,
+            causal_sites=np.arange(ts.num_sites),
+            model=fixed_model,
+            alpha=alpha,
+            rng=np.random.default_rng(1),
         )
 
         # We will examine `_obtain_allele_count` method against all possible states
@@ -359,7 +413,11 @@ class TestGenotype:
         fixed_model = tstrait.trait_model(distribution="fixed", value=value)
         tree = ts.first()
         simulator = _TraitSimulator(
-            ts, num_causal=ts.num_sites, model=fixed_model, alpha=alpha, random_seed=1
+            ts,
+            causal_sites=np.arange(ts.num_sites),
+            model=fixed_model,
+            alpha=alpha,
+            rng=np.random.default_rng(1),
         )
 
         # We will examine `_obtain_allele_count` method against all possible states
@@ -418,9 +476,10 @@ class TestSimTrait:
         trait_df = tstrait.sim_trait(
             ts, num_causal=ts.num_sites, model=fixed_model, alpha=alpha
         )
+        position = np.array(ts.sites_position[np.arange(3)], dtype=float)
         test_df = pd.DataFrame(
             {
-                "position": ts.sites_position[np.arange(3)],
+                "position": position,
                 "site_id": np.arange(3),
                 "effect_size": [
                     value * freqdep(alpha, 3 / 4),
@@ -436,3 +495,58 @@ class TestSimTrait:
         pd.testing.assert_frame_equal(trait_df, test_df, check_dtype=False)
 
         assert trait_df.position.dtype == int
+
+
+class Test_CausalSites:
+    @pytest.mark.parametrize("causal_sites", [[0, 2], [3, 0, 1], [0]])
+    def test_causal_sites(self, sample_ts, sample_trait_model, causal_sites):
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, causal_sites=causal_sites, model=sample_trait_model
+        )
+        np.array_equal(trait_df.site_id, np.sort(causal_sites))
+
+    def test_input(self, sample_ts, sample_trait_model):
+        with pytest.raises(
+            ValueError,
+            match="There must not be repeated values in causal_sites",
+        ):
+            tstrait.sim_trait(
+                ts=sample_ts,
+                causal_sites=[0, 2, 0],
+                model=sample_trait_model,
+            )
+
+    def test_input_both(self, sample_ts, sample_trait_model):
+        with pytest.raises(
+            ValueError, match="Cannot specify both num_causal and causal_sites"
+        ):
+            tstrait.sim_trait(
+                ts=sample_ts,
+                num_causal=2,
+                model=sample_trait_model,
+                causal_sites=[2, 4],
+            )
+
+    def test_tree_seq(self):
+        ts = simple_tree_seq()
+        value = 10
+        alpha = -1 / 2
+        fixed_model = tstrait.trait_model(distribution="fixed", value=value)
+        trait_df = tstrait.sim_trait(
+            ts, causal_sites=[2, 0], model=fixed_model, alpha=alpha
+        )
+        test_df = pd.DataFrame(
+            {
+                "position": ts.sites_position[[0, 2]],
+                "site_id": [0, 2],
+                "effect_size": [
+                    value * freqdep(alpha, 3 / 4),
+                    value * freqdep(alpha, 1 / 4),
+                ],
+                "causal_allele": ["T", "C"],
+                "allele_freq": [3 / 4, 1 / 4],
+                "trait_id": np.zeros(2),
+            }
+        )
+
+        pd.testing.assert_frame_equal(trait_df, test_df, check_dtype=False)

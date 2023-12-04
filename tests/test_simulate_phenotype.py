@@ -46,6 +46,16 @@ class TestInput:
             tstrait.sim_phenotype(
                 ts=sample_ts, num_causal=num_causal, model=sample_trait_model, h2=0.3
             )
+        with pytest.raises(
+            ValueError, match="Cannot specify both num_causal and causal_sites"
+        ):
+            tstrait.sim_phenotype(
+                ts=sample_ts,
+                num_causal=2,
+                model=sample_trait_model,
+                causal_sites=[2, 4],
+                h2=0.3,
+            )
 
     def test_bad_input_h2(self, sample_ts, sample_trait_model):
         with pytest.raises(
@@ -73,6 +83,14 @@ class TestInput:
                 distribution="multi_normal", mean=np.zeros(2), cov=np.eye(2)
             )
             tstrait.sim_phenotype(ts=sample_ts, num_causal=5, model=trait_model, h2=h2)
+
+    def test_causal_sites_bad_input(self, sample_ts, sample_trait_model):
+        with pytest.raises(
+            ValueError, match="There must not be repeated values in causal_sites"
+        ):
+            tstrait.sim_phenotype(
+                ts=sample_ts, causal_sites=[1, 5, 1], model=sample_trait_model, h2=-0.1
+            )
 
 
 class TestModel:
@@ -133,6 +151,65 @@ class TestModel:
         trait_df = tstrait.sim_trait(
             ts=sample_ts,
             num_causal=num_causal,
+            model=trait_model,
+            alpha=alpha,
+            random_seed=random_seed,
+        )
+        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(
+            genetic_df=genetic_df, h2=h2, random_seed=random_seed
+        )
+
+        pd.testing.assert_frame_equal(result.trait, trait_df)
+        pd.testing.assert_frame_equal(result.phenotype, phenotype_df)
+
+    @pytest.mark.parametrize("causal_sites", [[0], [4, 2], [1, 2, 3]])
+    def test_causal_sites(self, sample_ts, sample_trait_model, causal_sites):
+        h2 = 0.3
+        alpha = -0.3
+        random_seed = 1
+        result = tstrait.sim_phenotype(
+            ts=sample_ts,
+            causal_sites=causal_sites,
+            model=sample_trait_model,
+            h2=h2,
+            alpha=alpha,
+            random_seed=random_seed,
+        )
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts,
+            causal_sites=causal_sites,
+            model=sample_trait_model,
+            alpha=alpha,
+            random_seed=random_seed,
+        )
+        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
+        phenotype_df = tstrait.sim_env(
+            genetic_df=genetic_df, h2=h2, random_seed=random_seed
+        )
+
+        pd.testing.assert_frame_equal(result.trait, trait_df)
+        pd.testing.assert_frame_equal(result.phenotype, phenotype_df)
+
+    @pytest.mark.parametrize("causal_sites", [[0], [4, 2]])
+    def test_causal_sites_multivariate(self, sample_ts, causal_sites):
+        h2 = [0.1, 0.8]
+        alpha = -0.3
+        trait_model = tstrait.trait_model(
+            distribution="multi_normal", mean=[1, 2], cov=[[1, 0.3], [0.3, 1]]
+        )
+        random_seed = 10
+        result = tstrait.sim_phenotype(
+            ts=sample_ts,
+            causal_sites=causal_sites,
+            model=trait_model,
+            h2=h2,
+            alpha=alpha,
+            random_seed=random_seed,
+        )
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts,
+            causal_sites=causal_sites,
             model=trait_model,
             alpha=alpha,
             random_seed=random_seed,

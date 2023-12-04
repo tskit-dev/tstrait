@@ -31,7 +31,16 @@ class PhenotypeResult:
     phenotype: pd.DataFrame
 
 
-def sim_phenotype(ts, model, *, num_causal=None, alpha=None, h2=None, random_seed=None):
+def sim_phenotype(
+    ts,
+    model,
+    *,
+    num_causal=None,
+    causal_sites=None,
+    alpha=None,
+    h2=None,
+    random_seed=None
+):
     """
     Simulate quantitative traits.
 
@@ -109,7 +118,12 @@ def sim_phenotype(ts, model, *, num_causal=None, alpha=None, h2=None, random_see
 
     """
     trait_df = tstrait.sim_trait(
-        ts=ts, model=model, num_causal=num_causal, alpha=alpha, random_seed=random_seed
+        ts=ts,
+        model=model,
+        num_causal=num_causal,
+        causal_sites=causal_sites,
+        alpha=alpha,
+        random_seed=random_seed,
     )
     genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
     phenotype_df = tstrait.sim_env(

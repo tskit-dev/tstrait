@@ -35,35 +35,22 @@ class _TraitSimulator:
     ----------
     ts : tskit.TreeSequence
         Tree sequence data with mutation.
-    num_causal : int
-        Number of causal sites.
+    causal_sites : list
+        List of causal site IDs.
     model : TraitModel
         Trait model that will be used to simulate effect sizes.
     alpha : float
         Parameter that determines the degree of the frequency dependence model.
-    random_seed : int
-        The random seed.
+    rng : numpy.random.Generator
+        Generator object that will be used to generate random numbers.
     """
 
-    def __init__(self, ts, num_causal, model, alpha, random_seed):
+    def __init__(self, ts, causal_sites, model, alpha, rng):
         self.ts = ts
-        self.num_causal = num_causal
+        self.causal_sites = causal_sites
         self.model = model
         self.alpha = alpha
-        self.rng = np.random.default_rng(random_seed)
-
-    def _choose_causal_site(self):
-        """
-        Randomly chooses causal site IDs among all the sites in the tree sequence
-        data. The site IDs are aligned based on their genomic positions as a part of
-        the tree sequence data requirement, so the chosen site IDs are sorted in the
-        final step. The algorithm will be faster if the site IDs are aligned by
-        their genomic locations.
-        """
-        site_id = self.rng.choice(
-            self.ts.num_sites, size=self.num_causal, replace=False
-        )
-        return np.sort(site_id)
+        self.rng = rng
 
     def _choose_causal_allele(self, site_id):
         """
@@ -132,7 +119,7 @@ class _TraitSimulator:
         is non-zero, frequency dependence architecture is used.
         """
         beta_array_non_freq = self.model._sim_effect_size(
-            num_causal=self.num_causal, rng=self.rng
+            num_causal=len(self.causal_sites), rng=self.rng
         )
 
         result = self._freq_dep(site_id_array, causal_allele_array)
@@ -150,37 +137,37 @@ class _TraitSimulator:
         based on the trait model given by the `model` input. If `alpha` is non-zero,
         frequency dependence architecture is used.
         """
-        site_id_array = self._choose_causal_site()
         causal_allele_array = []
-        for site_id in site_id_array:
+        for site_id in self.causal_sites:
             causal_allele_array.append(self._choose_causal_allele(site_id))
 
-        result = self._sim_beta(site_id_array, causal_allele_array)
+        result = self._sim_beta(self.causal_sites, causal_allele_array)
 
         num_trait = self.model.num_trait
 
-        position = self.ts.sites_position[site_id_array]
-        if np.array_equal(np.floor(position), position):  # pragma: no cover
+        position = self.ts.sites_position[self.causal_sites]
+        if np.array_equal(np.floor(position), position):
             position = position.astype(int)
 
         trait_df = pd.DataFrame(
             {
                 "position": np.repeat(position, num_trait),
-                "site_id": np.repeat(site_id_array, num_trait),
+                "site_id": np.repeat(self.causal_sites, num_trait),
                 "effect_size": result.beta_array.flatten(order="F"),
                 "causal_allele": np.repeat(causal_allele_array, num_trait),
                 "allele_freq": np.repeat(result.allele_freq, num_trait),
-                "trait_id": np.tile(np.arange(num_trait), self.num_causal),
+                "trait_id": np.tile(np.arange(num_trait), len(self.causal_sites)),
             }
         )
 
         return trait_df
 
 
-def sim_trait(ts, model, *, num_causal=None, alpha=None, random_seed=None):
+def sim_trait(
+    ts, model, *, num_causal=None, causal_sites=None, alpha=None, random_seed=None
+):
     """
-    Randomly selects causal sites and the corresponding causal allele, and simulates
-    effect sizes for each of the chosen causal site.
+    Simulates traits.
 
     Parameters
     ----------
@@ -190,7 +177,11 @@ def sim_trait(ts, model, *, num_causal=None, alpha=None, random_seed=None):
     model : tstrait.TraitModel
         Trait model that will be used to simulate effect sizes.
     num_causal : int, default None
-        Number of causal sites. If None, number of causal sites will be 1.
+        Number of causal sites that will be randomly selected . If both `num_causal` and
+        `causal_sites` are None, number of causal sites will be 1.
+    causal_sites : list, default None
+        List of site IDs that have causal allele. If None, causal site IDs will be
+        chosen randomly according to `num_causal`.
     alpha : float, default None
         Parameter that determines the degree of the frequency dependence model. Please
         see :ref:`frequency_dependence` for details on how this parameter influences
@@ -207,6 +198,10 @@ def sim_trait(ts, model, *, num_causal=None, alpha=None, random_seed=None):
     ------
     ValueError
         If the number of mutations in `ts` is smaller than `num_causal`.
+    ValueError
+        If both `num_causal` and `causal_sites` are specified.
+    ValueError
+        If there are repeated values in `causal_sites`.
 
     See Also
     --------
@@ -220,7 +215,8 @@ def sim_trait(ts, model, *, num_causal=None, alpha=None, random_seed=None):
     following columns:
 
         * **position**: Position of sites that have causal allele in genome coordinates.
-        * **site_id**: Site IDs that have causal allele.
+        * **site_id**: Site IDs that have causal allele. The output dataframe has sorted
+          site IDs.
         * **effect_size**: Simulated effect size of causal allele.
         * **causal_allele**: Causal allele.
         * **allele_freq**: Allele frequency of causal allele. It is described in detail
@@ -233,24 +229,43 @@ def sim_trait(ts, model, *, num_causal=None, alpha=None, random_seed=None):
     """
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
     model = _check_instance(model, "model", tstrait.TraitModel)
-    num_causal = 1 if num_causal is None else num_causal
-    num_causal = _check_int(num_causal, "num_causal", minimum=1)
+    if num_causal is not None and causal_sites is not None:
+        raise ValueError("Cannot specify both num_causal and causal_sites")
+    if num_causal is None and causal_sites is None:
+        num_causal = 1
+
+    if causal_sites is not None:
+        if len(causal_sites) > 1:
+            causal_sites = np.sort(causal_sites)
+            diff = np.diff(causal_sites)
+            if np.min(diff) == 0:
+                raise ValueError("There must not be repeated values in causal_sites")
+
+    rng = np.random.default_rng(random_seed)
+    if num_causal is not None:
+        num_causal = _check_int(num_causal, "num_causal", minimum=1)
+
+        num_sites = ts.num_sites
+        if num_sites == 0:
+            raise ValueError("No mutation in the tree sequence input")
+        if num_causal > num_sites:
+            raise ValueError(
+                "num_causal must be an integer not greater than the number of "
+                "sites in ts"
+            )
+
+        causal_sites = rng.choice(ts.num_sites, size=num_causal, replace=False)
+        causal_sites.sort()
+
     alpha = 0 if alpha is None else alpha
     alpha = _check_val(alpha, "alpha")
-    num_sites = ts.num_sites
-    if num_sites == 0:
-        raise ValueError("No mutation in the tree sequence input")
-    if num_causal > num_sites:
-        raise ValueError(
-            "num_causal must be an integer not greater than the number of sites in ts"
-        )
 
     simulator = _TraitSimulator(
         ts=ts,
-        num_causal=num_causal,
+        causal_sites=causal_sites,
         model=model,
         alpha=alpha,
-        random_seed=random_seed,
+        rng=rng,
     )
     trait_df = simulator._run()
 
