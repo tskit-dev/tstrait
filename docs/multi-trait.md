@@ -57,7 +57,6 @@ import numpy as np
 model = tstrait.trait_model(
     distribution="multi_normal", mean=np.zeros(2), cov=np.eye(2)
 )
-model.name
 model.num_trait
 ```
 
@@ -87,6 +86,9 @@ sim_result = tstrait.sim_phenotype(
 )
 
 sim_result.phenotype
+```
+
+```{code-cell}
 sim_result.trait
 ```
 

@@ -177,7 +177,6 @@ a normal distribution trait model with 1,000 causal sites.
 ```{code-cell}
 
 import matplotlib.pyplot as plt
-
 model = tstrait.trait_model(distribution="normal", mean=0, var=1)
 trait_df = tstrait.sim_trait(ts, num_causal=1000, model=model, random_seed=1)
 trait_df.head()
@@ -238,8 +237,8 @@ frequency dependent model.
 
 The frequency dependence architecture is still an ongoing research topic. While the
 frequency dependence model can be used for any trait models in tstrait, it is
-suggested that you use the normal distribution with mean 0 as a trait model and
-`alpha` to be -1/2 to conduct simulations that are widely used in
+suggested that you use the trait model with mean 0 and `alpha` to be -1/2 to conduct
+simulations that are widely used in
 simulation-based research projects (See
 [Speed et al. (2017)](https://doi.org/10.1038/ng.3865) for details).
 
@@ -265,8 +264,6 @@ We will first simulate effect sizes by using the non-frequency dependent model
 it in your trait simulation.
 
 ```{code-cell}
-
-import matplotlib.pyplot as plt
 
 # trait.sim_trait(ts, num_causal=1000, model=model, random_seed=1)
 # also works here

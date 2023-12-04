@@ -35,8 +35,7 @@ After this genetic value page, you will be able to:
 
 Genetic value is computed in tstrait by using the trait information in the input trait dataframe.
 It uses a tree traversal algorithm to count the number of causal allele in each individual and adds
-the corresponding effect size to individual's genetic value depending on the presence of causal
-mutation in that individual.
+the corresponding effect size to individual's genetic value.
 
 ## Input
 

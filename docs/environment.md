@@ -122,10 +122,10 @@ there are several options available for the user.
 
 ### Simulating from the output of {py:func}`genetic_value`
 
-The output of {py:func}`genetic_value` only includes genetic values, and it doesn't
-simulate environmental noise. For example, if the user wants to simulate
-environmental noise from a normal distribution with mean 0 and variance 1, it
-would be possible to run the following code:
+The output of {py:func}`genetic_value` only includes relevant information regarding
+genetic values, and it doesn't simulate environmental noise. For example, if the
+user wants to simulate environmental noise from a normal distribution with mean 0
+and variance 1, it would be possible to run the following code:
 
 ```{code-cell}
 
