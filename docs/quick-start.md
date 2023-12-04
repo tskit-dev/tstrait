@@ -94,7 +94,6 @@ Simulated traits from {func}`sim_phenotype` can be extracted through `.trait`.
 ```{code-cell}
 
 trait_df = sim_result.trait
-trait_df.columns
 trait_df.head()
 ```
 
@@ -116,9 +115,8 @@ Simulated phenotypes from {func}`sim_phenotype` can be extracted through `.pheno
 
 ```{code-cell}
 
-  phenotype_df = sim_result.phenotype
-  phenotype_df.columns
-  phenotype_df.head()
+phenotype_df = sim_result.phenotype
+phenotype_df.head()
 ```
 
 The `phenotype_df` is a {class}`pandas.DataFrame` object that includes the following 5 columns:
