@@ -296,3 +296,22 @@ plt.show()
 
 We see that rarer variants have increased effect sizes, as expected from
 the mathematical expression given in [](eq:freq-dep).
+
+(trait_causal_sites)=
+
+## Specifying Causal Sites
+
+Instead of specifying the number of causal sites, users can directly provide the
+causal sites as an input of {py:func}`sim_phenotype` and {py:func}`sim_trait`.
+When `causal_sites` argument of these functions are provided, tstrait will use
+the inputted site IDs as causal sites, instead of randomly selecting causal
+site IDs.
+
+Example:
+
+```{code-cell}
+
+trait_df = tstrait.sim_trait(ts, causal_sites=[0, 3, 4], model=model, 
+                             alpha=-1/2, random_seed=1)
+trait_df
+```
