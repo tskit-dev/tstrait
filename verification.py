@@ -119,7 +119,7 @@ class TestAlphaSim(Test):
             # Gamma distribution is also supported in AlphaSimR, but scaling can
             # be challenging, as they are using a different parameter as us to
             # simulate a Gamma distribution
-            model = tstrait.trait_model(distribution="normal", mean=mean, var=var)
+            model = tstrait.trait_model(distribution="normal", mean=mean/num_causal, var=var/num_causal)
 
             # Sampled individual
             ind_id = np.random.choice(ts.num_individuals)
