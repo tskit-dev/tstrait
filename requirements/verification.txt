@@ -1,0 +1,12 @@
+# Extra requirements for the verification.py statistical tester.
+
+matplotlib
+numpy
+pandas
+scipy
+statsmodels
+seaborn
+tqdm
+argparse
+daiquiri
+msprime

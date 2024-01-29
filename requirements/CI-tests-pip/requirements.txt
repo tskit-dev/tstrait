@@ -2,7 +2,6 @@ msprime
 numba
 numpy
 pandas
-scipy
 tskit>=0.5.5
 pytest
 pytest-cov
