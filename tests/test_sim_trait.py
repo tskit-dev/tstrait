@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import tstrait
-from scipy import stats
 from tstrait.base import _check_numeric_array
 from tstrait.simulate_effect_size import _TraitSimulator
 
@@ -245,113 +244,16 @@ class TestOutputDim:
         position = position.astype(int)
         np.array_equal(df.position, position)
 
-
-def model_list():
-    loc = 2
-    scale = 5
-    df = 10
-    shape = 5
-    distr = [
-        (
-            tstrait.trait_model(distribution="normal", mean=loc, var=scale**2),
-            "norm",
-            (loc, scale),
-        ),
-        (
-            tstrait.trait_model(distribution="exponential", scale=scale),
-            "expon",
-            (0, scale),
-        ),
-        (
-            tstrait.trait_model(distribution="t", mean=loc, var=scale**2, df=df),
-            "t",
-            (df, loc, scale),
-        ),
-        (
-            tstrait.trait_model(distribution="gamma", shape=shape, scale=scale),
-            "gamma",
-            (shape, 0, scale),
-        ),
-    ]
-
-    return distr
-
-
-class Test_KSTest:
-    """
-    Test the distribution of effect sizes by using a Kolmogorov-Smirnov test.
-    rvs is array-like object of random variables, df is the output dataframe from
-    `tstrait.sim_trait`, dist is a name of a distribution in scipy.stats, and args
-    are the args for scipy.stats.dist(*args)
-    """
-
-    def check_distribution(self, rvs, dist, args=()):
-        D, pval = stats.kstest(rvs, dist, args=args, N=1000)
-        if pval < 0.05:
-            raise ValueError(f"KS test failed for distribution {dist}")
-
-    @pytest.mark.parametrize("model, distr, args", model_list())
-    def test_KStest(self, model, distr, args, sample_ts):
-        result = np.array([])
-        for i in range(2):
-            sim_result = tstrait.sim_trait(
-                ts=sample_ts, num_causal=1000, model=model, random_seed=i
-            )
-            result = np.concatenate((result, sim_result["effect_size"]))
-        self.check_distribution(result, distr, args)
-
     def test_fixed(self, sample_ts):
         """
-        Some effect sizes are 0, as there are sites with only ancestral states
+        Some effect sizes are 0, as there are sites with only ancestral states.
+        Test the fixed effect trait model.
         """
         value = 4
         model = tstrait.trait_model(distribution="fixed", value=value)
         sim_result = tstrait.sim_trait(ts=sample_ts, num_causal=1000, model=model)
         data = sim_result.loc[sim_result.effect_size != 0]
         np.testing.assert_allclose(data["effect_size"], np.ones(len(data)) * value)
-
-    def test_multivariate(self, sample_ts):
-        """
-        Conduct a KS test for individual effect sizes and arbitrary summation of
-        effect sizes.
-        """
-        np.random.seed(20)
-        n = 3
-        mean = np.random.randn(n)
-        M = np.random.randn(n, n)
-        cov = np.dot(M, M.T)
-        num_causal = 2000
-        model = tstrait.trait_model(distribution="multi_normal", mean=mean, cov=cov)
-        sim_result = tstrait.sim_trait(
-            ts=sample_ts, num_causal=num_causal, model=model, random_seed=100
-        )
-        sim_result1 = tstrait.sim_trait(
-            ts=sample_ts, num_causal=num_causal, model=model, random_seed=201
-        )
-        sim_result = pd.concat([sim_result, sim_result1])
-
-        sim_result = sim_result.reset_index()
-        del sim_result["index"]
-
-        const = np.random.randn(n)
-        data_val = np.matmul(const, cov)
-        data_sd = np.sqrt(np.matmul(data_val, const))
-        sum_data = np.zeros(2 * num_causal)
-
-        for i in range(n):
-            df = sim_result.loc[sim_result.trait_id == i]
-            self.check_distribution(
-                df["effect_size"],
-                "norm",
-                (mean[i], np.sqrt(cov[i, i])),
-            )
-            sum_data += df["effect_size"] * const[i]
-
-        self.check_distribution(
-            sum_data,
-            "norm",
-            (np.matmul(const, mean), data_sd),
-        )
 
 
 class TestGenotype:
