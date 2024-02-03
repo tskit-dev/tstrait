@@ -38,6 +38,14 @@ This page provides a detailed explanation of all public tstrait objects and func
    TraitModelMultivariateNormal
 ```
 
+### Postprocessing functions
+
+```{eval-rst}
+.. autosummary::
+
+   normalise_phenotypes
+```
+
 ### Result data classes
 
 ```{eval-rst}
@@ -98,6 +106,12 @@ This page provides a detailed explanation of all public tstrait objects and func
 
 ```{eval-rst}
 .. autoclass:: tstrait.TraitModelMultivariateNormal
+```
+
+### Postprocessing functions
+
+```{eval-rst}
+.. autofunction:: tstrait.normalise_phenotypes
 ```
 
 ### Result data classes

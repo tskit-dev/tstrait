@@ -148,3 +148,41 @@ plt.show()
 The environmental noise in tstrait follows a normal distribution. Please see [](phenotype_model)
 for mathematical details on the phenotype model and [](effect_size_dist) for details on
 specifying the effect size distribution.
+
+(normalise_phenotype)=
+
+## Normalise Phenotype
+
+The simulated phenotypes can be scaled by using the {func}`normalise_phenotypes` function. The function
+will first normalise the phenotype by subtrating the mean of the input phenotype from each
+value and divide it by the standard devitation of the input phenotype.
+Afterwards, it scales the normalised phenotype based on the mean and variance input.
+The output of {func}`normalise_phenotype` is a {class}`pandas.DataFrame` object with the scaled phenotypes.
+
+An example usage of this function is shown below:
+
+```{code-cell}
+
+mean = 0
+var = 1
+normalised_df = tstrait.normalise_phenotypes(phenotype_df, mean=mean, var=var)
+normalised_df.head()
+```
+
+We see that the mean and variance of the normalised phenotype are 0 and 1, as we have indicated them
+as inputs of {func}`normalise_phenotypes`.
+
+```{code-cell}
+
+print("Mean of the normalised phenotype:", mean)
+print("Variance of the normalised phenotype:", var)
+```
+
+The distribution of the normalised phenotype is shown below.
+
+```{code-cell}
+
+plt.hist(normalised_df["phenotype"], bins=40)
+plt.title("Normalised Phenotype")
+plt.show()
+```
