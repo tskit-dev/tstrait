@@ -13,6 +13,7 @@ from .simulate_effect_size import (
 from .simulate_phenotype import (
     PhenotypeResult,
     sim_phenotype,
+    normalise_phenotypes,
 )  # noreorder
 from .trait_model import (
     trait_model,
@@ -34,6 +35,7 @@ from .simulate_environment import (
 __all__ = [
     "__version__",
     "sim_trait",
+    "normalise_phenotypes",
     "PhenotypeResult",
     "sim_phenotype",
     "trait_model",

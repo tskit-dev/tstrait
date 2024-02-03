@@ -7,7 +7,7 @@ import tstrait
 
 @pytest.fixture(scope="class")
 def sample_ts():
-    ts = msprime.sim_ancestry(10, sequence_length=100_000, random_seed=1)
+    ts = msprime.sim_ancestry(1000, sequence_length=100_000, random_seed=1)
     ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
     return ts
 
@@ -221,3 +221,110 @@ class TestModel:
 
         pd.testing.assert_frame_equal(result.trait, trait_df)
         pd.testing.assert_frame_equal(result.phenotype, phenotype_df)
+
+
+class TestNormalise:
+    def test_output(self, sample_ts):
+        mean = 2
+        var = 4
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        sim_result = tstrait.sim_phenotype(
+            ts=sample_ts, num_causal=100, model=model, h2=0.3, random_seed=1
+        )
+        phenotype_df = sim_result.phenotype
+        normalised_df = tstrait.normalise_phenotypes(phenotype_df, mean=mean, var=var)
+        phenotype_array = normalised_df["phenotype"].values
+        np.testing.assert_almost_equal(np.mean(phenotype_array), mean, decimal=2)
+        np.testing.assert_almost_equal(np.var(phenotype_array), var, decimal=2)
+        pd.testing.assert_series_equal(
+            normalised_df["trait_id"], phenotype_df["trait_id"]
+        )
+        pd.testing.assert_series_equal(
+            normalised_df["individual_id"], phenotype_df["individual_id"]
+        )
+
+        num_ind = sample_ts.num_individuals
+        assert len(normalised_df) == num_ind
+        assert normalised_df.shape[1] == 3
+        assert list(normalised_df.columns) == [
+            "individual_id",
+            "trait_id",
+            "phenotype",
+        ]
+
+    def test_default(self, sample_ts):
+        mean = 0
+        var = 1
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        sim_result = tstrait.sim_phenotype(
+            ts=sample_ts, num_causal=100, model=model, h2=0.3, random_seed=1
+        )
+        phenotype_df = sim_result.phenotype
+        normalised_df = tstrait.normalise_phenotypes(phenotype_df)
+        phenotype_array = normalised_df["phenotype"].values
+        np.testing.assert_almost_equal(np.mean(phenotype_array), mean, decimal=2)
+        np.testing.assert_almost_equal(np.var(phenotype_array), var, decimal=2)
+        pd.testing.assert_series_equal(
+            normalised_df["trait_id"], phenotype_df["trait_id"]
+        )
+        pd.testing.assert_series_equal(
+            normalised_df["individual_id"], phenotype_df["individual_id"]
+        )
+
+        num_ind = sample_ts.num_individuals
+        assert len(normalised_df) == num_ind
+        assert normalised_df.shape[1] == 3
+        assert list(normalised_df.columns) == [
+            "individual_id",
+            "trait_id",
+            "phenotype",
+        ]
+
+    def test_column(self, sample_ts):
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        sim_result = tstrait.sim_phenotype(
+            ts=sample_ts, num_causal=100, model=model, h2=0.3, random_seed=1
+        )
+        phenotype_df = sim_result.phenotype
+        with pytest.raises(
+            ValueError, match="columns must be included in phenotype_df dataframe"
+        ):
+            tstrait.normalise_phenotypes(phenotype_df[["trait_id", "individual_id"]])
+
+        with pytest.raises(
+            ValueError, match="columns must be included in phenotype_df dataframe"
+        ):
+            tstrait.normalise_phenotypes(phenotype_df[["trait_id", "phenotype"]])
+
+        with pytest.raises(
+            ValueError, match="columns must be included in phenotype_df dataframe"
+        ):
+            tstrait.normalise_phenotypes(phenotype_df[["phenotype", "individual_id"]])
+
+    @pytest.mark.parametrize("var", [0, -1])
+    def test_negative_var(self, sample_ts, var):
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        sim_result = tstrait.sim_phenotype(
+            ts=sample_ts, num_causal=100, model=model, h2=0.3, random_seed=1
+        )
+        phenotype_df = sim_result.phenotype
+
+        with pytest.raises(ValueError, match="Variance must be greater than 0."):
+            tstrait.normalise_phenotypes(phenotype_df, var=var)
+
+    def test_pleiotropy(self, sample_ts):
+        mean = 0
+        var = 1
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=np.zeros(2), cov=np.identity(2)
+        )
+        sim_result = tstrait.sim_phenotype(
+            ts=sample_ts, num_causal=100, model=model, h2=0.3, random_seed=1
+        )
+        phenotype_df = sim_result.phenotype
+        normalised_df = tstrait.normalise_phenotypes(phenotype_df, mean=mean, var=var)
+        grouped = normalised_df.groupby(["trait_id"])[["phenotype"]]
+        mean_array = grouped.mean().values.T[0]
+        var_array = grouped.var().values.T[0]
+        np.testing.assert_almost_equal(mean_array, np.zeros(2), decimal=2)
+        np.testing.assert_almost_equal(var_array, np.ones(2), decimal=2)
