@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 import tstrait
+
+from .base import _check_dataframe
 
 
 @dataclass
@@ -133,3 +136,56 @@ def sim_phenotype(
     result = tstrait.PhenotypeResult(trait=trait_df, phenotype=phenotype_df)
 
     return result
+
+
+def normalise_phenotypes(phenotype_df, mean=0, var=1):
+    """Normalise phenotype dataframe.
+
+    Parameters
+    ----------
+    phenotype_df : pandas.DataFrame
+        Phenotype dataframe.
+    mean : float, default 0
+        Mean of the resulting phenotype.
+    var : float, default 1
+        Variance of the resulting phenotype.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with normalised phenotype.
+
+    Raises
+    ------
+    ValueError
+        If `var` <= 0.
+
+    Notes
+    -----
+    The following columns must be included in `phenotype_df`:
+
+        * **trait_id**: Trait ID.
+        * **individual_id**: Individual ID.
+        * **phenotype**: Simulated phenotypes.
+
+    The dataframe output has the following columns:
+
+        * **trait_id**: Trait ID inside the phenotype_df input.
+        * **individual_id**: Individual ID inside the phenotype_df input.
+        * **phenotype**: Normalised phenotype.
+
+    Examples
+    --------
+    See :ref:`normalise_phenotype` section for worked examples.
+    """
+    if var <= 0:
+        raise ValueError("Variance must be greater than 0.")
+    phenotype_df = _check_dataframe(
+        phenotype_df, ["individual_id", "trait_id", "phenotype"], "phenotype_df"
+    )
+    grouped = phenotype_df.groupby("trait_id")[["phenotype"]]
+    transformed_phenotype = grouped.transform(lambda x: (x - x.mean()) / x.std())
+    transformed_phenotype = transformed_phenotype * np.sqrt(var) + mean
+    phenotype_df.loc[:, "phenotype"] = transformed_phenotype
+
+    return phenotype_df
