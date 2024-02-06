@@ -42,8 +42,10 @@ y = X\beta+\epsilon,
 ```
 
 where $X$ is the matrix that describes the number of causal alleles in each individual, $\beta$
-is the vector of effect sizes, and $\epsilon$ is the vector of environmental noise. Environmental
-noise is simulated from the following distribution,
+is the vector of effect sizes, and $\epsilon$ is the vector of environmental noise.
+By default, the genotypes are numericalised as $(AA=1, Aa=0, aa=-1)$, where $A$ denotes the
+causal allele, and it can also be numericalised as $(AA=2, Aa=1, aa=0)$ by modifying the
+`centre` input. Environmental noise is simulated from the following distribution,
 
 ```{math}
 \epsilon\sim N\left(0,V_G\cdot\frac{1-h^2}{h^2} \right),

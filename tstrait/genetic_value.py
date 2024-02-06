@@ -16,6 +16,7 @@ def _traversal_genetic_value(
     num_individuals,
     num_nodes,
     effect_size,
+    centre,
 ):  # pragma: no cover
     """
     Numba to speed up the tree traversal algorithm to determine the genotype of
@@ -23,7 +24,10 @@ def _traversal_genetic_value(
     Stack has to be Typed List in numba to use numba.
     """
 
-    genetic_value = np.zeros(num_individuals)
+    if centre is True:
+        genetic_value = np.ones(num_individuals) * (-effect_size)
+    else:
+        genetic_value = np.zeros(num_individuals)
     while len(stack) > 0:
         parent_node_id = stack.pop()
         if parent_node_id == num_nodes:
@@ -51,15 +55,18 @@ class _GeneticValue:
     trait_df : pandas.DataFrame
         Dataframe that includes causal site ID, causal allele, simulated effect
         size, and trait ID.
-    alpha : float
-        Parameter that determines the relative weight on rarer variants.
+    centre : bool, default None
+        Parameter used for determining the numericalisation of effect sizes.
+        The options are: None or True (AA=1, Aa=0, aa=-1), and False
+        (AA=2, Aa=1, aa=0).
     """
 
-    def __init__(self, ts, trait_df):
+    def __init__(self, ts, trait_df, centre):
         self.trait_df = trait_df[
             ["site_id", "effect_size", "trait_id", "causal_allele"]
         ]
         self.ts = ts
+        self.centre = centre
 
     def _individual_genetic_values(self, tree, site, causal_allele, effect_size):
         """
@@ -88,6 +95,7 @@ class _GeneticValue:
                 num_individuals=self.ts.num_individuals,
                 num_nodes=self.ts.num_nodes,
                 effect_size=effect_size,
+                centre=self.centre,
             )
 
         return genetic_value
@@ -128,7 +136,7 @@ class _GeneticValue:
         return df
 
 
-def genetic_value(ts, trait_df):
+def genetic_value(ts, trait_df, centre=None):
     """
     Obtains genetic value from a trait dataframe.
 
@@ -139,6 +147,10 @@ def genetic_value(ts, trait_df):
         simulation.
     trait_df : pandas.DataFrame
         Trait dataframe.
+    centre : bool, default None
+        Parameter used for determining the numericalisation of effect sizes.
+        The options are: None or True (AA=1, Aa=0, aa=-1), and False
+        (AA=2, Aa=1, aa=0).
 
     Returns
     -------
@@ -192,13 +204,16 @@ def genetic_value(ts, trait_df):
         trait_df, ["site_id", "effect_size", "trait_id", "causal_allele"], "trait_df"
     )
     _check_non_decreasing(trait_df["site_id"], "site_id")
+    if centre is None:
+        centre = True
+    centre = _check_instance(centre, "centre", bool)
 
     trait_id = trait_df["trait_id"].unique()
 
     if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
         raise ValueError("trait_id must be consecutive and start from 0")
 
-    genetic = _GeneticValue(ts=ts, trait_df=trait_df)
+    genetic = _GeneticValue(ts=ts, trait_df=trait_df, centre=centre)
 
     genetic_result = genetic._run()
 

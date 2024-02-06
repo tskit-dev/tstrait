@@ -38,11 +38,6 @@ def sample_df():
     return df
 
 
-@pytest.fixture(scope="class")
-def sample_trait_model():
-    return tstrait.trait_model(distribution="normal", mean=0, var=1)
-
-
 class TestInput:
     """This test will check that an informative error is raised when the input parameter
     does not have an appropriate type or value.
@@ -93,6 +88,13 @@ class TestInput:
             ValueError, match="No individuals in the provided tree sequence dataset"
         ):
             tstrait.genetic_value(ts=ts, trait_df=df)
+
+    def test_centre(self, sample_ts, sample_df):
+        with pytest.raises(
+            TypeError,
+            match="centre must be a <class 'bool'> instance",
+        ):
+            tstrait.genetic_value(ts=sample_ts, trait_df=sample_df, centre="centre")
 
 
 class TestOutputDim:
@@ -166,6 +168,18 @@ class TestOutputDim:
         df["height"] = [170, 180]
         tstrait.genetic_value(ts=sample_ts, trait_df=df)
 
+    def test_default_centre(self, sample_ts, sample_df):
+        """
+        Check that the default centre is True
+        """
+        genetic_df_default = tstrait.genetic_value(ts=sample_ts, trait_df=sample_df)
+        genetic_df_True = tstrait.genetic_value(
+            ts=sample_ts, trait_df=sample_df, centre=True
+        )
+        pd.testing.assert_frame_equal(
+            genetic_df_default, genetic_df_True, check_dtype=False
+        )
+
 
 class TestGenotype:
     """Test the `_individual_genetic_values` and `_obtain_allele_count` method and
@@ -173,7 +187,8 @@ class TestGenotype:
     check the output of `genetic_value`.
     """
 
-    def test_binary_tree(self):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_binary_tree(self, centre):
         trait_df = pd.DataFrame(
             {
                 "site_id": [0, 2, 3],
@@ -182,33 +197,32 @@ class TestGenotype:
                 "causal_allele": ["T", "C", "T"],
             }
         )
-
         ts = binary_tree()
         tree = ts.first()
-        genetic = _GeneticValue(ts, trait_df)
+        genetic = _GeneticValue(ts, trait_df, centre=centre)
         g0 = genetic._individual_genetic_values(tree, ts.site(0), "T", 1)
         g1 = genetic._individual_genetic_values(tree, ts.site(1), "T", 2)
         g2 = genetic._individual_genetic_values(tree, ts.site(2), "C", 3)
         g3 = genetic._individual_genetic_values(tree, ts.site(3), "C", 4)
 
-        np.testing.assert_equal(g0, np.array([1, 0, 2]) * 1)
-        np.testing.assert_equal(g1, np.array([1, 1, 0]) * 2)
-        np.testing.assert_equal(g2, np.array([0, 1, 0]) * 3)
-        np.testing.assert_equal(g3, np.array([1, 2, 0]) * 4)
-
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        np.testing.assert_equal(g0, np.array([1, 0, 2] - np.ones(3) * centre) * 1)
+        np.testing.assert_equal(g1, np.array([1, 1, 0] - np.ones(3) * centre) * 2)
+        np.testing.assert_equal(g2, np.array([0, 1, 0] - np.ones(3) * centre) * 3)
+        np.testing.assert_equal(g3, np.array([1, 2, 0] - np.ones(3) * centre) * 4)
 
         genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 0],
                 "individual_id": [0, 1, 2],
-                "genetic_value": [101, 10, 202],
+                "genetic_value": ([101, 10, 202] - np.array([111, 111, 111]) * centre),
             }
         )
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
 
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
 
-    def test_diff_ind_tree(self):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_diff_ind_tree(self, centre):
         trait_df = pd.DataFrame(
             {
                 "site_id": [0, 2],
@@ -217,32 +231,32 @@ class TestGenotype:
                 "causal_allele": ["T", "C"],
             }
         )
-
         ts = diff_ind_tree()
         tree = ts.first()
-        genetic = _GeneticValue(ts, trait_df)
+        genetic = _GeneticValue(ts, trait_df, centre=centre)
         g0 = genetic._individual_genetic_values(tree, ts.site(0), "T", 1)
         g1 = genetic._individual_genetic_values(tree, ts.site(1), "T", 2)
         g2 = genetic._individual_genetic_values(tree, ts.site(2), "C", 3)
         g3 = genetic._individual_genetic_values(tree, ts.site(3), "C", 4)
 
-        np.testing.assert_equal(g0, np.array([1, 1, 1]) * 1)
-        np.testing.assert_equal(g1, np.array([1, 0, 1]) * 2)
-        np.testing.assert_equal(g2, np.array([0, 1, 0]) * 3)
-        np.testing.assert_equal(g3, np.array([1, 1, 1]) * 4)
+        np.testing.assert_equal(g0, np.array([1, 1, 1] - np.ones(3) * centre))
+        np.testing.assert_equal(g1, np.array([1, 0, 1] - np.ones(3) * centre) * 2)
+        np.testing.assert_equal(g2, np.array([0, 1, 0] - np.ones(3) * centre) * 3)
+        np.testing.assert_equal(g3, np.array([1, 1, 1] - np.ones(3) * centre) * 4)
 
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
         genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 0],
                 "individual_id": [0, 1, 2],
-                "genetic_value": [1, 11, 1],
+                "genetic_value": [1, 11, 1] - np.array([11, 11, 11]) * centre,
             }
         )
 
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
 
-    def test_non_binary_tree(self):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_non_binary_tree(self, centre):
         trait_df = pd.DataFrame(
             {
                 "site_id": [0, 1],
@@ -254,26 +268,28 @@ class TestGenotype:
 
         ts = non_binary_tree()
         tree = ts.first()
-        genetic = _GeneticValue(ts, trait_df)
+
+        genetic = _GeneticValue(ts, trait_df, centre=centre)
         g0 = genetic._individual_genetic_values(tree, ts.site(0), "T", 1)
         g1 = genetic._individual_genetic_values(tree, ts.site(1), "C", 2)
 
-        np.testing.assert_equal(g0, np.array([0, 1, 2]) * 1)
-        np.testing.assert_equal(g1, np.array([0, 1, 1]) * 2)
+        np.testing.assert_equal(g0, np.array([0, 1, 2] - np.ones(3) * centre) * 1)
+        np.testing.assert_equal(g1, np.array([0, 1, 1] - np.ones(3) * centre) * 2)
 
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
 
         genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 0],
                 "individual_id": [0, 1, 2],
-                "genetic_value": [2, 1, 10],
+                "genetic_value": [2, 1, 10] - np.array([11, 11, 11]) * centre,
             }
         )
 
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
 
-    def test_triploid(self, sample_df):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_triploid(self, sample_df, centre):
         trait_df = pd.DataFrame(
             {
                 "site_id": [0, 1],
@@ -285,24 +301,25 @@ class TestGenotype:
 
         ts = triploid_tree()
         tree = ts.first()
-        genetic = _GeneticValue(ts, sample_df)
+        genetic = _GeneticValue(ts, sample_df, centre=centre)
         g0 = genetic._individual_genetic_values(tree, ts.site(0), "T", 1)
         g1 = genetic._individual_genetic_values(tree, ts.site(1), "C", 2)
 
-        np.testing.assert_equal(g0, np.array([1, 2]) * 1)
-        np.testing.assert_equal(g1, np.array([1, 1]) * 2)
+        np.testing.assert_equal(g0, np.array([1, 2] - np.ones(2) * centre) * 1)
+        np.testing.assert_equal(g1, np.array([1, 1] - np.ones(2) * centre) * 2)
 
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
         genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0],
                 "individual_id": [0, 1],
-                "genetic_value": [11, 12],
+                "genetic_value": [11, 12] - np.array([11, 11]) * centre,
             }
         )
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
 
-    def test_allele_freq_one(self):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_allele_freq_one(self, centre):
         ts = binary_tree()
         tables = ts.dump_tables()
         tables.sites.add_row(4, "A")
@@ -317,12 +334,12 @@ class TestGenotype:
                 "causal_allele": ["A"],
             }
         )
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
         genetic_df = pd.DataFrame(
             {
                 "trait_id": np.zeros(3),
                 "individual_id": np.arange(3),
-                "genetic_value": np.ones(3) * 2,
+                "genetic_value": np.ones(3) * 2 - np.ones(3) * centre,
             }
         )
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
@@ -331,7 +348,8 @@ class TestGenotype:
 class TestTreeSeq:
     """Test the `genetic_value` function by using a tree sequence data."""
 
-    def test_tree_seq(self):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_tree_seq(self, centre):
         ts = binary_tree_seq()
         trait_df = pd.DataFrame(
             {
@@ -341,20 +359,20 @@ class TestTreeSeq:
                 "trait_id": [0, 0, 0],
             }
         )
-
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
 
         genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0],
                 "individual_id": [0, 1],
-                "genetic_value": [1, 22],
+                "genetic_value": [1, 22] - np.array([11, 11]) * centre,
             }
         )
 
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
 
-    def test_tree_seq_multiple_trait(self):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_tree_seq_multiple_trait(self, centre):
         ts = binary_tree_seq()
         trait_df = pd.DataFrame(
             {
@@ -365,13 +383,13 @@ class TestTreeSeq:
             }
         )
 
-        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+        genetic_result = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
 
         genetic_df = pd.DataFrame(
             {
                 "trait_id": [0, 0, 1, 1],
                 "individual_id": [0, 1, 0, 1],
-                "genetic_value": [11, 12, 22, 24],
+                "genetic_value": [11, 12, 22, 24] - np.array([11, 11, 22, 22]) * centre,
             }
         )
 

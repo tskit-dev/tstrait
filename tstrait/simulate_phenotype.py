@@ -42,6 +42,7 @@ def sim_phenotype(
     causal_sites=None,
     alpha=None,
     h2=None,
+    centre=None,
     random_seed=None
 ):
     """
@@ -64,6 +65,10 @@ def sim_phenotype(
         Narrow-sense heritability. When it is 1, environmental noise will be a vector of
         zeros. If `h2` is array-like, the dimension of `h2` must match the number of
         traits to be simulated. If None, h2 will be 1.
+    centre : bool, default None
+        Parameter used for determining the numericalisation of effect sizes.
+        The options are: None or True (AA=1, Aa=0, aa=-1), and False
+        (AA=2, Aa=1, aa=0).
     random_seed : int, default None
         Random seed of simulation. If None, simulation will be conducted randomly.
 
@@ -128,7 +133,7 @@ def sim_phenotype(
         alpha=alpha,
         random_seed=random_seed,
     )
-    genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+    genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df, centre=centre)
     phenotype_df = tstrait.sim_env(
         genetic_df=genetic_df, h2=h2, random_seed=random_seed
     )

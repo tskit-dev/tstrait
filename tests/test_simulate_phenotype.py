@@ -92,6 +92,19 @@ class TestInput:
                 ts=sample_ts, causal_sites=[1, 5, 1], model=sample_trait_model, h2=-0.1
             )
 
+    def test_bad_centre_input(self, sample_ts, sample_trait_model):
+        with pytest.raises(
+            TypeError,
+            match="centre must be a <class 'bool'> instance",
+        ):
+            tstrait.sim_phenotype(
+                ts=sample_ts,
+                model=sample_trait_model,
+                centre="centre",
+                h2=0.3,
+                num_causal=5,
+            )
+
 
 class TestModel:
     @pytest.mark.parametrize(
@@ -104,7 +117,8 @@ class TestModel:
             tstrait.trait_model(distribution="gamma", shape=1, scale=1),
         ],
     )
-    def test_output(self, sample_ts, trait_model):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_output(self, sample_ts, trait_model, centre):
         num_causal = 10
         h2 = 0.3
         alpha = -0.3
@@ -116,6 +130,7 @@ class TestModel:
             h2=h2,
             alpha=alpha,
             random_seed=random_seed,
+            centre=centre,
         )
         trait_df = tstrait.sim_trait(
             ts=sample_ts,
@@ -124,7 +139,9 @@ class TestModel:
             alpha=alpha,
             random_seed=random_seed,
         )
-        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
+        genetic_df = tstrait.genetic_value(
+            ts=sample_ts, trait_df=trait_df, centre=centre
+        )
         phenotype_df = tstrait.sim_env(
             genetic_df=genetic_df, h2=h2, random_seed=random_seed
         )
@@ -132,7 +149,8 @@ class TestModel:
         pd.testing.assert_frame_equal(result.trait, trait_df)
         pd.testing.assert_frame_equal(result.phenotype, phenotype_df)
 
-    def test_multivariate(self, sample_ts):
+    @pytest.mark.parametrize("centre", [True, False])
+    def test_multivariate(self, sample_ts, centre):
         num_causal = 10
         h2 = [0.1, 0.8]
         alpha = -0.3
@@ -147,6 +165,7 @@ class TestModel:
             h2=h2,
             alpha=alpha,
             random_seed=random_seed,
+            centre=centre,
         )
         trait_df = tstrait.sim_trait(
             ts=sample_ts,
@@ -155,7 +174,9 @@ class TestModel:
             alpha=alpha,
             random_seed=random_seed,
         )
-        genetic_df = tstrait.genetic_value(ts=sample_ts, trait_df=trait_df)
+        genetic_df = tstrait.genetic_value(
+            ts=sample_ts, trait_df=trait_df, centre=centre
+        )
         phenotype_df = tstrait.sim_env(
             genetic_df=genetic_df, h2=h2, random_seed=random_seed
         )
