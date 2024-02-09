@@ -138,7 +138,7 @@ def sim_phenotype(
     return result
 
 
-def normalise_phenotypes(phenotype_df, mean=0, var=1):
+def normalise_phenotypes(phenotype_df, mean=0, var=1, ddof=1):
     """Normalise phenotype dataframe.
 
     Parameters
@@ -149,6 +149,9 @@ def normalise_phenotypes(phenotype_df, mean=0, var=1):
         Mean of the resulting phenotype.
     var : float, default 1
         Variance of the resulting phenotype.
+    ddof : int, default 1
+        Delta degrees of freedom. The divisor used in computing the variance
+        is N - ddof, where N represents the number of elements.
 
     Returns
     -------
@@ -184,7 +187,9 @@ def normalise_phenotypes(phenotype_df, mean=0, var=1):
         phenotype_df, ["individual_id", "trait_id", "phenotype"], "phenotype_df"
     )
     grouped = phenotype_df.groupby("trait_id")[["phenotype"]]
-    transformed_phenotype = grouped.transform(lambda x: (x - x.mean()) / x.std())
+    transformed_phenotype = grouped.transform(
+        lambda x: (x - x.mean()) / x.std(ddof=ddof)
+    )
     transformed_phenotype = transformed_phenotype * np.sqrt(var) + mean
     phenotype_df.loc[:, "phenotype"] = transformed_phenotype
 
