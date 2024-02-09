@@ -312,6 +312,27 @@ class TestNormalise:
         with pytest.raises(ValueError, match="Variance must be greater than 0."):
             tstrait.normalise_phenotypes(phenotype_df, var=var)
 
+    @pytest.mark.parametrize("ddof", [0, 1])
+    def test_ddof(self, sample_ts, ddof):
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        sim_result = tstrait.sim_phenotype(
+            ts=sample_ts, num_causal=100, model=model, h2=0.3, random_seed=1
+        )
+        phenotype_df = sim_result.phenotype
+        normalised_df = tstrait.normalise_phenotypes(
+            phenotype_df, mean=0, var=1, ddof=ddof
+        )
+        normalised_phenotype_array = normalised_df["phenotype"].values
+
+        phenotype_array = phenotype_df["phenotype"].values
+        phenotype_array = (phenotype_array - np.mean(phenotype_array)) / np.std(
+            phenotype_array, ddof=ddof
+        )
+
+        np.testing.assert_array_almost_equal(
+            normalised_phenotype_array, phenotype_array
+        )
+
     def test_pleiotropy(self, sample_ts):
         mean = 0
         var = 1
