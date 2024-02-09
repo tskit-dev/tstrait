@@ -41,7 +41,8 @@ tstrait simulates a vector of quantitative trait $y$ from the following additive
 y = X\beta+\epsilon,
 ```
 
-where $X$ is the matrix that describes the number of causal alleles in each individual, $\beta$
+where $X$ is the matrix that describes the number of causal alleles in each individual (the values
+in each row will be $0$, $1$, or $2$ in the diploid setting, for example), $\beta$
 is the vector of effect sizes, and $\epsilon$ is the vector of environmental noise. Environmental
 noise is simulated from the following distribution,
 
@@ -58,6 +59,7 @@ regardless of ploidy.
 :::{seealso}
 - [](genetic_value_doc) for obtaining the genetic value $X\beta$.
 - [](environment_noise) for simulating environmental noise $\epsilon$.
+- [](numericalise_genotype) for modifying the numericalisation of genotypes.
 :::
 
 In this documentation, we will be describing how to simulate effect sizes in tstrait.

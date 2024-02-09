@@ -191,3 +191,58 @@ code before inputting it inside the {py:func}`genetic_value` function.
 genetic_df = tstrait.genetic_value(ts, trait_df)
 genetic_df.head()
 ```
+
+(numericalise_genotype)=
+
+# Numericalisation of Genotypes
+
+The genotypes are numericalised as the number of causal alleles in each
+individual (Please see [](phenotype_model) for mathematical details on the phenotype
+model), but it would be possible to change the numericalisation by modifying the
+genetic value dataframe based on the effect size dataframe. For example, in the
+diploid setting, if you are interested in simulating phenotypes from the genotype
+$(aa=-1, Aa=0, AA=1)$, where $A$ is the causal allele, we can simply subtract the
+sum of effect sizes from the genetic value.
+
+In the following, we will provide a quick example on how genetic values are being computed
+based on the mutation information and effect sizes. We will assume that the `A` allele
+represents the causal allele in site 1 and the `B` allele represents the causal allele in
+site 2. The effect sizes will be encoded as $\beta_1$ and $\beta_2$ for sites 1 and 2,
+respectively. The genotype and genetic value of individuals based on the tstrait's
+numericalisation of genotypes $(aa=0, Aa=1, AA=2)$ are shown in the table below:
+
+| **Individual ID** | **Site 1** | **Site 2** | **Genetic Value**  |
+|-------------------|------------|------------|--------------------|
+| 1                 | Aa         | BB         | $\beta_1+2\beta_2$ |
+| 2                 | aa         | Bb         | $\beta_2$          |
+
+If we modify the numericalisation of genotypes to be $(aa=-1, Aa=0, AA=1)$, we get the following:
+
+| **Individual ID** | **Site 1** | **Site 2** | **Genetic Value**  |
+|-------------------|------------|------------|--------------------|
+| 1                 | Aa         | BB         | $\beta_2$ |
+| 2                 | aa         | Bb         | $-\beta_1$          |
+
+When we compare these outputs, we see that the genetic value of individuals in the new encoding
+$(aa=-1, Aa=0, AA=1)$ is obtained by subtracting the sum of effect sizes $(\beta_1+\beta_2)$
+from the original genetic value.
+
+This can be done in the following example:
+
+```{code-cell}
+
+trait_df = tstrait.sim_trait(ts, num_causal=3, model=model, random_seed=5)
+genetic_df = tstrait.genetic_value(ts, trait_df)
+
+# The original dataframe
+genetic_df.head()
+```
+
+```{code-cell}
+
+genetic_df["genetic_value"] = genetic_df["genetic_value"] - trait_df["effect_size"].sum()
+# New dataframe
+genetic_df.head()
+```
+
+The new genetic value dataframe can be used in {py:func}`sim_env` to simulate phenotypes.
