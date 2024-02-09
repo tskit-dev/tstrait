@@ -198,6 +198,8 @@ def genetic_value(ts, trait_df):
     if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
         raise ValueError("trait_id must be consecutive and start from 0")
 
+    trait_df = trait_df.astype({"trait_id": int})
+
     genetic = _GeneticValue(ts=ts, trait_df=trait_df)
 
     genetic_result = genetic._run()
