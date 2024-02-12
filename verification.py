@@ -71,6 +71,13 @@ class Test:
         pyplot.savefig(f, dpi=72)
         pyplot.close("all")
 
+        sns.kdeplot(data1, color="b", fill=True, legend=False, label=data1_name)
+        sns.kdeplot(data2, color="r", fill=True, legend=False, label=data2_name)
+        pyplot.legend()
+        f = self._build_filename(data1_name, data2_name, "density_histogram")
+        pyplot.savefig(f, dpi=72)
+        pyplot.close("all")
+
 
 def model_list(loc, scale):
     df = 10
