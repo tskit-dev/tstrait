@@ -7,6 +7,7 @@ see its documentation for usage.
 
 """
 import argparse
+import concurrent.futures
 import inspect
 import logging
 import pathlib
@@ -444,10 +445,34 @@ class TestRunner:
             test.run(basedir)
             progress.update()
 
-    def run(self, tests, basedir, show_progress):
+    def __run_parallel(self, tests, basedir, num_threads, progress):
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=num_threads
+        ) as executor:
+            futures = [executor.submit(test.run, basedir) for test in tests]
+            exception = None
+            for future in concurrent.futures.as_completed(futures):
+                exception = future.exception()
+                if exception is not None:
+                    # At least tell the user that we've had an exception.
+                    # Other stuff will still keep going, though.
+                    logging.error("EXCEPTION:%s", exception)
+                    break
+                progress.update()
+            if exception is not None:
+                # Try to clear out as much work as we can, but it'll still run a
+                # lot of stuff before we finish
+                for future in futures:
+                    future.cancel()
+                raise exception
+
+    def run(self, tests, basedir, num_threads, show_progress):
         progress = tqdm.tqdm(total=len(tests), disable=not show_progress)
-        logging.info(f"running {len(tests)} tests")
-        self.__run_sequential(tests, basedir, progress)
+        logging.info(f"running {len(tests)} tests using {num_threads} processes")
+        if num_threads <= 1:
+            self.__run_sequential(tests, basedir, progress)
+        else:
+            self.__run_parallel(tests, basedir, num_threads, progress)
         progress.close()
 
 
@@ -476,7 +501,7 @@ def run_tests(suite, args):
     else:
         tests = suite.get_tests()
 
-    runner.run(tests, args.output_dir, not args.no_progress)
+    runner.run(tests, args.output_dir, args.num_threads, not args.no_progress)
 
 
 def make_suite():
@@ -527,6 +552,9 @@ def main():
     )
     parser.add_argument(
         "--list", "-l", action="store_true", help="List available checks and exit"
+    )
+    parser.add_argument(
+        "--num-threads", "-t", type=int, default=1, help="Specify number of threads"
     )
     args = parser.parse_args()
     if args.list:
