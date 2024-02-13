@@ -11,14 +11,18 @@ import concurrent.futures
 import inspect
 import logging
 import pathlib
+import subprocess
 import sys
+import tempfile
 from collections import namedtuple
+from dataclasses import dataclass
 
 import attr
 import daiquiri
 import matplotlib
 import msprime
 import numpy as np
+import pandas as pd
 import scipy
 import seaborn as sns
 import tqdm
@@ -78,6 +82,302 @@ class Test:
         f = self._build_filename(data1_name, data2_name, "density_histogram")
         pyplot.savefig(f, dpi=72)
         pyplot.close("all")
+
+
+@dataclass
+class SimulationResult:
+    """
+    Dataclass that contains simulated effect sizes and phenotypes.
+
+    Attributes
+    ----------
+    trait : pandas.DataFrame
+        Trait dataframe.
+    phenotype : pandas.DataFrame
+        Phenotype dataframe.
+    """
+
+    phenotype: pd.DataFrame
+    trait: pd.DataFrame
+
+
+class ExactTest(Test):
+    """
+    Compare tstrait against simplePHENOTYPES, AlphaSimR and the simulation framework
+    in ARG-Needle paper. For all benchmarking, we simulate a genetic data of 100
+    individuals with 100 kb sequence length and mutations are simulated from an
+    infinite-sites model.
+
+    We assume that the following in all quantitative trait simulation:
+    - Narrow-sense heritability is 1 to compare the simulated genetic values.
+    - Genetic effect sizes are simulated from an external simulator and they are used to
+    simulate quantitative traits in tstrait.
+    """
+
+    def _simulate_simplePHENOTYPE(
+        self, ts, num_causal, add_effect, random_seed, num_trait=1, add_effect_2=1
+    ):
+        """
+        The function to simulate quantitative traits by using simplePHENOTYPES.
+        We will specify the number of causal sites and the parameter for the
+        geometric series where the effect sizes are determined.
+        """
+
+        directory = tempfile.TemporaryDirectory()
+
+        vcf_filename = "vcf_comparison_simplePHENOTYPES"
+        with open(f"{directory.name}/{vcf_filename}.vcf", "w") as vcf_file:
+            ts.write_vcf(vcf_file)
+        cmd = ["Rscript", "data/simulate_simplePHENOTYPES.R"]
+        args = [
+            str(num_causal),
+            str(num_trait),
+            str(add_effect),
+            str(add_effect_2),
+            directory.name,
+            vcf_filename,
+            str(random_seed),
+        ]
+        input_cmd = cmd + args
+        subprocess.check_output(input_cmd)
+
+        if num_trait == 1:
+            phenotype_df = pd.read_csv(
+                f"{directory.name}/Simulated_Data_1_Reps_Herit_1.txt", sep="\t"
+            )
+            del phenotype_df["reps"]
+            phenotype_df = phenotype_df.rename(
+                columns={"<Trait>": "individual_id", "Pheno": "phenotype"}
+            )
+        else:
+            phenotype_df = pd.read_csv(
+                f"{directory.name}/Simulated_Data_1_Reps_Herit_1_1.txt", sep="\t"
+            )
+            del phenotype_df["Rep"]
+            phenotype_df = pd.melt(
+                phenotype_df,
+                value_vars=["Trait_1_H2_1", "Trait_2_H2_1"],
+                id_vars=["<Trait>"],
+            )
+            phenotype_df = phenotype_df.rename(
+                columns={
+                    "<Trait>": "individual_id",
+                    "value": "phenotype",
+                    "variable": "trait_id",
+                }
+            )
+            phenotype_df = phenotype_df.replace({"Trait_1_H2_1": 0, "Trait_2_H2_1": 1})
+
+        num_ind = ts.num_individuals
+        # Change the individual ID in simplePHENOTYPES output to be consistent with the
+        # tstrait output
+        for i in range(num_ind):
+            phenotype_df = phenotype_df.replace(f"tsk_{i}", i)
+
+        qtn_df = pd.read_csv(f"{directory.name}/Additive_Selected_QTNs.txt", sep="\t")
+
+        # Obtain the list of causal allele
+        causal_allele = []
+        effect_size = []
+        effect_size_2 = []
+        for i, site_id in enumerate(qtn_df["snp"].values, start=1):
+            # simplePHENOTYPES uses ancestral state as a causal allele
+            allele = ts.site(site_id).ancestral_state
+            causal_allele.append(allele)
+            effect_size.append(add_effect**i)
+            effect_size_2.append(add_effect_2**i)
+
+        if num_trait == 2:
+            effect_size = np.append(effect_size, effect_size_2)
+
+        trait_df = pd.DataFrame(
+            {
+                "site_id": np.tile(qtn_df["snp"].values, num_trait),
+                "causal_allele": np.tile(causal_allele, num_trait),
+                "effect_size": effect_size,
+                "trait_id": np.repeat(np.arange(num_trait), len(causal_allele)),
+            }
+        )
+
+        simulation_result = SimulationResult(phenotype=phenotype_df, trait=trait_df)
+
+        directory.cleanup()
+
+        return simulation_result
+
+    def _simulate_AlphaSimR(self, ts, num_causal, random_seed, corA=1, num_trait=1):
+        """
+        The function to simulate quantitative traits by using AlphaSimR. We will
+        specify the number of causal sites, such that the AlphaSimR simulation
+        will be conducted randomly. corA is used to specify the correlation
+        coefficient of pleiotropic traits.
+        """
+
+        directory = tempfile.TemporaryDirectory()
+        tree_filename = "tree_comparison_AlphaSimR"
+        ts.dump(f"{directory.name}/{tree_filename}.tree")
+        phenotype_filename = "phenotype_comparison_AlphaSimR"
+        trait_filename = "trait_comparison_AlphaSimR"
+        cmd = ["Rscript", "data/simulate_AlphaSimR.R"]
+        args = [
+            str(num_causal),
+            directory.name,
+            tree_filename,
+            phenotype_filename,
+            trait_filename,
+            str(corA),
+            str(num_trait),
+            str(random_seed),
+        ]
+        input_cmd = cmd + args
+        subprocess.check_output(input_cmd)
+
+        phenotype_df = pd.read_csv(f"{directory.name}/{phenotype_filename}.csv")
+        trait_df = pd.read_csv(f"{directory.name}/{trait_filename}.csv")
+
+        # Obtain the list of causal allele
+        causal_allele = []
+        for site_id in trait_df["site_id"]:
+            allele = ts.mutation(site_id).derived_state
+            causal_allele.append(allele)
+
+        trait_df["causal_allele"] = causal_allele
+
+        simulation_result = SimulationResult(phenotype=phenotype_df, trait=trait_df)
+
+        directory.cleanup()
+
+        return simulation_result
+
+    def _simulate_arg_needle(self, ts, alpha, random_seed):
+        """
+        Simulate phenotypes by using the quantitative trait simulation framework that is
+        adapted from the ARG-Needle paper.
+        https://zenodo.org/records/7745746
+        """
+
+        rng = np.random.default_rng(random_seed)
+        num_ind = ts.num_individuals
+
+        phenotypes = np.zeros(num_ind)
+        beta_list = []
+        causal_allele = []
+
+        for variant in ts.variants():
+            row = variant.genotypes.astype("float64")
+            row = row.reshape((num_ind, 2)).sum(axis=-1)
+            std = np.std(row, ddof=1)
+            beta = rng.normal()
+            beta_list.append(beta)
+            causal_allele.append(variant.alleles[1])
+            phenotypes += row * (beta * std**alpha)
+
+        phenotypes -= np.mean(phenotypes)
+        phenotypes /= np.std(phenotypes, ddof=1)
+
+        phenotype_df = pd.DataFrame(
+            {"individual_id": np.arange(len(phenotypes)), "phenotype": phenotypes}
+        )
+        trait_df = pd.DataFrame(
+            {
+                "site_id": np.arange(len(causal_allele)),
+                "causal_allele": causal_allele,
+                "effect_size": beta_list,
+                "trait_id": np.zeros(len(causal_allele)),
+            }
+        )
+
+        simulation_result = SimulationResult(phenotype=phenotype_df, trait=trait_df)
+
+        return simulation_result
+
+    def _run(self, model, random_seed, **kwargs):
+        ts = msprime.sim_ancestry(
+            samples=100,
+            recombination_rate=1e-8,
+            sequence_length=100_000,
+            population_size=10_000,
+            random_seed=random_seed,
+        )
+        ts = msprime.sim_mutations(
+            ts, rate=1e-8, random_seed=random_seed, discrete_genome=False
+        )
+
+        if model == "simplePHENOTYPES":
+            simulation_output = self._simulate_simplePHENOTYPE(
+                ts=ts,
+                num_causal=kwargs["num_causal"],
+                add_effect=kwargs["add_effect"],
+                random_seed=random_seed,
+                num_trait=kwargs["num_trait"],
+                add_effect_2=kwargs["add_effect_2"],
+            )
+
+        elif model == "AlphaSimR":
+            simulation_output = self._simulate_AlphaSimR(
+                ts=ts,
+                num_causal=kwargs["num_causal"],
+                random_seed=random_seed,
+                corA=kwargs["corA"],
+                num_trait=kwargs["num_trait"],
+            )
+
+        elif model == "ARG-Needle":
+            simulation_output = self._simulate_arg_needle(
+                ts=ts, alpha=kwargs["alpha"], random_seed=random_seed
+            )
+
+        trait_df = simulation_output.trait.sort_values(by=["site_id"])
+        genetic_df = tstrait.genetic_value(ts, trait_df)
+        phenotype_df = tstrait.sim_env(genetic_df, h2=1, random_seed=1)
+
+        if model == "simplePHENOTYPES":
+            grouped = phenotype_df.groupby("trait_id")[["phenotype"]]
+            phenotype_df = grouped.transform(lambda x: (x - x.mean()))
+        elif model == "AlphaSimR":
+            phenotype_df = tstrait.normalise_phenotypes(
+                phenotype_df, mean=0, var=1, ddof=0
+            )
+        elif model == "ARG-Needle":
+            phenotype_df = tstrait.normalise_phenotypes(phenotype_df, mean=0, var=1)
+
+        tstrait_phenotype = phenotype_df["phenotype"]
+        simulated_phenotype = simulation_output.phenotype["phenotype"].values
+
+        np.testing.assert_array_almost_equal(tstrait_phenotype, simulated_phenotype)
+
+    def test_exact_simplePHENOTYPES_single(self):
+        self._run(
+            model="simplePHENOTYPES",
+            num_causal=30,
+            add_effect=0.9,
+            random_seed=100,
+            num_trait=1,
+            add_effect_2=1,
+        )
+
+    def test_exact_simplePHENOTYPES_pleiotropic(self):
+        self._run(
+            model="simplePHENOTYPES",
+            num_causal=30,
+            add_effect=0.9,
+            random_seed=101,
+            num_trait=2,
+            add_effect_2=0.8,
+        )
+
+    def test_exact_AlphaSimR_single(self):
+        self._run(
+            model="AlphaSimR", num_causal=100, random_seed=200, corA=1, num_trait=1
+        )
+
+    def test_exact_AlphaSimR_pleiotropic(self):
+        self._run(
+            model="AlphaSimR", num_causal=100, random_seed=201, corA=0.8, num_trait=2
+        )
+
+    def test_exact_ARG_Needle(self):
+        self._run(model="ARG-Needle", alpha=0, random_seed=300)
 
 
 def model_list(loc, scale):
