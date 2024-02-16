@@ -51,8 +51,6 @@ class _GeneticValue:
     trait_df : pandas.DataFrame
         Dataframe that includes causal site ID, causal allele, simulated effect
         size, and trait ID.
-    alpha : float
-        Parameter that determines the relative weight on rarer variants.
     """
 
     def __init__(self, ts, trait_df):

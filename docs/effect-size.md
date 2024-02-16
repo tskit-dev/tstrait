@@ -207,7 +207,7 @@ The details of sites in tree sequences can be found [here](tskit:sec_site_table_
 
 (trait_frequency_dependence)=
 
-## Frequency dependence
+## Frequency Dependence
 
 Tstrait supports frequency dependence simulation. It has been shown that rare variants
 have increased effect sizes compared with common variants
@@ -220,7 +220,7 @@ In the frequency dependence model, the following value is multiplied to the effe
 
 ```{math}
 :label: eq:freq-dep
-[2p(1-p)^\alpha]
+\Big[\sqrt{2p(1-p)}\Big]^\alpha
 ```
 
 In the above expression, $p$ is the frequency of the causal allele, and
@@ -234,13 +234,6 @@ The default `alpha` parameter in {py:func}`sim_phenotype` and
 ignore the `alpha` parameter if you are not interested in implementing the
 frequency dependent model.
 :::
-
-The frequency dependence architecture is still an ongoing research topic. While the
-frequency dependence model can be used for any trait models in tstrait, it is
-suggested that you use the trait model with mean 0 and `alpha` to be -1/2 to conduct
-simulations that are widely used in
-simulation-based research projects (See
-[Speed et al. (2017)](https://doi.org/10.1038/ng.3865) for details).
 
 In the below example, we will be demonstrating how `alpha` influences the simulated
 effect sizes by using a simulated tree sequence with 10,000 individuals.
