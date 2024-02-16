@@ -29,7 +29,6 @@ After this genetic value page, you will be able to:
 
 - Understand how to generate genetic value in tstrait
 - Understand how to use the user's defined effect sizes to generate genetic values
-- Understand the details of frequency dependence model that is supported in tstrait
 
 # Algorithm Overview
 
