@@ -157,7 +157,7 @@ The simulated phenotypes can be scaled by using the {func}`normalise_phenotypes`
 will first normalise the phenotype by subtracting the mean of the input phenotype from each
 value and divide it by the standard devitation of the input phenotype.
 Afterwards, it scales the normalised phenotype based on the mean and variance input.
-The output of {func}`normalise_phenotype` is a {class}`pandas.DataFrame` object with the scaled phenotypes.
+The output of {func}`normalise_phenotypes` is a {class}`pandas.DataFrame` object with the scaled phenotypes.
 
 An example usage of this function is shown below:
 
