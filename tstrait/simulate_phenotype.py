@@ -56,6 +56,9 @@ def sim_phenotype(
         Trait model that will be used to simulate effect sizes.
     num_causal : int, default None
         Number of causal sites. If None, number of causal sites will be 1.
+    causal_sites : list, default None
+        List of site IDs that have causal allele. If None, causal site IDs will be
+        chosen randomly according to num_causal.
     alpha : float, default None
         Parameter that determines the degree of the frequency dependence model. Please
         see :ref:`frequency_dependence` for details on how this parameter influences
