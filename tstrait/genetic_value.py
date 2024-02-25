@@ -203,3 +203,59 @@ def genetic_value(ts, trait_df):
     genetic_result = genetic._run()
 
     return genetic_result
+
+
+def normalise_genetic_value(genetic_df, mean=0, var=1, ddof=1):
+    """Normalise genetic value dataframe.
+
+    Parameters
+    ----------
+    genetic_df : pandas.DataFrame
+        Genetic value dataframe.
+    mean : float, default 0
+        Mean of the resulting genetic value.
+    var : float, default 1
+        Variance of the resulting genetic value.
+    ddof : int, default 1
+        Delta degrees of freedom. The divisor used in computing the variance
+        is N - ddof, where N represents the number of elements.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with normalised genetic value.
+
+    Raises
+    ------
+    ValueError
+        If `var` <= 0.
+
+    Notes
+    -----
+    The following columns must be included in `genetic_df`:
+
+        * **trait_id**: Trait ID.
+        * **individual_id**: Individual ID inside the tree sequence input.
+        * **genetic_value**: Simulated genetic values.
+
+    The dataframe output has the following columns:
+
+        * **trait_id**: Trait ID.
+        * **individual_id**: Individual ID inside the tree sequence input.
+        * **genetic_value**: Normalised genetic values.
+
+    Examples
+    --------
+    See :ref:`normalise_genetic_value` section for worked examples.
+    """
+    if var <= 0:
+        raise ValueError("Variance must be greater than 0.")
+    genetic_df = _check_dataframe(
+        genetic_df, ["individual_id", "trait_id", "genetic_value"], "genetic_df"
+    )
+    grouped = genetic_df.groupby("trait_id")[["genetic_value"]]
+    transformed_genetic = grouped.transform(lambda x: (x - x.mean()) / x.std(ddof=ddof))
+    transformed_genetic = transformed_genetic * np.sqrt(var) + mean
+    genetic_df.loc[:, "genetic_value"] = transformed_genetic
+
+    return genetic_df

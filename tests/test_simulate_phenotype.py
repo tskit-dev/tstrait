@@ -235,7 +235,7 @@ class TestNormalise:
         normalised_df = tstrait.normalise_phenotypes(phenotype_df, mean=mean, var=var)
         phenotype_array = normalised_df["phenotype"].values
         np.testing.assert_almost_equal(np.mean(phenotype_array), mean, decimal=2)
-        np.testing.assert_almost_equal(np.var(phenotype_array), var, decimal=2)
+        np.testing.assert_almost_equal(np.var(phenotype_array, ddof=1), var, decimal=2)
         pd.testing.assert_series_equal(
             normalised_df["trait_id"], phenotype_df["trait_id"]
         )
@@ -263,7 +263,7 @@ class TestNormalise:
         normalised_df = tstrait.normalise_phenotypes(phenotype_df)
         phenotype_array = normalised_df["phenotype"].values
         np.testing.assert_almost_equal(np.mean(phenotype_array), mean, decimal=2)
-        np.testing.assert_almost_equal(np.var(phenotype_array), var, decimal=2)
+        np.testing.assert_almost_equal(np.var(phenotype_array, ddof=1), var, decimal=2)
         pd.testing.assert_series_equal(
             normalised_df["trait_id"], phenotype_df["trait_id"]
         )

@@ -246,3 +246,47 @@ genetic_df.head()
 ```
 
 The new genetic value dataframe can be used in {py:func}`sim_env` to simulate phenotypes.
+
+(normalise_genetic_value)=
+
+# Normalise Genetic Value
+
+The computed genetic values can be scaled by using the {py:func}`normalise_genetic_value` function. The function
+will first normalise the genetic value by subtracting the mean of the input genetic value and divide it
+by the standard devitation of the input genetic value.
+Afterwards, it scales the normalised genetic value based on the mean and variance input.
+The output of {py:func}`normalise_genetic_value` is a {py:class}`pandas.DataFrame` object with the scaled genetic values.
+It is suggested to use this function on the genetic value dataframe that is obtained by
+{py:func}`genetic_value`, and use the normalised genetic value dataframe to simulate phenotypes
+by using {py:func}`sim_env`.
+
+An example usage of this function is shown below:
+
+```{code-cell}
+
+mean = 0
+var = 1
+ts = msprime.sim_ancestry(
+    samples=10_000,
+    recombination_rate=1e-8,
+    sequence_length=100_000,
+    population_size=10_000,
+    random_seed=1000,
+)
+ts = msprime.sim_mutations(ts, rate=1e-7, random_seed=1001)
+trait_df = tstrait.sim_trait(ts, num_causal=1000, model=model, random_seed=500)
+genetic_df = tstrait.genetic_value(ts, trait_df)
+normalised_df = tstrait.normalise_genetic_value(genetic_df, mean=mean, var=var)
+normalised_df.head()
+```
+
+The distribution of the normalised genetic value is shown below, and wee that the mean and variance
+of the normalised genetic values are 0 and 1.
+
+```{code-cell}
+
+import matplotlib.pyplot as plt
+plt.hist(normalised_df["genetic_value"], bins=40)
+plt.title("Normalised Genetic Value")
+plt.show()
+```
