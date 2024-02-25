@@ -376,3 +376,132 @@ class TestTreeSeq:
         )
 
         pd.testing.assert_frame_equal(genetic_df, genetic_result, check_dtype=False)
+
+
+class TestNormaliseGenetic:
+    def test_output(self, sample_ts):
+        mean = 2
+        var = 4
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=20, model=model, random_seed=500
+        )
+        genetic_df = tstrait.genetic_value(sample_ts, trait_df)
+
+        normalised_df = tstrait.normalise_genetic_value(genetic_df, mean=mean, var=var)
+        genetic_array = normalised_df["genetic_value"].values
+        np.testing.assert_almost_equal(np.mean(genetic_array), mean, decimal=2)
+        np.testing.assert_almost_equal(np.var(genetic_array, ddof=1), var, decimal=2)
+        pd.testing.assert_series_equal(
+            normalised_df["trait_id"], genetic_df["trait_id"]
+        )
+        pd.testing.assert_series_equal(
+            normalised_df["individual_id"], genetic_df["individual_id"]
+        )
+
+        num_ind = sample_ts.num_individuals
+        assert len(normalised_df) == num_ind
+        assert normalised_df.shape[1] == 3
+        assert list(normalised_df.columns) == [
+            "individual_id",
+            "trait_id",
+            "genetic_value",
+        ]
+
+    def test_default(self, sample_ts):
+        mean = 0
+        var = 1
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=20, model=model, random_seed=1000
+        )
+        genetic_df = tstrait.genetic_value(sample_ts, trait_df)
+        normalised_df = tstrait.normalise_genetic_value(genetic_df)
+        genetic_array = normalised_df["genetic_value"].values
+        np.testing.assert_almost_equal(np.mean(genetic_array), mean, decimal=2)
+        np.testing.assert_almost_equal(np.var(genetic_array, ddof=1), var, decimal=2)
+        pd.testing.assert_series_equal(
+            normalised_df["trait_id"], genetic_df["trait_id"]
+        )
+        pd.testing.assert_series_equal(
+            normalised_df["individual_id"], genetic_df["individual_id"]
+        )
+
+        num_ind = sample_ts.num_individuals
+        assert len(normalised_df) == num_ind
+        assert normalised_df.shape[1] == 3
+        assert list(normalised_df.columns) == [
+            "individual_id",
+            "trait_id",
+            "genetic_value",
+        ]
+
+    def test_column(self, sample_ts):
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=20, model=model, random_seed=1000
+        )
+        genetic_df = tstrait.genetic_value(sample_ts, trait_df)
+        with pytest.raises(
+            ValueError, match="columns must be included in genetic_df dataframe"
+        ):
+            tstrait.normalise_genetic_value(genetic_df[["trait_id", "individual_id"]])
+
+        with pytest.raises(
+            ValueError, match="columns must be included in genetic_df dataframe"
+        ):
+            tstrait.normalise_genetic_value(genetic_df[["trait_id", "genetic_value"]])
+
+        with pytest.raises(
+            ValueError, match="columns must be included in genetic_df dataframe"
+        ):
+            tstrait.normalise_genetic_value(
+                genetic_df[["genetic_value", "individual_id"]]
+            )
+
+    @pytest.mark.parametrize("var", [0, -1])
+    def test_negative_var(self, sample_ts, var):
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=20, model=model, random_seed=1000
+        )
+        genetic_df = tstrait.genetic_value(sample_ts, trait_df)
+
+        with pytest.raises(ValueError, match="Variance must be greater than 0."):
+            tstrait.normalise_genetic_value(genetic_df, var=var)
+
+    @pytest.mark.parametrize("ddof", [0, 1])
+    def test_ddof(self, sample_ts, ddof):
+        model = tstrait.trait_model(distribution="normal", mean=2, var=6)
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=20, model=model, random_seed=1000
+        )
+        genetic_df = tstrait.genetic_value(sample_ts, trait_df)
+        normalised_df = tstrait.normalise_genetic_value(
+            genetic_df, mean=0, var=1, ddof=ddof
+        )
+        normalised_genetic_array = normalised_df["genetic_value"].values
+
+        genetic_array = genetic_df["genetic_value"].values
+        genetic_array = (genetic_array - np.mean(genetic_array)) / np.std(
+            genetic_array, ddof=ddof
+        )
+
+        np.testing.assert_array_almost_equal(normalised_genetic_array, genetic_array)
+
+    def test_pleiotropy(self, sample_ts):
+        mean = 0
+        var = 1
+        model = tstrait.trait_model(
+            distribution="multi_normal", mean=np.zeros(2), cov=np.identity(2)
+        )
+        trait_df = tstrait.sim_trait(
+            ts=sample_ts, num_causal=20, model=model, random_seed=1000
+        )
+        genetic_df = tstrait.genetic_value(sample_ts, trait_df)
+        normalised_df = tstrait.normalise_genetic_value(genetic_df, mean=mean, var=var)
+        grouped = normalised_df.groupby(["trait_id"])[["genetic_value"]]
+        mean_array = grouped.mean().values.T[0]
+        var_array = grouped.var().values.T[0]
+        np.testing.assert_almost_equal(mean_array, np.zeros(2), decimal=2)
+        np.testing.assert_almost_equal(var_array, np.ones(2), decimal=2)

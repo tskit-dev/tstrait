@@ -44,6 +44,7 @@ This page provides a detailed explanation of all public tstrait objects and func
 .. autosummary::
 
    normalise_phenotypes
+   normalise_genetic_value
 ```
 
 ### Result data classes
@@ -112,6 +113,10 @@ This page provides a detailed explanation of all public tstrait objects and func
 
 ```{eval-rst}
 .. autofunction:: tstrait.normalise_phenotypes
+```
+
+```{eval-rst}
+.. autofunction:: tstrait.normalise_genetic_value
 ```
 
 ### Result data classes
