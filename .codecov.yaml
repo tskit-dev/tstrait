@@ -3,9 +3,11 @@ coverage:
     project:
       python:
         target: 95%
-        flags: python
+        flags:
+          - python
 
     patch:
       python:
         target: 90%
-        flags: python
+        flags:
+          - python
