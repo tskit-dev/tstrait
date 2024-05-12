@@ -94,3 +94,35 @@ Almost all codes in the documentation are written by using the
 [IPython directive](https://matplotlib.org/sampledoc/ipython_directive.html) Sphinx
 extension. The code examples in the documentation are run during the doc building, so
 the code examples will always be up to date.
+
+## Continuous integration tests
+
+Continuous integration tests are implemented in [Github actions](https://docs.github.com/en/actions), and it runs a variety of code style and quality checks using
+[pre-commit](https://pre-commit.com/) along with Python tests on Linux.
+
+All tests are located in the `tests` directory, and run using [pytest](https://docs.pytest.org/en/stable/).
+All new code must have high test coverage, which will be checked as part of the continuous integration
+tests by [CodeCov](https://codecov.io/gh).
+
+## Statistical tests
+
+We run many statistical tests to ensure that tstrait is simulating the correct process with
+the desired statistical properties. Since these tests are quite expensive to run and difficult to automatically
+validate, they are not run as part of continuous integration (CI) but instead as a pre-release sanity check.
+
+The statistical tests are all run via the `verification.py` script in the project root. The script has some
+extra dependencies listed in the `requirements/verification.txt`, which can be installed using
+`pip install -r` or `conda install --file`. You should also need to install [R](https://www.r-project.org/)
+into your environment. Run this script using:
+
+```
+$ python3 verification.py
+```
+
+The statistical tests use scripts in `scripts` directory to compare the tstrait simulation output
+against [AlphaSimR](https://cran.r-project.org/web/packages/AlphaSimR/index.html) and
+[simplePHENOTYPES](https://cran.r-project.org/web/packages/simplePHENOTYPES/index.html) simulation
+algorithms.
+
+Please read the comments at the top of the `verification.py` script for details on how to write and run
+these tests.
