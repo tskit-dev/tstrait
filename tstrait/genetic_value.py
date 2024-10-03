@@ -46,6 +46,20 @@ def _accumulate_individual_values(
     return individuals_genetic_value
 
 
+def _accumulate_edge_values(
+    nodes_genetic_value, nodes_edge, num_nodes, num_edges
+):  # pragma: no cover
+    """
+    Accumulate the genetic values by summing their node contributions.
+    """
+    edges_genetic_value = np.zeros(num_edges)
+    for u in range(num_nodes):
+        edge = nodes_edge[u]
+        if edge != -1:
+            edges_genetic_value[edge] += nodes_genetic_value[u]
+    return edges_genetic_value
+
+
 class _GeneticValue:
     """GeneticValue class to compute genetic values of individuals.
 
@@ -64,9 +78,25 @@ class _GeneticValue:
         ]
         self.ts = ts
 
+    # Quick hack to make the tests pass. We should refactor the tests to avoid
+    # using internal interfaces, if possible.
+    # TODO add a better interface here to allow easy testing across the
+    # different modes.
     def _individual_genetic_values(self, tree, site, causal_allele, effect_size):
+        genetic_value = self._node_genetic_values(
+            tree=tree,
+            site=site,
+            causal_allele=causal_allele,
+            effect_size=effect_size,
+        )
+        ts = self.ts
+        return _accumulate_individual_values(
+            genetic_value, ts.nodes_individual, ts.num_nodes, ts.num_individuals
+        )
+
+    def _node_genetic_values(self, tree, site, causal_allele, effect_size):
         """
-        Returns a numpy array that describes the genetic value of all individuals at
+        Returns a numpy array that describes the genetic of all nodes at
         a particular site.
         """
         has_mutation = np.zeros(self.ts.num_nodes + 1, dtype=bool)
@@ -90,52 +120,62 @@ class _GeneticValue:
                 num_nodes=self.ts.num_nodes,
                 effect_size=effect_size,
             )
+        return genetic_value
 
-        individuals_genetic_value = _accumulate_individual_values(
-            genetic_value,
-            self.ts.nodes_individual,
-            self.ts.num_nodes,
-            self.ts.num_individuals,
-        )
-        return individuals_genetic_value
-
-    def _run(self):
-        """Computes genetic values of individuals.
+    def _run(self, mode):
+        """
+        Computes genetic values of individuals, nodes or edges
+        depending on the value of "mode"
 
         Returns
         -------
         pandas.DataFrame
-            Dataframe with genetic value, individual ID, and trait ID.
+            Dataframe with genetic value, [individual|node|edge] ID, and trait ID.
         """
 
-        num_ind = self.ts.num_individuals
+        ts = self.ts
+        size_map = {
+            "individual": ts.num_individuals,
+            "node": ts.num_nodes,
+            "edge": ts.num_edges,
+        }
+        N = size_map[mode]
+
         num_trait = np.max(self.trait_df.trait_id) + 1
-        genetic_val_array = np.zeros((num_trait, num_ind))
+        genetic_value_table = np.zeros((num_trait, N))
         tree = tskit.Tree(self.ts)
 
         for data in self.trait_df.itertuples():
             site = self.ts.site(data.site_id)
             tree.seek(site.position)
-            individual_genetic_value = self._individual_genetic_values(
+            genetic_value = self._node_genetic_values(
                 tree=tree,
                 site=site,
                 causal_allele=data.causal_allele,
                 effect_size=data.effect_size,
             )
-            genetic_val_array[data.trait_id, :] += individual_genetic_value
+            if mode == "individual":
+                genetic_value = _accumulate_individual_values(
+                    genetic_value, ts.nodes_individual, ts.num_nodes, ts.num_individuals
+                )
+            elif mode == "edge":
+                genetic_value = _accumulate_edge_values(
+                    genetic_value, tree.edge_array, ts.num_nodes, ts.num_edges
+                )
+            genetic_value_table[data.trait_id, :] += genetic_value
 
         df = pd.DataFrame(
             {
-                "trait_id": np.repeat(np.arange(num_trait), num_ind),
-                "individual_id": np.tile(np.arange(num_ind), num_trait),
-                "genetic_value": genetic_val_array.flatten(),
+                "trait_id": np.repeat(np.arange(num_trait), N),
+                f"{mode}_id": np.tile(np.arange(N), num_trait),
+                "genetic_value": genetic_value_table.flatten(),
             }
         )
 
         return df
 
 
-def genetic_value(ts, trait_df):
+def genetic_value(ts, trait_df, mode="individual"):
     """
     Obtains genetic value from a trait dataframe.
 
@@ -209,9 +249,46 @@ def genetic_value(ts, trait_df):
 
     genetic = _GeneticValue(ts=ts, trait_df=trait_df)
 
-    genetic_result = genetic._run()
+    genetic_result = genetic._run(mode)
 
     return genetic_result
+
+
+def edge_effect_size(ts, trait_df):
+    ts = _check_instance(ts, "ts", tskit.TreeSequence)
+    trait_df = _check_dataframe(
+        trait_df, ["site_id", "effect_size", "trait_id", "causal_allele"], "trait_df"
+    )
+    _check_non_decreasing(trait_df["site_id"], "site_id")
+
+    trait_id = trait_df["trait_id"].unique()
+
+    if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
+        raise ValueError("trait_id must be consecutive and start from 0")
+
+    trait_df = trait_df.astype({"trait_id": int})
+
+    N = ts.num_edges
+    num_trait = np.max(trait_df.trait_id) + 1
+    edge_effect_table = np.zeros((num_trait, N))
+
+    tree = tskit.Tree(ts)
+    for data in trait_df.itertuples():
+        site = ts.site(data.site_id)
+        for m in site.mutations:
+            if m.derived_state == data.causal_allele:
+                tree.seek(site.position)
+                e = tree.edge(m.node)
+                edge_effect_table[data.trait_id, e] += data.effect_size
+
+    df = pd.DataFrame(
+        {
+            "trait_id": np.repeat(np.arange(num_trait), N),
+            "edge_id": np.tile(np.arange(N), num_trait),
+            "effect_size": edge_effect_table.flatten(),
+        }
+    )
+    return df
 
 
 def normalise_genetic_value(genetic_df, mean=0, var=1, ddof=1):
