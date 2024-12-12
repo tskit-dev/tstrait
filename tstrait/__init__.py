@@ -27,6 +27,7 @@ from .trait_model import (
 )  # noreorder
 from .genetic_value import (
     genetic_value,
+    edge_effect_size,
     normalise_genetic_value,
 )  # noreorder
 from .simulate_environment import (
