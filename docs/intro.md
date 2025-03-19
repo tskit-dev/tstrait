@@ -22,7 +22,7 @@ Quantitative trait simulation in tstrait is transparent, and users can control e
 it is possible for the users to simulate their own environmental noise on top of simulated genetic values,
 or even use their own defined effect sizes and causal sites. The tree sequence data structure is widely used in
 various population genetic simulation packages, including [SLiM](https://messerlab.org/slim/),
-[msprime](msprime:sec_intro), and [stdpopsim](stdpopsim:sec_introduction); it is therefore easy for
+{ref}`msprime<msprime:sec_intro>`, and {ref}`stdpopsim<stdpopsim:sec_introduction>`; it is therefore easy for
 users of these packages to add quantitative traits to their results using tstrait.
 
 ## Tree Sequence resources
@@ -31,9 +31,9 @@ To learn more about tree sequences:
 
 - The [tskit website](https://tskit.dev/) provides [learning materials](https://tskit.dev/learn/) explaining
   what tree sequences are, and includes tutorials, publications and videos.
-- The [PySLiM manual](pyslim:sec_introduction) explains how forward genetic simulation can be create
+  - The {ref}`PySLiM manual<pyslim:sec_introduction>` explains how forward genetic simulation can be create
   tree sequences.
-- The [msprime manual](msprime:sec_intro) details an efficient backward-time genetic simulator that outputs
+- The {ref}`msprime manual<msprime:sec_intro>` details an efficient backward-time genetic simulator that outputs
   tree sequences.
-- The [tskit tutorials](tskit-tutorials:sec_intro) explain how to analyze succinct tree sequences
+- The {ref}`tskit tutorials<tskit-tutorials:sec_intro>` explain how to analyze succinct tree sequences
   by using [tskit](https://tskit.dev/).

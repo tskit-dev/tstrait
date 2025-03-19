@@ -57,14 +57,15 @@ below.
 In this example, we will be showing how to compute genetic values by using the simulated trait dataframe
 in {py:func}`genetic_value`.
 
-We will be simulating a sample tree sequence data with 5 individuals by using [msprime](msprime:sec_intro),
+We will be simulating a sample tree sequence data with 5 individuals by using {ref}`msprime<msprime:sec_intro>`,
 and we will simulate a trait dataframe with 3 causal sites. The dataframe output of {py:func}`sim_trait`
 can be automatically used as an input of {py:func}`genetic_value`, so there is no need to worry about input
 data requirements.
+data requirements.
 
 :::{seealso}
-- [msprime](msprime:sec_intro) for simulating whole genome in tree sequence data.
-- [](sim_trait_doc) for simulating trait dataframe in tstrait.
+- {ref}`msprime<msprime:sec_intro>` for simulating whole genome in tree sequence data.
+- {ref}`sim_trait_doc` for simulating trait dataframe in tstrait.
 :::
 
 ```{code-cell}

@@ -67,9 +67,9 @@ We will be showing an example of environmental noise simulating by using a simul
 sequence data with 10,000 individuals. The narrow-sense heritability is set to be 0.3.
 
 :::{seealso}
-- [msprime](msprime:sec_intro) for simulating whole genome in tree sequence data.
+- {ref}`msprime:sec_intro` for simulating whole genome in tree sequence data.
 - [](sim_trait_doc) for simulating trait dataframe in tstrait.
-- [](genetic_value_doc) for simulating the genetic value dataframe in tstrait.
+- {ref}`genetic_value_doc` for simulating the genetic value dataframe in tstrait.
 :::
 
 ```{code-cell}
