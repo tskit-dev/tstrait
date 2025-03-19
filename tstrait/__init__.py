@@ -1,11 +1,7 @@
-"""
-tstrait
-=======
-
-tstrait is a quantitative trait simulator of a tree sequence data.
-
-See https://tskit.dev/ for complete documentation.
-"""
+# tstrait
+# =======
+# tstrait is a quantitative trait simulator of a tree sequence data.
+# See https://tskit.dev/ for complete documentation.
 from .provenance import __version__  # NOQA
 from .simulate_effect_size import (
     sim_trait,

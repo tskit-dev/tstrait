@@ -1,62 +1,48 @@
-"""
-Script to automate verification of tstrait against known statistical
-results and benchmark programs such as AlphaSimR and simplePHENOTYPES.
-
-We have conducted the following tests:
-
-1. Exact tests
-We simulated effect sizes and phenotypes by using AlphaSimR, simplePHENOTYPES
-and the simulation framework described in ARG-Needle paper, and used the
-simulated effect sizes in tstrait to simulate phenotypes, while setting the
-environmental noise to be zero in all simulations. We then tested if the
-simulated phenotypes in tstrait exactly match the simulated phenotypes
-of external programs.
-
-This test aims to examine whether tstrait can correctly use the genetic information
-of individuals to accurately compute the genetic values. We have validated the
-tstrait's output for single trait simulation and pleiotropic trait simulation.
-These tests are implemented in `ExactTest` class.
-
-2. Comparison tests
-We simulated phenotypes in AlphaSimR, simplePHENOTYPES and the simulation
-framework described in ARG-Needle paper by using the same parameters as the
-tstrait simulation. We have simulated traits for a single individual in the
-tree sequence multiple times and examined if their phenotype distributions match
-by using a QQ-plot.
-
-This test serves as an end to end testing of tstrait with environmental noise
-simulation and tries to examine if the statistical properties of the
-simulated traits matches the output of different simulation packages.
-We have examined the tstrait output for different values of
-heritability and the alpha parameter that is used in the frequency dependence
-architecture. These tests are implemented in ComparisonTest.
-
-3. Statistical tests
-We have examined the statistical properties of tstrait's simulation output.
-The tests in `EffectSizeDistribution` examine the statistical properties of
-simulated effect sizes and the tests in `EnvironmentalNoise` examine the
-simulated environmental noise.
-
-NOTE: The properties of tstrait's simulation algorithm (such as whether it
-can correctly detect mutations in a tree sequence) are validated in unit tests.
-
-THe differences between each simulators are highlighted as the following:
-1. simplePHENOTYPES
-- Effect sizes can only be simulated from geometric series, so a normal
-distribution must be specified if we want to simulate traits where effect
-sizes are drawn from a normal distribution
-- Ancestral state is set as a causal state in simplePHENOTYPES
-
-2. AlphaSimR
-- Genetic values are normalized in the simulation process
-
-3. Simulation framework in ARG-Needle paper
-- We assume that all sites are causal
-
-These codes are largely adapted from msprime/verification.py. Please
-see its documentation for usage.
-
-"""
+# Script to automate verification of tstrait against known statistical
+# results and benchmark programs such as AlphaSimR and simplePHENOTYPES.
+# We have conducted the following tests:
+# 1. Exact tests
+# We simulated effect sizes and phenotypes by using AlphaSimR, simplePHENOTYPES
+# and the simulation framework described in ARG-Needle paper, and used the
+# simulated effect sizes in tstrait to simulate phenotypes, while setting the
+# environmental noise to be zero in all simulations. We then tested if the
+# simulated phenotypes in tstrait exactly match the simulated phenotypes
+# of external programs.
+# This test aims to examine whether tstrait can correctly use the genetic information
+# of individuals to accurately compute the genetic values. We have validated the
+# tstrait's output for single trait simulation and pleiotropic trait simulation.
+# These tests are implemented in `ExactTest` class.
+# 2. Comparison tests
+# We simulated phenotypes in AlphaSimR, simplePHENOTYPES and the simulation
+# framework described in ARG-Needle paper by using the same parameters as the
+# tstrait simulation. We have simulated traits for a single individual in the
+# tree sequence multiple times and examined if their phenotype distributions match
+# by using a QQ-plot.
+# This test serves as an end to end testing of tstrait with environmental noise
+# simulation and tries to examine if the statistical properties of the
+# simulated traits matches the output of different simulation packages.
+# We have examined the tstrait output for different values of
+# heritability and the alpha parameter that is used in the frequency dependence
+# architecture. These tests are implemented in ComparisonTest.
+# 3. Statistical tests
+# We have examined the statistical properties of tstrait's simulation output.
+# The tests in `EffectSizeDistribution` examine the statistical properties of
+# simulated effect sizes and the tests in `EnvironmentalNoise` examine the
+# simulated environmental noise.
+# NOTE: The properties of tstrait's simulation algorithm (such as whether it
+# can correctly detect mutations in a tree sequence) are validated in unit tests.
+# THe differences between each simulators are highlighted as the following:
+# 1. simplePHENOTYPES
+# - Effect sizes can only be simulated from geometric series, so a normal
+# distribution must be specified if we want to simulate traits where effect
+# sizes are drawn from a normal distribution
+# - Ancestral state is set as a causal state in simplePHENOTYPES
+# 2. AlphaSimR
+# - Genetic values are normalized in the simulation process
+# 3. Simulation framework in ARG-Needle paper
+# - We assume that all sites are causal
+# These codes are largely adapted from msprime/verification.py. Please
+# see its documentation for usage.
 import argparse
 import concurrent.futures
 import inspect
