@@ -144,7 +144,7 @@ The following effect size distributions are supported in tstrait, and please ref
 
 Effect sizes can be simulated in tstrait by using {py:func}`tstrait.sim_trait`. In the example below,
 we will be simulating effect sizes of 5 causal sites from a simulated tree sequence data in
-[msprime](msprime:sec_intro).
+{ref}`msprime<msprime:sec_intro>`.
 
 ```{code-cell}
 
@@ -203,8 +203,7 @@ The below code is used to extract information of site with ID 0 from `ts` tree s
 # Extract information of site with ID 0
 ts.site(0)
 ```
-
-The details of sites in tree sequences can be found [here](tskit:sec_site_table_definition).
+The details of sites in tree sequences can be found {ref}`here<tskit:sec_site_table_definition>`.
 
 
 (trait_frequency_dependence)=

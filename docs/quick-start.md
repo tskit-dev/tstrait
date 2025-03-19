@@ -22,7 +22,7 @@ This page provides a quick overview of tstrait. We will be using {func}`sim_phen
 demonstrate how quantitative traits can be simulated in tstrait.
 
 To work with the examples, you will need to install
-[msprime](msprime:sec_intro) and {mod}`matplotlib <matplotlib>` in
+{ref}`msprime<msprime:sec_intro>` and {ref}`matplotlib <matplotlib>` in
 addition to tstrait.
 
 **Learning Objectives**
@@ -71,7 +71,7 @@ ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=101)
 ts.num_individuals
 ```
 
-Here, we have simulated a sample tree sequence with 10,000 individuals in [msprime](msprime:sec_intro).
+Here, we have simulated a sample tree sequence with 10,000 individuals in {ref}`msprime<msprime:sec_intro>`.
 We will be using it in {func}`sim_phenotype` to simulate quantitative traits.
 
 ```{code-cell}
