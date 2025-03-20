@@ -14,7 +14,7 @@ jupytext:
 .. currentmodule:: tstrait
 ```
 
-(sim_trait)=
+(sim_trait_doc)=
 
 # Trait simulation
 
