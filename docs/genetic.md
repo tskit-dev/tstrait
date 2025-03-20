@@ -64,7 +64,7 @@ data requirements.
 
 :::{seealso}
 - [msprime](msprime:sec_intro) for simulating whole genome in tree sequence data.
-- [](effect_size) for simulating trait dataframe in tstrait.
+- [](sim_trait_doc) for simulating trait dataframe in tstrait.
 :::
 
 ```{code-cell}
