@@ -15,12 +15,10 @@ class _FreqResult:
     """
     Data class that contains simulated effect size and allele frequency.
 
-    Attributes
-    ----------
-    beta_array : numpy.array
-        Numpy array that includes simulated effect size.
-    allele_freq : numpy.array
-        Allele frequency of each causal mutation.
+    :ivar beta_array: Numpy array that includes simulated effect size.
+    :vartype beta_array: numpy.array
+    :ivar allele_freq: Allele frequency of each causal mutation.
+    :vartype allele_freq: numpy.array
     """
 
     beta_array: np.array
@@ -31,18 +29,16 @@ class _TraitSimulator:
     """Simulator class to select causal alleles and simulate effect sizes of causal
     mutations.
 
-    Parameters
-    ----------
-    ts : tskit.TreeSequence
-        Tree sequence data with mutation.
-    causal_sites : list
-        List of causal site IDs.
-    model : TraitModel
-        Trait model that will be used to simulate effect sizes.
-    alpha : float
-        Parameter that determines the degree of the frequency dependence model.
-    rng : numpy.random.Generator
-        Generator object that will be used to generate random numbers.
+    :param ts: Tree sequence data with mutation.
+    :type ts: tskit.TreeSequence
+    :param causal_sites: List of causal site IDs.
+    :type causal_sites: list
+    :param model: Trait model that will be used to simulate effect sizes.
+    :type model: TraitModel
+    :param alpha: Parameter that determines the degree of the frequency dependence model.
+    :type alpha: float
+    :param rng: Generator object that will be used to generate random numbers.
+    :type rng: numpy.random.Generator
     """
 
     def __init__(self, ts, causal_sites, model, alpha, rng):
@@ -169,62 +165,53 @@ def sim_trait(
     """
     Simulates traits.
 
-    Parameters
-    ----------
-    ts : tskit.TreeSequence
-        The tree sequence data that will be used in the quantitative trait
+    :param ts: The tree sequence data that will be used in the quantitative trait
         simulation.
-    model : tstrait.TraitModel
-        Trait model that will be used to simulate effect sizes.
-    num_causal : int, default None
-        Number of causal sites that will be randomly selected . If both `num_causal` and
-        `causal_sites` are None, number of causal sites will be 1.
-    causal_sites : list, default None
-        List of site IDs that have causal allele. If None, causal site IDs will be
-        chosen randomly according to `num_causal`.
-    alpha : float, default None
-        Parameter that determines the degree of the frequency dependence model. Please
-        see :ref:`frequency_dependence` for details on how this parameter influences
-        effect size simulation. If None, alpha will be 0.
-    random_seed : int, default None
-        Random seed of simulation. If None, simulation will be conducted randomly.
+    :type ts: tskit.TreeSequence
+    :param model: Trait model that will be used to simulate effect sizes.
+    :type model: tstrait.TraitModel
+    :param num_causal: Number of causal sites that will be randomly selected.
+        If both `num_causal` and `causal_sites` are None, number of causal sites
+        will be 1.
+    :type num_causal: int
+    :param causal_sites: List of site IDs that have causal allele. If None,
+        causal site IDs will be chosen randomly according to `num_causal`.
+    :type causal_sites: list
+    :param alpha: Parameter that determines the degree of the frequency
+        dependence model. Please see :ref:`frequency_dependence` for details on how
+        this parameter influences effect size simulation. If None, alpha will be 0.
+    :type alpha: float
+    :param random_seed: Random seed of simulation. If None, simulation will be
+        conducted randomly.
+    :type random_seed: int
+    :returns: Trait dataframe that includes simulated effect sizes.
+    :rtype: pandas.DataFrame
+    :raises ValueError: If the number of mutations in `ts` is smaller than `num_causal`.
+    :raises ValueError: If both `num_causal` and `causal_sites` are specified.
+    :raises ValueError: If there are repeated values in `causal_sites`.
 
-    Returns
-    -------
-    pandas.DataFrame
-        Trait dataframe that includes simulated effect sizes.
+    .. seealso::
+        :func:`trait_model` Return a trait model, which can be used as `model` input.
 
-    Raises
-    ------
-    ValueError
-        If the number of mutations in `ts` is smaller than `num_causal`.
-    ValueError
-        If both `num_causal` and `causal_sites` are specified.
-    ValueError
-        If there are repeated values in `causal_sites`.
+        :func:`genetic_value` The trait dataframe output can be used as an input
+        to obtain genetic values.
 
-    See Also
-    --------
-    trait_model : Return a trait model, which can be used as `model` input.
-    genetic_value : The trait dataframe output can be used as an input to obtain
-        genetic values.
+    .. note::
+        The simulation output is given as a :py:class:`pandas.DataFrame` and contains the
+        following columns:
 
-    Notes
-    -----
-    The simulation output is given as a :py:class:`pandas.DataFrame` and contains the
-    following columns:
+            * **position**: Position of sites that have causal allele in genome
+              coordinates.
+            * **site_id**: Site IDs that have causal allele. The output dataframe
+              has sorted site IDs.
+            * **effect_size**: Simulated effect size of causal allele.
+            * **causal_allele**: Causal allele.
+            * **allele_freq**: Allele frequency of causal allele. It is described
+              in detail in :ref:`trait_frequency_dependence`.
+            * **trait_id**: Trait ID.
 
-        * **position**: Position of sites that have causal allele in genome coordinates.
-        * **site_id**: Site IDs that have causal allele. The output dataframe has sorted
-          site IDs.
-        * **effect_size**: Simulated effect size of causal allele.
-        * **causal_allele**: Causal allele.
-        * **allele_freq**: Allele frequency of causal allele. It is described in detail
-          in :ref:`trait_frequency_dependence`.
-        * **trait_id**: Trait ID.
+    .. rubric:: Examples
 
-    Examples
-    --------
     See :ref:`sim_trait` for worked examples.
     """
     ts = _check_instance(ts, "ts", tskit.TreeSequence)

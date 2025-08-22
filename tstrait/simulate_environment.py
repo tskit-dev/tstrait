@@ -8,15 +8,13 @@ from .base import _check_dataframe
 class _EnvSimulator:
     """Simulator class to simulate environmental noise of individuals.
 
-    Parameters
-    ----------
-    genetic_df : pandas.DataFrame
-        Pandas dataframe that includes genetic value of individuals. It must include
-        individual ID, genetic value and trait ID.
-    h2 : float or array-like
-        Narrow-sense heritability.
-    random_seed : int
-        The random seed.
+    :param genetic_df: Pandas dataframe that includes genetic value of
+        individuals. It must include individual ID, genetic value and trait ID.
+    :type genetic_df: pandas.DataFrame
+    :param h2: Narrow-sense heritability.
+    :type h2: float or array-like
+    :param random_seed: The random seed.
+    :type random_seed: int
     """
 
     def __init__(self, genetic_df, h2, random_seed):
@@ -54,58 +52,48 @@ def sim_env(genetic_df, *, h2=None, random_seed=None):
     """
     Simulates environmental noise.
 
-    Parameters
-    ----------
-    genetic_df : pandas.DataFrame
-        Genetic value dataframe.
-    h2 : float or array-like, default None.
-        Narrow-sense heritability. When it is 1, environmental noise will be a vector of
-        zeros. If `h2` is array-like, the dimension of `h2` must match the number of
-        traits to be simulated. If None, h2 will be 1.
-    random_seed : int, default None
-        Random seed of simulation. If None, simulation will be conducted randomly.
+    :param genetic_df: Genetic value dataframe.
+    :type genetic_df: pandas.DataFrame
+    :param h2: Narrow-sense heritability. When it is 1, environmental noise will
+        be a vector of zeros. If `h2` is array-like, the dimension of `h2` must match
+        the number of traits to be simulated. If None, h2 will be 1.
+    :type h2: float or array-like
+    :param random_seed: Random seed of simulation. If None, simulation will be
+        conducted randomly.
+    :type random_seed: int
+    :returns: Dataframe with simulated environmental noise.
+    :rtype: pandas.DataFrame
+    :raises ValueError: If `h2` <= 0 or `h2` > 1
 
-    Returns
-    -------
-    pandas.DataFrame
-        Dataframe with simulated environmental noise.
+    .. seealso::
+        :func:`sim_genetic` Return a dataclass with genetic value dataframe,
+        which can be used as `genetic_df` input.
 
-    Raises
-    ------
-    ValueError
-        If `h2` <= 0 or `h2` > 1
+    .. note::
+        The `genetic_df` input has some requirements that will be noted below.
 
-    See Also
-    --------
-    sim_genetic : Return a dataclass with genetic value dataframe, which can be used as
-        `genetic_df` input.
+        1. Columns
 
-    Notes
-    -----
-    The `genetic_df` input has some requirements that will be noted below.
+        The following columns must be included in `genetic_df`:
 
-    1. Columns
+            * **trait_id**: Trait ID.
+            * **individual_id**: Individual ID inside the tree sequence input.
+            * **genetic_value**: Simulated genetic values.
 
-    The following columns must be included in `genetic_df`:
+        2. Data requirement
 
-        * **trait_id**: Trait ID.
-        * **individual_id**: Individual ID inside the tree sequence input.
-        * **genetic_value**: Simulated genetic values.
+        Trait IDs in **trait_id** column must start from 0 and be consecutive.
 
-    2. Data requirement
+        The dataframe output has the following columns:
 
-    Trait IDs in **trait_id** column must start from 0 and be consecutive.
+            * **trait_id**: Trait ID.
+            * **individual_id**: Individual ID inside the tree sequence input.
+            * **genetic_value**: Simulated genetic values.
+            * **environmental_noise**: Simulated environmental noise.
+            * **phenotype**: Simulated phenotype.
 
-    The dataframe output has the following columns:
+    .. rubric:: Examples
 
-        * **trait_id**: Trait ID.
-        * **individual_id**: Individual ID inside the tree sequence input.
-        * **genetic_value**: Simulated genetic values.
-        * **environmental_noise**: Simulated environmental noise.
-        * **phenotype**: Simulated phenotype.
-
-    Examples
-    --------
     See :ref:`environment_noise` for worked examples.
     """
     genetic_df = _check_dataframe(

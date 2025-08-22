@@ -49,13 +49,11 @@ def _accumulate_individual_values(
 class _GeneticValue:
     """GeneticValue class to compute genetic values of individuals.
 
-    Parameters
-    ----------
-    ts : tskit.TreeSequence
-        Tree sequence data with mutation
-    trait_df : pandas.DataFrame
-        Dataframe that includes causal site ID, causal allele, simulated effect
-        size, and trait ID.
+    :param ts: Tree sequence data with mutation
+    :type ts: tskit.TreeSequence
+    :param trait_df: Dataframe that includes causal site ID, causal allele,
+        simulated effect size, and trait ID.
+    :type trait_df: pandas.DataFrame
     """
 
     def __init__(self, ts, trait_df):
@@ -102,10 +100,8 @@ class _GeneticValue:
     def _run(self):
         """Computes genetic values of individuals.
 
-        Returns
-        -------
-        pandas.DataFrame
-            Dataframe with genetic value, individual ID, and trait ID.
+        :returns: Dataframe with genetic value, individual ID, and trait ID.
+        :rtype: pandas.DataFrame
         """
 
         num_ind = self.ts.num_individuals
@@ -139,56 +135,53 @@ def genetic_value(ts, trait_df):
     """
     Obtains genetic value from a trait dataframe.
 
-    Parameters
-    ----------
-    ts : tskit.TreeSequence
-        The tree sequence data that will be used in the quantitative trait
+    :param ts: The tree sequence data that will be used in the quantitative trait
         simulation.
-    trait_df : pandas.DataFrame
-        Trait dataframe.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Pandas dataframe that includes genetic value of individuals in the
+    :type ts: tskit.TreeSequence
+    :param trait_df: Trait dataframe.
+    :type trait_df: pandas.DataFrame
+    :returns: Pandas dataframe that includes genetic value of individuals in the
         tree sequence.
+    :rtype: pandas.DataFrame
 
-    See Also
-    --------
-    trait_model : Return a trait model, which can be used as `model` input.
-    sim_trait : Return a trait dataframe, whch can be used as a `trait_df` input.
-    sim_env : Genetic value dataframe output can be used as an input to simulate
-        environmental noise.
+    .. seealso::
+        :func:`trait_model` Return a trait model, which can be used as `model` input.
 
-    Notes
-    -----
-    The `trait_df` input has some requirements that will be noted below.
+        :func:`sim_trait` Return a trait dataframe, which can be used as a
+        `trait_df` input.
 
-    1. Columns
+        :func:`sim_env` Genetic value dataframe output can be used as an input
+        to simulate environmental noise.
 
-    The following columns must be included in `trait_df`:
+    .. note::
+        The `trait_df` input has some requirements that will be noted below.
 
-        * **site_id**: Site IDs that have causal allele.
-        * **effect_size**: Simulated effect size of causal allele.
-        * **causal_allele**: Causal allele.
-        * **trait_id**: Trait ID.
+        1. Columns
 
-    2. Data requirements
+        The following columns must be included in `trait_df`:
 
-        * Site IDs in **site_id** column must be sorted in an ascending order. Please
-          refer to :py:meth:`pandas.DataFrame.sort_values` for details on sorting
-          values in a :class:`pandas.DataFrame`.
+            * **site_id**: Site IDs that have causal allele.
+            * **effect_size**: Simulated effect size of causal allele.
+            * **causal_allele**: Causal allele.
+            * **trait_id**: Trait ID.
 
-        * Trait IDs in **trait_id** column must start from zero and be consecutive.
+        2. Data requirements
 
-    The genetic value dataframe contains the following columns:
+            * Site IDs in **site_id** column must be sorted in an ascending order. Please
+              refer to :py:meth:`pandas.DataFrame.sort_values` for details on sorting
+              values in a :class:`pandas.DataFrame`.
 
-        * **trait_id**: Trait ID.
-        * **individual_id**: Individual ID inside the tree sequence input.
-        * **genetic_value**: Genetic values that are obtained from the trait dataframe.
+            * Trait IDs in **trait_id** column must start from zero and be consecutive.
 
-    Examples
-    --------
+        The genetic value dataframe contains the following columns:
+
+            * **trait_id**: Trait ID.
+            * **individual_id**: Individual ID inside the tree sequence input.
+            * **genetic_value**: Genetic values that are obtained from the trait
+              dataframe.
+
+    .. rubric:: Examples
+
     See :ref:`genetic_value` for worked examples.
     """
 
@@ -217,44 +210,34 @@ def genetic_value(ts, trait_df):
 def normalise_genetic_value(genetic_df, mean=0, var=1, ddof=1):
     """Normalise genetic value dataframe.
 
-    Parameters
-    ----------
-    genetic_df : pandas.DataFrame
-        Genetic value dataframe.
-    mean : float, default 0
-        Mean of the resulting genetic value.
-    var : float, default 1
-        Variance of the resulting genetic value.
-    ddof : int, default 1
-        Delta degrees of freedom. The divisor used in computing the variance
+    :param genetic_df: Genetic value dataframe.
+    :type genetic_df: pandas.DataFrame
+    :param mean: Mean of the resulting genetic value.
+    :type mean: float
+    :param var: Variance of the resulting genetic value.
+    :type var: float
+    :param ddof: Delta degrees of freedom. The divisor used in computing the variance
         is N - ddof, where N represents the number of elements.
+    :type ddof: int
+    :returns: Dataframe with normalised genetic value.
+    :rtype: pandas.DataFrame
+    :raises ValueError: If `var` <= 0.
 
-    Returns
-    -------
-    pandas.DataFrame
-        Dataframe with normalised genetic value.
+    .. note::
+        The following columns must be included in `genetic_df`:
 
-    Raises
-    ------
-    ValueError
-        If `var` <= 0.
+            * **trait_id**: Trait ID.
+            * **individual_id**: Individual ID inside the tree sequence input.
+            * **genetic_value**: Simulated genetic values.
 
-    Notes
-    -----
-    The following columns must be included in `genetic_df`:
+        The dataframe output has the following columns:
 
-        * **trait_id**: Trait ID.
-        * **individual_id**: Individual ID inside the tree sequence input.
-        * **genetic_value**: Simulated genetic values.
+            * **trait_id**: Trait ID.
+            * **individual_id**: Individual ID inside the tree sequence input.
+            * **genetic_value**: Normalised genetic values.
 
-    The dataframe output has the following columns:
+    .. rubric:: Examples
 
-        * **trait_id**: Trait ID.
-        * **individual_id**: Individual ID inside the tree sequence input.
-        * **genetic_value**: Normalised genetic values.
-
-    Examples
-    --------
     See :ref:`normalise_genetic_value` section for worked examples.
     """
     if var <= 0:
