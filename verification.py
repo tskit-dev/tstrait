@@ -1099,7 +1099,7 @@ class EffectSizeDistribution(Test):
                 data=df["effect_size"].values,
                 data_name=stats_type,
                 dist=scipy.stats.norm,
-                dist_name=f"normal_mean_{mean[i]}_var_{cov[i,i]}",
+                dist_name=f"normal_mean_{mean[i]}_var_{cov[i, i]}",
                 loc=mean[i],
                 scale=np.sqrt(cov[i, i]),
             )

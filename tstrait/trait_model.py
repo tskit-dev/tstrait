@@ -14,28 +14,30 @@ class TraitModel(metaclass=ABCMeta):
     """
     Superclass of the trait model.
 
-    Attributes
-    ----------
-    name : str
-        Name of the trait model.
-    num_trait : int
-        Number of traits to be simulated.
+    :ivar name: Name of the trait model.
+    :vartype name: str
+    :ivar num_trait: Number of traits to be simulated.
+    :vartype num_trait: int
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-    TraitModelNormal : Return a normal distribution trait model.
-    TraitModelT : Return a Student's t-distribution trait model.
-    TraitModelFixed : Return a fixed value trait model.
-    TraitModelExponential : Return an exponential distribution trait model.
-    TraitModelGamma : Return a gamma distribution trait model.
-    TraitModelMultivariateNormal : Return a multivariate normal distribution
-        trait model.
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
 
-    Notes
-    -----
-    This is the base class for all trait models in tstrait. All trait models
-    should set all parameters in their ``__init__`` as arguments.
+        :class:`TraitModelNormal` Return a normal distribution trait model.
+
+        :class:`TraitModelT` Return a Student's t-distribution trait model.
+
+        :class:`TraitModelFixed` Return a fixed value trait model.
+
+        :class:`TraitModelExponential` Return an exponential distribution trait model.
+
+        :class:`TraitModelGamma` Return a gamma distribution trait model.
+
+        :class:`TraitModelMultivariateNormal` Return a multivariate normal
+        distribution trait model.
+
+    .. note::
+        This is the base class for all trait models in tstrait. All trait models
+        should set all parameters in their ``__init__`` as arguments.
     """
 
     @abstractmethod
@@ -57,32 +59,28 @@ class TraitModelNormal(TraitModel):
     """
     Normal distribution trait model.
 
-    Parameters
-    ----------
-    mean : float
-        Mean of the simulated effect size.
-    var : float
-        Variance of the simulated effect size. Must be non-negative.
+    :param mean: Mean of the simulated effect size.
+    :type mean: float
+    :param var: Variance of the simulated effect size. Must be non-negative.
+    :type var: float
+    :returns: Normal distribution trait model.
+    :rtype: TraitModel
 
-    Returns
-    -------
-    TraitModel
-        Normal distribution trait model.
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-    numpy.random.Generator.normal : Details on the input parameters and distribution.
+        :py:meth:`numpy.random.Generator.normal` Details on the input parameters
+        and distribution.
 
-    Notes
-    -----
-    This is a trait model built on top of :py:meth:`numpy.random.Generator.normal`, so
-    please see its documentation for the details of the normal distribution simulation.
+    .. note::
+        This is a trait model built on top of
+        :py:meth:`numpy.random.Generator.normal`, so please see its documentation
+        for the details of the normal distribution simulation.
 
-    Examples
-    --------
-    Please see the docstring example of :func:`trait_model` for constructing a normal
-    distribution trait model.
+    .. rubric:: Examples
+
+    Please see the docstring example of :func:`trait_model` for constructing a
+    normal distribution trait model.
     """
 
     def __init__(self, mean, var):
@@ -94,17 +92,12 @@ class TraitModelNormal(TraitModel):
         """
         This method simulates an effect size from a normal distribution.
 
-        Parameters
-        ----------
-        num_causal : int
-            Number of causal sites
-        rng : numpy.random.Generator
-            Random generator that will be used to simulate effect size.
-
-        Returns
-        -------
-        float or array-like
-            Simulated effect size of a causal mutation.
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :returns: Simulated effect size of a causal mutation.
+        :rtype: float or array-like
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.normal(
@@ -118,35 +111,29 @@ class TraitModelNormal(TraitModel):
 class TraitModelExponential(TraitModel):
     """Exponential distribution trait model.
 
-    Parameters
-    ----------
-    scale : float
-        Scale of the exponential distribution. Must be non-negative.
-    random_sign : bool, default False
-        If True, :math:`1` or :math:`-1` will be randomly multiplied to the
-        simulated effect sizes, such that we can simulate effect sizes with
-        randomly chosen signs. If False, only positive values are being
+    :param scale: Scale of the exponential distribution. Must be non-negative.
+    :type scale: float
+    :param random_sign: If True, :math:`1` or :math:`-1` will be randomly
+        multiplied to the simulated effect sizes, such that we can simulate effect
+        sizes with randomly chosen signs. If False, only positive values are being
         simulated as part of the property of the exponential distribution.
+    :type random_sign: bool
+    :returns: Exponential distribution trait model.
+    :rtype: TraitModel
 
-    Returns
-    -------
-    TraitModel
-        Exponential distribution trait model.
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-    numpy.random.Generator.exponential : Details on the input parameters and
-        distribution.
+        :py:meth:`numpy.random.Generator.exponential` Details on the input
+        parameters and distribution.
 
-    Notes
-    -----
-    This is a trait model built on top of :py:meth:`numpy.random.Generator.exponential`,
-    so please see its documentation for the details of the exponential distribution
-    simulation.
+    .. note::
+        This is a trait model built on top of
+        :py:meth:`numpy.random.Generator.exponential`, so please see its
+        documentation for the details of the exponential distribution simulation.
 
-    Examples
-    --------
+    .. rubric:: Examples
+
     Please see the docstring example of :func:`trait_model` for constructing an
     exponential distribution trait model.
     """
@@ -160,17 +147,12 @@ class TraitModelExponential(TraitModel):
         """
         This method simulates an effect size from an exponential distribution.
 
-        Parameters
-        ----------
-        num_causal : int
-            Number of causal sites
-        rng : numpy.random.Generator
-            Random generator that will be used to simulate effect size.
-
-        Returns
-        -------
-        float or array-like
-            Simulated effect size of a causal mutation.
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :returns: Simulated effect size of a causal mutation.
+        :rtype: float or array-like
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.exponential(scale=self.scale, size=num_causal)
@@ -183,32 +165,25 @@ class TraitModelFixed(TraitModel):
     """
     Fixed value trait model.
 
-    Parameters
-    ----------
-    value : float
-        Value of the simulated effect size.
-    random_sign : bool, default False
-        If True, :math:`1` or :math:`-1` will be randomly multiplied to the
-        simulated effect sizes, such that we can simulate constant value effect
+    :param value: Value of the simulated effect size.
+    :type value: float
+    :param random_sign: If True, :math:`1` or :math:`-1` will be randomly
+        multiplied to the simulated effect sizes, such that we can simulate constant
+        value effect sizes with randomly chosen signs.
+    :type random_sign: bool
+    :returns: Fixed value trait model.
+    :rtype: TraitModel
+
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
+
+    .. note::
+        This is a trait model that gives the fixed value that is specified in
+        `value` if `random_sign` is False. If it is true, this simulates effect
         sizes with randomly chosen signs.
 
-    Returns
-    -------
-    TraitModel
-        Fixed value trait model.
+    .. rubric:: Examples
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-
-    Notes
-    -----
-    This is a trait model that gives the fixed value that is specified in `value`
-    if `random_sign` is False. If it is true, this simulates effect sizes with
-    randomly chosen signs.
-
-    Examples
-    --------
     Please see the docstring example of :func:`trait_model` for constructing a
     fixed value trait model.
     """
@@ -222,17 +197,12 @@ class TraitModelFixed(TraitModel):
         """
         This method returns an effect size from a fixed trait model.
 
-        Parameters
-        ----------
-        num_causal : int
-            Number of causal sites
-        rng : numpy.random.Generator
-            Random generator that will be used to simulate effect size.
-
-        Returns
-        -------
-        float or array-like
-            Simulated effect size of a causal mutation.
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :returns: Simulated effect size of a causal mutation.
+        :rtype: float or array-like
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = np.repeat(self.value, num_causal)
@@ -245,33 +215,28 @@ class TraitModelT(TraitModel):
     """
     Student's t distribution trait model.
 
-    Parameters
-    ----------
-    mean : float
-        Mean of the simulated effect size.
-    var : float
-        Variance of the simulated effect size. Must be > 0.
-    df : float
-        Degrees of freedom. Must be > 0.
+    :param mean: Mean of the simulated effect size.
+    :type mean: float
+    :param var: Variance of the simulated effect size. Must be > 0.
+    :type var: float
+    :param df: Degrees of freedom. Must be > 0.
+    :type df: float
+    :returns: Student's t distribution trait model.
+    :rtype: TraitModel
 
-    Returns
-    -------
-    TraitModel
-        Student's t distribution trait model.
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-    numpy.random.Generator.standard_t : Details on the input parameters and distribution.
+        :py:meth:`numpy.random.Generator.standard_t` Details on the input
+        parameters and distribution.
 
-    Notes
-    -----
-    This is a trait model built on top of :py:meth:`numpy.random.Generator.standard_t`,
-    so please see its documentation for the details of the normal distribution
-    simulation.
+    .. note::
+        This is a trait model built on top of
+        :py:meth:`numpy.random.Generator.standard_t`, so please see its
+        documentation for the details of the normal distribution simulation.
 
-    Examples
-    --------
+    .. rubric:: Examples
+
     Please see the docstring example of :func:`trait_model` for constructing a student's
     t distribution trait model.
     """
@@ -286,17 +251,12 @@ class TraitModelT(TraitModel):
         """
         This method returns an effect size from a t distribution.
 
-        Parameters
-        ----------
-        num_causal : int
-            Number of causal sites
-        rng : numpy.random.Generator
-            Random generator that will be used to simulate effect size.
-
-        Returns
-        -------
-        float or array-like
-            Simulated effect size of a causal mutation.
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :returns: Simulated effect size of a causal mutation.
+        :rtype: float or array-like
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.standard_t(self.df, size=num_causal)
@@ -308,36 +268,31 @@ class TraitModelGamma(TraitModel):
     """
     Gamma distribution trait model.
 
-    Parameters
-    ----------
-    shape : float
-        Shape of the gamma distribution. Must be non-negative.
-    scale : float
-        Scale of the gamma distribution. Must be non-negative.
-    random_sign : bool, default False
-        If True, :math:`1` or :math:`-1` will be randomly multiplied to the
-        simulated effect sizes, such that we can simulate effect sizes with
-        randomly chosen signs. If False, only positive values are being
+    :param shape: Shape of the gamma distribution. Must be non-negative.
+    :type shape: float
+    :param scale: Scale of the gamma distribution. Must be non-negative.
+    :type scale: float
+    :param random_sign: If True, :math:`1` or :math:`-1` will be randomly
+        multiplied to the simulated effect sizes, such that we can simulate effect
+        sizes with randomly chosen signs. If False, only positive values are being
         simulated as part of the property of the gamma distribution.
+    :type random_sign: bool
+    :returns: Gamma distribution trait model.
+    :rtype: TraitModel
 
-    Returns
-    -------
-    TraitModel
-        Gamma distribution trait model.
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-    numpy.random.Generator.gamma : Details on the input parameters and distribution.
+        :py:meth:`numpy.random.Generator.gamma` Details on the input parameters
+        and distribution.
 
-    Notes
-    -----
-    This is a trait model built on top of :py:meth:`numpy.random.Generator.gamma`,
-    so please see its documentation for the details of the gamma distribution
-    simulation.
+    .. note::
+        This is a trait model built on top of
+        :py:meth:`numpy.random.Generator.gamma`, so please see its documentation
+        for the details of the gamma distribution simulation.
 
-    Examples
-    --------
+    .. rubric:: Examples
+
     Please see the docstring example of :func:`trait_model` for constructing an
     gamma distribution trait model.
     """
@@ -352,17 +307,12 @@ class TraitModelGamma(TraitModel):
         """
         This method returns an effect size from a gamma distribution.
 
-        Parameters
-        ----------
-        num_causal : int
-            Number of causal sites
-        rng : numpy.random.Generator
-            Random generator that will be used to simulate effect size.
-
-        Returns
-        -------
-        float or array-like
-            Simulated effect size of a causal mutation.
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :returns: Simulated effect size of a causal mutation.
+        :rtype: float or array-like
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.gamma(self.shape, self.scale, size=num_causal)
@@ -375,41 +325,34 @@ class TraitModelMultivariateNormal(TraitModel):
     """
     Multivariate normal distribution trait model.
 
-    Parameters
-    ----------
-    mean : 1-D array_like, of length N
-        Mean vector.
-    cov : 2-D array_like, of shape (N, N)
-        Covariance matrix. Must be symmetric and positive-semidefinite.
+    :param mean: Mean vector.
+    :type mean: 1-D array_like, of length N
+    :param cov: Covariance matrix. Must be symmetric and positive-semidefinite.
+    :type cov: 2-D array_like, of shape (N, N)
+    :returns: Multivariate normal distribution trait model.
+    :rtype: TraitModel
 
+    .. seealso::
+        :func:`trait_model` Construct a trait model.
 
-    Returns
-    -------
-    TraitModel
-        Multivariate normal distribution trait model.
+        :py:meth:`numpy.random.Generator.multivariate_normal` Details on the
+        input parameters and distribution.
 
-    See Also
-    --------
-    trait_model : Construct a trait model.
-    numpy.random.Generator.multivariate_normal : Details on the input parameters
-        and distribution.
+    .. note::
+        Multivariate normal distribution simulation is used in multi-trait simulation,
+        which is described in :ref:`multi_trait`.
 
-    Notes
-    -----
-    Multivariate normal distribution simulation is used in multi-trait simulation,
-    which is described in :ref:`multi_trait`.
+        This is a trait model built on top of
+        :py:meth:`numpy.random.Generator.multivariate_normal`, so please see its
+        documentation for the details of the multivariate normal distribution
+        simulation.
 
-    This is a trait model built on top of
-    :py:meth:`numpy.random.Generator.multivariate_normal`, so please see its
-    documentation for the details of the multivariate normal distribution
-    simulation.
+        The number of dimensions of mean vector and covariance matrix should match,
+        and the length of the mean vector specifies the number of traits that will
+        be simulated by using this model.
 
-    The number of dimensions of mean vector and covariance matrix should match,
-    and the length of the mean vector specifies the number of traits that will
-    be simulated by using this model.
+    .. rubric:: Examples
 
-    Examples
-    --------
     Please see the docstring example of :func:`trait_model` for constructing a
     multivariate normal distribution trait model.
     """
@@ -424,17 +367,12 @@ class TraitModelMultivariateNormal(TraitModel):
         """
         This method returns an effect size from a multivariate normal distribution.
 
-        Parameters
-        ----------
-        num_causal : int
-            Number of causal sites
-        rng : numpy.random.Generator
-            Random generator that will be used to simulate effect size.
-
-        Returns
-        -------
-        float or array-like
-            Simulated effect size of a causal mutation.
+        :param num_causal: Number of causal sites
+        :type num_causal: int
+        :param rng: Random generator that will be used to simulate effect size.
+        :type rng: numpy.random.Generator
+        :returns: Simulated effect size of a causal mutation.
+        :rtype: float or array-like
         """
         num_causal = self._check_parameter(num_causal, rng)
         beta = rng.multivariate_normal(mean=self.mean, cov=self.cov, size=num_causal)
@@ -455,43 +393,42 @@ def trait_model(distribution, **kwargs):
     """
     Return a trait model corresponding to the specified model.
 
-    Parameters
-    ----------
-    distribution : str
-        String describing the trait model. The list of supported distributions
-        are:
+    :param distribution: String describing the trait model. The list of
+        supported distributions are:
+
         * "normal": Normal distribution
         * "t": Student's t distribution
         * "fixed": Fixed value
         * "exponential": Exponential distribution
         * "gamma": Gamma distribution
         * "multi_normal": Multivariate normal distribution
-    **kwargs
-        These parameters will be used to specify the trait model.
+    :type distribution: str
+    :param kwargs: These parameters will be used to specify the trait model.
+    :returns: Trait model that specifies the distribution of effect size
+        simulation.
+    :rtype: TraitModel
 
-    Returns
-    -------
-    TraitModel
-        Trait model that specifies the distribution of effect size simulation.
+    .. seealso::
+        :class:`TraitModelNormal` Return a normal distribution trait model.
 
-    See Also
-    --------
-    TraitModelNormal : Return a normal distribution trait model.
-    TraitModelT : Return a Student's t-distribution trait model.
-    TraitModelFixed : Return a fixed value trait model.
-    TraitModelExponential : Return an exponential distribution trait model.
-    TraitModelGamma : Return a gamma distribution trait model.
-    TraitModelMultivariateNormal : Return a multivariate normal distribution
-        trait model.
+        :class:`TraitModelT` Return a Student's t-distribution trait model.
 
-    Notes
-    -----
-    Please reference :ref:`effect_size` for details on the effect size
-    simulation. Multivariate normal distribution trait model is used in
-    multi-trait simulation, which is described in :ref:`multi_trait`.
+        :class:`TraitModelFixed` Return a fixed value trait model.
 
-    Examples
-    --------
+        :class:`TraitModelExponential` Return an exponential distribution trait model.
+
+        :class:`TraitModelGamma` Return a gamma distribution trait model.
+
+        :class:`TraitModelMultivariateNormal` Return a multivariate normal
+        distribution trait model.
+
+    .. note::
+        Please reference :ref:`effect_size` for details on the effect size
+        simulation. Multivariate normal distribution trait model is used in
+        multi-trait simulation, which is described in :ref:`multi_trait`.
+
+    .. rubric:: Examples
+
     >>> import tstrait
 
     Constructing a normal distribution trait model with mean :math:`0` and
