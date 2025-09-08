@@ -1,7 +1,0 @@
-msprime
-numba
-numpy
-pandas
-pytest==8.3.5
-pytest-cov==6.0.0
-tskit>=0.5.5

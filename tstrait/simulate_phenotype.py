@@ -39,7 +39,7 @@ def sim_phenotype(
     causal_sites=None,
     alpha=None,
     h2=None,
-    random_seed=None
+    random_seed=None,
 ):
     """
     Simulate quantitative traits.
