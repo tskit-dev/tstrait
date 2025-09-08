@@ -8,4 +8,4 @@ on:
   merge_group:
 jobs:
   Docs:
-    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@main
+    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@v1

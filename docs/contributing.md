@@ -51,17 +51,21 @@ Afterwards, go to Github and open a pull request by pressing a green Pull Reques
 
 ## Requirements
 
-The list of packages needed for development are listed in `requirements.development.txt`.
-Install these by using either:
+The packages needed for development are specified as optional dependencies
+in the ``pyproject.toml`` file. Install these using:
 
 ```
-conda install --file requirements/development.txt
+python3 -m venv env
+source env/bin/activate
+python3 -m pip install -e ".[dev]"
 ```
 
-or
+Alternatively, you can use uv for faster dependency management:
 
 ```
-python -m pip install -r requirements/development.txt
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
 ```
 
 ## Documentation
@@ -111,8 +115,8 @@ the desired statistical properties. Since these tests are quite expensive to run
 validate, they are not run as part of continuous integration (CI) but instead as a pre-release sanity check.
 
 The statistical tests are all run via the `verification.py` script in the project root. The script has some
-extra dependencies listed in the `requirements/verification.txt`, which can be installed using
-`pip install -r` or `conda install --file`. You should also need to install [R](https://www.r-project.org/)
+extra dependencies specified in the `verification` optional dependencies in `pyproject.toml`, which can be installed using
+`pip install -e ".[verification]"` or `uv pip install -e ".[verification]"`. You should also need to install [R](https://www.r-project.org/)
 into your environment. Run this script using:
 
 ```

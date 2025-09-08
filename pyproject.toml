@@ -1,3 +1,126 @@
 [build-system]
-requires = ["setuptools"]
+requires = [
+    "setuptools>=64",
+    "setuptools-scm>=8",
+]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "tstrait"
+dynamic = [
+    "version",
+]
+description = "Quantitative trait simulation of tree sequence data"
+readme = "README.md"
+maintainers = [
+    { name = "Tskit Developers", email = "admin@tskit.dev" },
+]
+authors = [
+    { name = "Daiki Tagami et al." },
+]
+keywords = [
+    "gwas",
+    "population genetics",
+    "quantitative trait",
+    "simulation",
+    "statistical genetics",
+    "tree sequence",
+    "tskit",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.3",
+    "numba>=0.57.0",
+    "pandas>=1.0",
+    "tskit>=0.5.5",
+]
+
+[project.license]
+text = "MIT"
+
+[project.urls]
+Homepage = "https://tskit.dev/tstrait/"
+"Bug Tracker" = "https://github.com/tskit-dev/tstrait/issues"
+Documentation = "https://tskit.dev/tstrait/docs/"
+"Source Code" = "https://github.com/tskit-dev/tstrait"
+
+[project.optional-dependencies]
+test = [
+    "msprime==1.3.4",
+    "numba==0.61.2",
+    "pandas==2.3.2",
+    "tskit==0.6.4",
+    "pytest==8.4.2",
+    "pytest-cov==6.3.0",
+    "pytest-xdist==3.8.0",
+    "scipy==1.16.1",
+]
+docs = [
+    "jupyter-book==1.0.4.post1",
+    "matplotlib==3.10.6",
+    "msprime==1.3.4",
+    "numba==0.61.2",
+    "numpydoc==1.9.0",
+    "pandas==2.3.2",
+    "sphinx-issues==5.0.1",
+    "tskit==0.6.4",
+]
+dev = [
+    "jupyter-book",
+    "matplotlib",
+    "msprime",
+    "numba",
+    "numpy",
+    "numpydoc",
+    "pandas",
+    "pre-commit",
+    "pytest",
+    "scipy",
+    "sphinx",
+    "sphinx-issues",
+    "tskit",
+    "pytest-cov",
+    "pytest-xdist",
+]
+verification = [
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "scipy",
+    "statsmodels",
+    "seaborn",
+    "tqdm",
+    "argparse",
+    "daiquiri",
+    "msprime",
+]
+
+[tool.setuptools]
+packages = [
+    "tstrait",
+]
+
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]

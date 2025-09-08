@@ -34,17 +34,19 @@ jobs:
         with:
           access_token: ${{ github.token }}
       - uses: actions/checkout@v4.2.2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5.3.0
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
+          version: "0.8.15"
+      
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements/CI-tests-pip/requirements.txt
+          uv venv
+          uv pip install -r pyproject.toml --extra test
       - name: Test with pytest
         run: |
-          python3 -m pytest --cov=tstrait --cov-report=xml --cov-branch -n 0 tests
+          uv run --no-sync python -m pytest --cov=tstrait --cov-report=xml --cov-branch -n 0 tests
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5.1.1
         env:
