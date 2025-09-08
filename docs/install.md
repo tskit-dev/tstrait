@@ -7,7 +7,7 @@ We recommend using `conda` for most users.
 
 ## System requirements
 
-tstrait requires Python 3.8+. Python dependencies are installed automatically by `pip` or `conda`.
+tstrait requires Python 3.10+. Python dependencies are installed automatically by `pip` or `conda`.
 
 ## Via conda
 

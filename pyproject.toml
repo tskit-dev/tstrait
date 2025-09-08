@@ -34,10 +34,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -45,7 +45,7 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.20.3",
     "numba>=0.57.0",
@@ -71,7 +71,7 @@ test = [
     "pytest==8.4.2",
     "pytest-cov==6.3.0",
     "pytest-xdist==3.8.0",
-    "scipy==1.16.1",
+    "scipy==1.15.3",
 ]
 docs = [
     "jupyter-book==1.0.4.post1",
