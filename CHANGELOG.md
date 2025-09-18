@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1] - 2025-09-18
+
+### Update:
+
+- Generalise the traversal algorithm to return node values {pr}`154`
+- Upgrade supported Python versions to 3.10 -> 3.13
+
 ## [0.1.0] - 2024-03-07
 
 ### Breaking changes:
