@@ -84,7 +84,7 @@ docs = [
     "tskit==0.6.4",
 ]
 dev = [
-    "jupyter-book",
+    "jupyter-book<2",
     "matplotlib",
     "msprime",
     "numba",
