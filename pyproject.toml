@@ -34,7 +34,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -45,7 +44,7 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.20.3",
     "numba>=0.57.0",
@@ -62,7 +61,7 @@ Homepage = "https://tskit.dev/tstrait/"
 Documentation = "https://tskit.dev/tstrait/docs/"
 "Source Code" = "https://github.com/tskit-dev/tstrait"
 
-[project.optional-dependencies]
+[dependency-groups]
 test = [
     "msprime==1.3.4",
     "numba==0.61.2",
@@ -73,6 +72,7 @@ test = [
     "pytest-xdist==3.8.0",
     "scipy==1.15.3",
 ]
+
 docs = [
     "jupyter-book==1.0.4.post1",
     "matplotlib==3.10.6",
@@ -83,23 +83,24 @@ docs = [
     "sphinx-issues==5.0.1",
     "tskit==0.6.4",
 ]
-dev = [
-    "jupyter-book<2",
-    "matplotlib",
-    "msprime",
-    "numba",
-    "numpy",
-    "numpydoc",
-    "pandas",
-    "pre-commit",
-    "pytest",
-    "scipy",
-    "sphinx",
-    "sphinx-issues",
-    "tskit",
-    "pytest-cov",
-    "pytest-xdist",
+
+lint = [
+    "ruff==0.15.1",
+    "prek==0.3.3",
 ]
+
+packaging = [
+    "twine",
+    "validate-pyproject[all]",
+]
+
+dev = [
+    {include-group = "docs"},
+    {include-group = "lint"},
+    {include-group = "test"},
+    {include-group = "packaging"},
+]
+
 verification = [
     "matplotlib",
     "numpy",
@@ -124,3 +125,10 @@ packages = [
 testpaths = [
     "tests",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 89
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "W", "I", "N", "UP", "A", "PT"]
