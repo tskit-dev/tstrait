@@ -1,126 +1,52 @@
-name: Build and test wheels
+name: Publish Python release
 
 on:
   push:
-    branches:
-      - main
-      - test
-    tags:
-      - '*'
+    branches: [test-publish]
   release:
     types: [published]
 
 jobs:
-  distbuild:
-    name: Build Distribution
+  build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5.3.0
         with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install twine build
-      - name: Build sdist and wheel
-        run: |
-          python -m build
-      - name: Check distribution artefacts
-        run: |
-          python3 -m twine check dist/*
-      - name: Upload wheel and sdist
-        uses: actions/upload-artifact@v4.4.3
-        with:
-          name: wheels
-          path: dist
+          fetch-depth: 0
 
-  OSX-test:
-    needs: ['distbuild']
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - name: Download wheels
-        uses: actions/download-artifact@v4.1.8
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
         with:
-          name: wheels
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5.3.0
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install wheel and test
-        run: |
-          python -VV
-          # Install the local wheel
-          pip install tstrait --only-binary tstrait -f .
-          python -c "import tstrait"
+          python-version: "3.12"
+          version: "0.8.15"
 
-  windows-test:
-    needs: ['distbuild']
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
-        wordsize: [64]
-    steps:
-      - name: Download wheels
-        uses: actions/download-artifact@v4.1.8
-        with:
-          name: wheels
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5.3.0
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install wheel and test
-        run: |
-          python -VV
-          pip install wheel
-          # Install the local wheel
-          pip install tstrait --only-binary tstrait -f .
-          python -c "import tstrait"
+      - name: Build
+        run: uv build
 
-  linux-test:
-    runs-on: ubuntu-24.04
-    needs: ['distbuild']
-    strategy:
-      matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - name: Download wheels
-        uses: actions/download-artifact@v4.1.8
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels
-      - name: Set up Python
-        uses: actions/setup-python@v5.3.0
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install wheel and test
-        run: |
-          python -VV
-          # Install the local wheel
-          pip install tstrait --only-binary tstrait -f .
-          python -c "import tstrait"
+          name: dist
+          path: dist/
 
-  PyPI_Upload:
+  publish:
     runs-on: ubuntu-24.04
     environment: release
-    needs: ['windows-test', 'OSX-test', 'linux-test']
+    needs: [build]
     permissions:
       id-token: write
     steps:
-      - name: Download all
-        uses: actions/download-artifact@v4.1.8
-      - name: Move to dist
-        run: |
-          mkdir dist
-          cp */*.{whl,gz} dist/.
-      - name: Publish distribution to Test PyPI
-        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@v1.12.3
+      - uses: actions/download-artifact@v7.0.0
         with:
-          repository_url: https://test.pypi.org/legacy/
-      - name: Publish distribution to PRODUCTION PyPI
+          name: dist
+          path: dist
+
+      - name: Publish to TestPyPI
+        if: github.event_name == 'push' && github.ref_name == 'test-publish'
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          verbose: true
+
+      - name: Publish to PyPI
         if: github.event_name == 'release'
-        uses: pypa/gh-action-pypi-publish@v1.12.3
+        uses: pypa/gh-action-pypi-publish@v1.13.0
