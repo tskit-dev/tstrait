@@ -7,74 +7,19 @@ on:
   merge_group:
 
 jobs:
-  pre-commit:
-    name: Lint
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v2
+  packaging:
+    name: Python packaging
+    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@main
 
   test:
     name: Python
-    runs-on: ${{ matrix.os }}
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@main
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python }}
+      coverage-directory: tstrait
+    secrets: inherit
     strategy:
       matrix:
-        python: [ "3.10", 3.13 ]
-        os:  [ macos-latest, ubuntu-24.04, windows-latest ]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-        with:
-          access_token: ${{ github.token }}
-      - uses: actions/checkout@v4.2.2
-      - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v6
-        with:
-          python-version: ${{ matrix.python }}
-          version: "0.8.15"
-      
-      - name: Install dependencies
-        run: |
-          uv venv
-          uv pip install -r pyproject.toml --extra test
-      - name: Test with pytest
-        run: |
-          uv run --no-sync python -m pytest --cov=tstrait --cov-report=xml --cov-branch -n 0 tests
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5.1.1
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Delete coverage
-        run: |
-            rm .coverage
-
-  dist-tests:
-    name: Distribution
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-        with:
-          access_token: ${{ github.token }}
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5.3.0
-        with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install twine build
-      - name: Build sdist and wheel
-        run: |
-          python -m build
-      - name: Check distribution artefacts
-        run: |
-          python3 -m twine check dist/*
-      - name: Install wheel
-        run: |
-          python3 -m pip install dist/*.whl
-      - name: Import package
-        # Don't import from current dir
-        run: |
-          cd /
-          python3 -c "import tstrait"
+        python: ["3.11", "3.13"]
+        os: [macos-latest, ubuntu-24.04, windows-latest]
