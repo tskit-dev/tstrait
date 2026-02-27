@@ -44,7 +44,7 @@ sphinx:
         logo:
           text: |
             tstrait<br/>
-            version __TSTRAIT_VERSION__
+            version __PKG_VERSION__
       myst_enable_extensions:
       - colon_fence
       - deflist
