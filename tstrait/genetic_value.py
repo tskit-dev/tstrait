@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tskit
 
-from .base import _check_instance, _check_dataframe, _check_non_decreasing  # noreorder
+from .base import _check_dataframe, _check_instance, _check_non_decreasing  # noreorder
 
 
 @numba.njit
@@ -57,9 +57,7 @@ class _GeneticValue:
     """
 
     def __init__(self, ts, trait_df):
-        self.trait_df = trait_df[
-            ["site_id", "effect_size", "trait_id", "causal_allele"]
-        ]
+        self.trait_df = trait_df[["site_id", "effect_size", "trait_id", "causal_allele"]]
         self.ts = ts
 
     def _individual_genetic_values(self, tree, site, causal_allele, effect_size):

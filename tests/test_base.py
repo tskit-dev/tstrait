@@ -5,12 +5,12 @@ import pandas as pd
 import pytest
 
 from tstrait.base import (
-    _check_int,
-    _check_val,
-    _check_instance,
-    _check_numeric_array,
     _check_dataframe,
+    _check_instance,
+    _check_int,
     _check_non_decreasing,
+    _check_numeric_array,
+    _check_val,
 )  # noreorder
 
 
@@ -47,7 +47,7 @@ class TestVal:
         _check_val(0, "n", 0, inclusive=True)
 
     def test_val_below_min_inclusive(self):
-        with pytest.raises(ValueError, match="n must be a number not " "less than 0"):
+        with pytest.raises(ValueError, match="n must be a number not less than 0"):
             _check_val(-1, "n", 0, inclusive=True)
 
 
@@ -63,7 +63,7 @@ class TestInt:
             _check_int(n, "n")
 
     def test_int_below_min(self):
-        with pytest.raises(ValueError, match="n must be an integer not " "less than 0"):
+        with pytest.raises(ValueError, match="n must be an integer not less than 0"):
             _check_int(-1, "n", 0)
 
 
@@ -88,9 +88,7 @@ class TestDataFrame:
     def test_dataframe(self):
         df = pd.DataFrame({"first": [0, 1], "second": [3, 4]})
 
-        with pytest.raises(
-            ValueError, match="columns must be included in df dataframe"
-        ):
+        with pytest.raises(ValueError, match="columns must be included in df dataframe"):
             _check_dataframe(df, ["column"], "df")
 
         pd.testing.assert_frame_equal(

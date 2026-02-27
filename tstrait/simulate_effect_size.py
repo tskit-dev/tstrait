@@ -3,11 +3,10 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import tskit
+
 import tstrait
 
-from .base import _check_instance
-from .base import _check_int
-from .base import _check_val
+from .base import _check_instance, _check_int, _check_val
 
 
 @dataclass

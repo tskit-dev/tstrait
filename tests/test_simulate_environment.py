@@ -2,6 +2,7 @@ import msprime
 import numpy as np
 import pandas as pd
 import pytest
+
 import tstrait
 from tstrait.base import _check_numeric_array
 
@@ -47,8 +48,7 @@ class TestInput:
     def test_input_type(self):
         with pytest.raises(
             TypeError,
-            match="genetic_df must be a <class 'pandas.core.frame.DataFrame'>"
-            " instance",
+            match="genetic_df must be a <class 'pandas.core.frame.DataFrame'> instance",
         ):
             tstrait.sim_env(genetic_df=1, h2=0.3)
 
