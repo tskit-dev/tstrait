@@ -2,6 +2,7 @@ import msprime
 import numpy as np
 import pandas as pd
 import pytest
+
 import tstrait
 from tstrait.base import _check_numeric_array
 from tstrait.simulate_effect_size import _TraitSimulator
@@ -117,10 +118,8 @@ class TestOutputDim:
         )
         self.check_dimensions(sim_result, num_causal)
         np.testing.assert_equal(sim_result["trait_id"], np.zeros(num_causal))
-        assert (
-            0 <= np.min(sim_result["site_id"])
-            and np.max(sim_result["site_id"]) < sample_ts.num_sites
-        )
+        assert 0 <= np.min(sim_result["site_id"])
+        assert np.max(sim_result["site_id"]) < sample_ts.num_sites
 
     def test_output_default_num_causal(self, sample_ts):
         model = tstrait.trait_model(distribution="normal", mean=0, var=1)
@@ -165,10 +164,10 @@ class TestOutputDim:
         df1 = df[df.trait_id == 1]
         self.check_dimensions(df0, num_causal)
         self.check_dimensions(df1, num_causal)
-        assert (
-            0 <= np.min(df["site_id"]) and np.max(df["site_id"]) < sample_ts.num_sites
-        )
-        assert 0 <= np.min(df["trait_id"]) and np.max(df["trait_id"]) <= 1
+        assert 0 <= np.min(df["site_id"])
+        assert np.max(df["site_id"]) < sample_ts.num_sites
+        assert 0 <= np.min(df["trait_id"])
+        assert np.max(df["trait_id"]) <= 1
 
     def test_output_multivariate_alpha(self, sample_ts):
         mean = [0, 1]
@@ -189,10 +188,10 @@ class TestOutputDim:
         df1 = df[df.trait_id == 1]
         self.check_dimensions(df0, num_causal)
         self.check_dimensions(df1, num_causal)
-        assert (
-            0 <= np.min(df["site_id"]) and np.max(df["site_id"]) < sample_ts.num_sites
-        )
-        assert 0 <= np.min(df["trait_id"]) and np.max(df["trait_id"]) <= 1
+        assert 0 <= np.min(df["site_id"])
+        assert np.max(df["site_id"]) < sample_ts.num_sites
+        assert 0 <= np.min(df["trait_id"])
+        assert np.max(df["trait_id"]) <= 1
 
     def test_multiple_causal_sites(self, sample_ts):
         mean = [0, 1]
@@ -399,7 +398,7 @@ class TestSimTrait:
         assert trait_df.position.dtype == int
 
 
-class Test_CausalSites:
+class TestCausalSites:
     @pytest.mark.parametrize("causal_sites", [[0, 2], [3, 0, 1], [0]])
     def test_causal_sites(self, sample_ts, sample_trait_model, causal_sites):
         trait_df = tstrait.sim_trait(

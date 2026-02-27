@@ -2,8 +2,11 @@ import msprime
 import numpy as np
 import pandas as pd
 import pytest
+
 import tstrait
 from tstrait.base import _check_numeric_array
+from tstrait.genetic_value import _GeneticValue
+
 from .data import (
     binary_tree,
     binary_tree_seq,
@@ -11,7 +14,6 @@ from .data import (
     non_binary_tree,
     triploid_tree,
 )  # noreorder
-from tstrait.genetic_value import _GeneticValue
 
 # from tstrait.trait import sim_trait
 
@@ -392,9 +394,7 @@ class TestNormaliseGenetic:
         genetic_array = normalised_df["genetic_value"].values
         np.testing.assert_almost_equal(np.mean(genetic_array), mean, decimal=2)
         np.testing.assert_almost_equal(np.var(genetic_array, ddof=1), var, decimal=2)
-        pd.testing.assert_series_equal(
-            normalised_df["trait_id"], genetic_df["trait_id"]
-        )
+        pd.testing.assert_series_equal(normalised_df["trait_id"], genetic_df["trait_id"])
         pd.testing.assert_series_equal(
             normalised_df["individual_id"], genetic_df["individual_id"]
         )
@@ -420,9 +420,7 @@ class TestNormaliseGenetic:
         genetic_array = normalised_df["genetic_value"].values
         np.testing.assert_almost_equal(np.mean(genetic_array), mean, decimal=2)
         np.testing.assert_almost_equal(np.var(genetic_array, ddof=1), var, decimal=2)
-        pd.testing.assert_series_equal(
-            normalised_df["trait_id"], genetic_df["trait_id"]
-        )
+        pd.testing.assert_series_equal(normalised_df["trait_id"], genetic_df["trait_id"])
         pd.testing.assert_series_equal(
             normalised_df["individual_id"], genetic_df["individual_id"]
         )

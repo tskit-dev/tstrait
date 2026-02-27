@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
 import tstrait
 
 from .base import _check_dataframe
@@ -123,9 +124,7 @@ def sim_phenotype(
         random_seed=random_seed,
     )
     genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
-    phenotype_df = tstrait.sim_env(
-        genetic_df=genetic_df, h2=h2, random_seed=random_seed
-    )
+    phenotype_df = tstrait.sim_env(genetic_df=genetic_df, h2=h2, random_seed=random_seed)
 
     result = tstrait.PhenotypeResult(trait=trait_df, phenotype=phenotype_df)
 

@@ -2,6 +2,7 @@ import msprime
 import numpy as np
 import pandas as pd
 import pytest
+
 import tstrait
 
 
@@ -329,9 +330,7 @@ class TestNormalise:
             phenotype_array, ddof=ddof
         )
 
-        np.testing.assert_array_almost_equal(
-            normalised_phenotype_array, phenotype_array
-        )
+        np.testing.assert_array_almost_equal(normalised_phenotype_array, phenotype_array)
 
     def test_pleiotropy(self, sample_ts):
         mean = 0

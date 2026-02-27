@@ -64,8 +64,9 @@ import scipy
 import seaborn as sns
 import stdpopsim
 import tqdm
-import tstrait
 from matplotlib import pyplot
+
+import tstrait
 
 matplotlib.use("Agg")
 import statsmodels.api as sm  # noqa: E402
@@ -106,9 +107,7 @@ class Test:
         pyplot.close("all")
 
     def _plot_qq_compare(self, data1, data1_name, data2, data2_name):
-        sm.qqplot_2samples(
-            data1, data2, xlabel=data1_name, ylabel=data2_name, line="45"
-        )
+        sm.qqplot_2samples(data1, data2, xlabel=data1_name, ylabel=data2_name, line="45")
         f = self._build_filename("compare", data1_name, data2_name)
         pyplot.title(f"compare_{data1_name}_{data2_name}")
         pyplot.savefig(f, dpi=72)
@@ -354,9 +353,7 @@ def _simulate_arg_needle(ts, alpha, h2, random_seed, num_rep=1):
             }
         )
 
-        phenotype_result = pd.concat(
-            [phenotype_result, phenotype_df], ignore_index=True
-        )
+        phenotype_result = pd.concat([phenotype_result, phenotype_df], ignore_index=True)
         trait_result = pd.concat([trait_result, trait_df], ignore_index=True)
 
     trait_result = trait_result.astype({"site_id": int})
@@ -443,7 +440,7 @@ class ExactTestSimplePHENOTYPES(ExactTest):
             ts=ts, trait_df=simulation_output.trait, numericalization=numericalization
         )
         grouped = phenotype_df.groupby("trait_id")[["phenotype"]]
-        phenotype_df = grouped.transform(lambda x: (x - x.mean()))
+        phenotype_df = grouped.transform(lambda x: x - x.mean())
 
         np.testing.assert_array_almost_equal(
             phenotype_df["phenotype"].values,
@@ -768,9 +765,7 @@ class ComparisonTest(Test):
 
 
 class ComparisonTestSimplePHENOTYPES(ComparisonTest):
-    def _qqplot_simplePHENOTYPES(
-        self, num_rep, h2, random_seed, mean=0, var=1, alpha=0
-    ):
+    def _qqplot_simplePHENOTYPES(self, num_rep, h2, random_seed, mean=0, var=1, alpha=0):
         ts, ind_id = self._simulate_out_of_africa(random_seed=random_seed)
         tstrait_phenotype = self._simulate_tstrait(
             ts=ts,
@@ -1307,9 +1302,7 @@ class TestRunner:
             progress.update()
 
     def __run_parallel(self, tests, basedir, num_threads, progress):
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=num_threads
-        ) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
             futures = [executor.submit(test.run, basedir) for test in tests]
             exception = None
             for future in concurrent.futures.as_completed(futures):

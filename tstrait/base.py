@@ -31,9 +31,7 @@ def _check_int(value, name, minimum=None):
     except TypeError:
         raise TypeError(f"{name} must be an integer") from None
     if minimum is not None and value < minimum:
-        raise ValueError(
-            f"{name} must be an integer not less " f"than {minimum}"
-        ) from None
+        raise ValueError(f"{name} must be an integer not less than {minimum}") from None
     return value
 
 

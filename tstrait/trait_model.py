@@ -1,12 +1,11 @@
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
 from .base import (
+    _check_instance,
     _check_int,
     _check_val,
-    _check_instance,
 )  # noreorder
 
 
