@@ -2876,23 +2876,26 @@ wheels = [
 
 [[package]]
 name = "tskit"
-version = "0.6.4"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonschema" },
     { name = "numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/95/2c2d8bdaae4a3948181de68d1fac0569d9c937a42f7ccfcf097f9a428721/tskit-0.6.4.tar.gz", hash = "sha256:bdac1bb7e3ae3d1f562ec191b5d840156e082dd2adc6af7c41b170c4fb1be792", size = 874772, upload-time = "2025-05-21T18:18:18.343Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/f2/8a6157eb1abdefabe17c2e482218881e608957c3723eacee9106952cdac5/tskit-1.0.1.tar.gz", hash = "sha256:2bcf811e420d28a52f4994f72cb3b6900d31865ca0deaefce0aec4ee26021581", size = 929582, upload-time = "2026-02-06T11:41:39.069Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/28/547acef423709fad5b70bbc68332c1fa0a4c1887ec4e76cb93a433a95bbb/tskit-0.6.4-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:510fd219f2c6d5d669e178a3ea1e4cd60d7fc0b40a50fae4859a6a8f35d2394a", size = 748024, upload-time = "2025-05-21T18:17:54.919Z" },
-    { url = "https://files.pythonhosted.org/packages/88/0d/5816ee9ac9708f2e1def387e36b2d0763bdea2267db3ff4a55c17f079e85/tskit-0.6.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4b631d38c352b618c3ede33515cf97ffcbc24e3a4252b6979a80b1770434a534", size = 1322885, upload-time = "2025-05-21T18:17:56.958Z" },
-    { url = "https://files.pythonhosted.org/packages/bd/db/b98964916b3f9c603f8ad92045db0c050ca4699a976051acdc1368085c3c/tskit-0.6.4-cp311-cp311-win_amd64.whl", hash = "sha256:e121226092816a1e36b2835aa0348e652c09bdf0604a936f63c4fd0d64ca6422", size = 470677, upload-time = "2025-05-21T18:17:58.584Z" },
-    { url = "https://files.pythonhosted.org/packages/b4/cf/d2a1c6a6ad29b16310b60bf08dd5b1d1e4e0d23819c49284662373c9fc54/tskit-0.6.4-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:8fd5a0c94f302f5fe69a9f7a662b8ddf8219e4dc7325a1990b279afd084bb649", size = 749765, upload-time = "2025-05-21T18:18:00.234Z" },
-    { url = "https://files.pythonhosted.org/packages/80/46/1630514e8a9f97a8f75e805a7872fb3083119d7e421309e05e99d5f5ca66/tskit-0.6.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f086e648a624004343882ca57f9365d5005cc2e472113b61874c9403c14be272", size = 1324515, upload-time = "2025-05-21T18:18:02.461Z" },
-    { url = "https://files.pythonhosted.org/packages/07/44/2116904f37ffe1db0e675b4c70b70cdaf7ab38b474cd546f6ff9d46de4b9/tskit-0.6.4-cp312-cp312-win_amd64.whl", hash = "sha256:507eee5b20c5e47202d90a70143c601aef3b3ec70321b5251c2e6d896b1e0722", size = 470047, upload-time = "2025-05-21T18:18:04.185Z" },
-    { url = "https://files.pythonhosted.org/packages/c5/d7/5ee3b118281f2a7032f5d38fca0ee7e11bf7cf1823d2dbfa5a991ccf3497/tskit-0.6.4-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:66f07b76f18ad576a7585b6e4d9e46d58994e3df1dd2d1808d32d294354695cf", size = 749773, upload-time = "2025-05-21T18:18:06.48Z" },
-    { url = "https://files.pythonhosted.org/packages/f2/6d/6368c2ffbccb4d7ee8d82096f1ad0b3cb0d639b958c408589cceff09600e/tskit-0.6.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bfb40717382cf47b8844c1f73d73c1e7ca7f63e6a506e7f859f0980667677de2", size = 1324529, upload-time = "2025-05-21T18:18:08.674Z" },
-    { url = "https://files.pythonhosted.org/packages/ee/b9/5b092c5b409cad0005b560622b34f9fd38fe0945939974671306fedef30a/tskit-0.6.4-cp313-cp313-win_amd64.whl", hash = "sha256:c6b1f1b22e5d55a906ee33bca33447500df0cf5b12ec20926773ca1e3c3c8931", size = 470097, upload-time = "2025-05-21T18:18:11.022Z" },
+    { url = "https://files.pythonhosted.org/packages/76/f8/e4e2c1e3c308cfc89678456d5ec6934ee34145b6cb016c601995227d7b50/tskit-1.0.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:93ca5c42a2e28697b5a165a5c120888ba3eb04aaf523840e49fbbd14ab51bbea", size = 773514, upload-time = "2026-02-06T11:41:17.838Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/e2/390cd1676bc5f4ae9eaa36b9ba0d68752f73887f5131d2d62b44d140835d/tskit-1.0.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:27f60036dc75d57b245e5908a519a7ecd7f0b379dc9851e05867824736f784af", size = 1377196, upload-time = "2026-02-06T11:41:20.087Z" },
+    { url = "https://files.pythonhosted.org/packages/96/66/d024be34a6755826411dd85cb420848b836a65d10c8d4a5a5804f0599379/tskit-1.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:9c9f8c083a44c856a2aac8985ef1126691bd85fed2ee534fafe01aa96f8c988e", size = 495043, upload-time = "2026-02-06T11:41:21.598Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/cf/aa4324de87f88d624c10174a8de8376ee7f34f0015eb1880c1e2230cd580/tskit-1.0.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:ec1b44c2078f0c71876624b953af0af698366968795fbfb1b21fd5912eeb512b", size = 775595, upload-time = "2026-02-06T11:41:22.901Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/a6/aa02c40eda8d259339b0f89c5c267851bbfffc172d9189fcb3ac7c4c194d/tskit-1.0.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:498c1763d7a2c70645da359e2d2fb76a33f6b088d4b087921b11606da25da08c", size = 1372460, upload-time = "2026-02-06T11:41:24.912Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/9a/017cb361c3fcd38f0b74a49a85d836ec89377d37e91ce6e53b8793db7c26/tskit-1.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:f51ad5ba5c5ba729ff881a863dc20f67d1418b2efd967521eeff9dd00a6bbbbb", size = 494694, upload-time = "2026-02-06T11:41:26.408Z" },
+    { url = "https://files.pythonhosted.org/packages/98/26/a1591b5012d1a780341c68a300b59e4a978ffebdbf0da2e3b6068a3747f1/tskit-1.0.1-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:2e0b468961a7cbd86fec893bc6e198467098702e4460d8066aac813bfa092846", size = 775595, upload-time = "2026-02-06T11:41:27.796Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/42/9242ed866ec61adedead91a25ec2943e19d68e79cb171ae17ad53d9f06fa/tskit-1.0.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:631d289db32366d637d255ae182a18adfa69b0191739c0c6d66ce588c63400a6", size = 1372523, upload-time = "2026-02-06T11:41:29.237Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/e0/c81c92d43bb9a144f31f61e97e44cbbebe9cabd5ba31494458b100ea6f4b/tskit-1.0.1-cp313-cp313-win_amd64.whl", hash = "sha256:f84a1668244e9f21b59726c1cda607690ad3f7db86141d6bbcda5aa36da3f712", size = 494704, upload-time = "2026-02-06T11:41:31.733Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/f5/b29c1eb62d1aada8d653e8ab613855e874d0b929fd7e25a6e35fe42a27c5/tskit-1.0.1-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:e3ead6815363e81ff3a464852b05f634bf782c6318b8225692467bc200a702ed", size = 775625, upload-time = "2026-02-06T11:41:33.422Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/ed/4c7e1c3970249cc4302bd23002323c8951160ec1f06036f9b0672a12f87e/tskit-1.0.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:a5cc55ae53273d0d5325d94b3dad5e74d70a9fbdc128f1d4e14b4284cb68d2bc", size = 1370421, upload-time = "2026-02-06T11:41:34.747Z" },
+    { url = "https://files.pythonhosted.org/packages/07/a9/18cb783a19179636fb7fbf3f60157a7d95158d5dcc36653f59971554d702/tskit-1.0.1-cp314-cp314-win_amd64.whl", hash = "sha256:e38a912b218de2f7e1d002282a9b206249362edca5da20a0befc8d35cfcca0a9", size = 503975, upload-time = "2026-02-06T11:41:37.734Z" },
 ]
 
 [[package]]
@@ -2967,40 +2970,40 @@ verification = [
 
 [package.metadata]
 requires-dist = [
-    { name = "numba", specifier = ">=0.57.0" },
-    { name = "numpy", specifier = ">=1.20.3" },
+    { name = "numba" },
+    { name = "numpy", specifier = ">=2" },
     { name = "pandas", specifier = ">=1.0" },
-    { name = "tskit", specifier = ">=0.5.5" },
+    { name = "tskit", specifier = ">=1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "jupyter-book", specifier = "==1.0.4.post1" },
-    { name = "matplotlib", specifier = "==3.10.6" },
-    { name = "msprime", specifier = "==1.3.4" },
-    { name = "numba", specifier = "==0.61.2" },
-    { name = "numpydoc", specifier = "==1.9.0" },
-    { name = "pandas", specifier = "==2.3.2" },
+    { name = "jupyter-book", specifier = "<2" },
+    { name = "matplotlib" },
+    { name = "msprime" },
+    { name = "numba" },
+    { name = "numpydoc" },
+    { name = "pandas" },
     { name = "prek", specifier = "==0.3.3" },
-    { name = "pytest", specifier = "==8.4.2" },
-    { name = "pytest-cov", specifier = "==6.3.0" },
-    { name = "pytest-xdist", specifier = "==3.8.0" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
     { name = "ruff", specifier = "==0.15.1" },
-    { name = "scipy", specifier = "==1.15.3" },
-    { name = "sphinx-issues", specifier = "==5.0.1" },
-    { name = "tskit", specifier = "==0.6.4" },
+    { name = "scipy" },
+    { name = "sphinx-issues" },
+    { name = "tskit" },
     { name = "twine" },
     { name = "validate-pyproject", extras = ["all"] },
 ]
 docs = [
-    { name = "jupyter-book", specifier = "==1.0.4.post1" },
-    { name = "matplotlib", specifier = "==3.10.6" },
-    { name = "msprime", specifier = "==1.3.4" },
-    { name = "numba", specifier = "==0.61.2" },
-    { name = "numpydoc", specifier = "==1.9.0" },
-    { name = "pandas", specifier = "==2.3.2" },
-    { name = "sphinx-issues", specifier = "==5.0.1" },
-    { name = "tskit", specifier = "==0.6.4" },
+    { name = "jupyter-book", specifier = "<2" },
+    { name = "matplotlib" },
+    { name = "msprime" },
+    { name = "numba" },
+    { name = "numpydoc" },
+    { name = "pandas" },
+    { name = "sphinx-issues" },
+    { name = "tskit" },
 ]
 lint = [
     { name = "prek", specifier = "==0.3.3" },
@@ -3011,14 +3014,14 @@ packaging = [
     { name = "validate-pyproject", extras = ["all"] },
 ]
 test = [
-    { name = "msprime", specifier = "==1.3.4" },
-    { name = "numba", specifier = "==0.61.2" },
-    { name = "pandas", specifier = "==2.3.2" },
-    { name = "pytest", specifier = "==8.4.2" },
-    { name = "pytest-cov", specifier = "==6.3.0" },
-    { name = "pytest-xdist", specifier = "==3.8.0" },
-    { name = "scipy", specifier = "==1.15.3" },
-    { name = "tskit", specifier = "==0.6.4" },
+    { name = "msprime" },
+    { name = "numba" },
+    { name = "pandas" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+    { name = "scipy" },
+    { name = "tskit" },
 ]
 verification = [
     { name = "argparse" },

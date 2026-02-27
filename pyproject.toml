@@ -37,6 +37,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -46,10 +47,10 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "numpy>=1.20.3",
-    "numba>=0.57.0",
+    "numpy>=2",
+    "numba",
     "pandas>=1.0",
-    "tskit>=0.5.5",
+    "tskit>=1",
 ]
 
 [project.license]
@@ -63,25 +64,25 @@ Documentation = "https://tskit.dev/tstrait/docs/"
 
 [dependency-groups]
 test = [
-    "msprime==1.3.4",
-    "numba==0.61.2",
-    "pandas==2.3.2",
-    "tskit==0.6.4",
-    "pytest==8.4.2",
-    "pytest-cov==6.3.0",
-    "pytest-xdist==3.8.0",
-    "scipy==1.15.3",
+    "msprime",
+    "numba",
+    "pandas",
+    "tskit",
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+    "scipy",
 ]
 
 docs = [
-    "jupyter-book==1.0.4.post1",
-    "matplotlib==3.10.6",
-    "msprime==1.3.4",
-    "numba==0.61.2",
-    "numpydoc==1.9.0",
-    "pandas==2.3.2",
-    "sphinx-issues==5.0.1",
-    "tskit==0.6.4",
+    "jupyter-book<2",
+    "matplotlib",
+    "msprime",
+    "numba",
+    "numpydoc",
+    "pandas",
+    "sphinx-issues",
+    "tskit",
 ]
 
 lint = [
@@ -120,6 +121,7 @@ packages = [
 ]
 
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -139,6 +141,8 @@ ignore = [
     "N806", "N802", "N803", # Various nags about uppercase vars
     "UP032", # Don't upgrade to f strings
     "PT012", # pytest.raises() block should contain a single simple statement
+    # "B028", # No stacklevel for warnings
+    # "B018", # Found useless expression. Either assign it
 ]
 
 fixable = ["ALL"]

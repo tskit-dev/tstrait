@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2026-XX-XX
+Unreleased
+
+- Upgrade supported Python versions to 3.11 -> 3.14
+
 ## [0.1.1] - 2025-09-18
 
 ### Update:
@@ -56,7 +61,7 @@
 ### Highlights:
 
 - Initial stable release of tstrait in PyPI https://pypi.org/project/tstrait/
-- Initial stable release of tstrait in conda-forge 
+- Initial stable release of tstrait in conda-forge
 
 ### Documentation:
 
