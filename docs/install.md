@@ -7,7 +7,7 @@ We recommend using `conda` for most users.
 
 ## System requirements
 
-tstrait requires Python 3.10+. Python dependencies are installed automatically by `pip` or `conda`.
+tstrait requires Python 3.11+. Python dependencies are installed automatically by `pip` or `conda`.
 
 ## Via conda
 
@@ -46,7 +46,7 @@ tstrait requires the following dependencies:
 
 | Package                              | Minimum supported version |
 | ------------------------------------ | ------------------------- |
-| [NumPy](https://numpy.org)           | 1.20.3                    |
-| [numba](https://numba.pydata.org/)   | 0.57.0                    |
+| [NumPy](https://numpy.org)           | 2                         |
+| [numba](https://numba.pydata.org/)   | —                         |
 | [pandas](https://pandas.pydata.org/) | 1.0                       |
-| [tskit](https://tskit.dev/)          | 0.5.5                     |
+| [tskit](https://tskit.dev/)          | 1                         |
