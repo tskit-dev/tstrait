@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.1.2] - 2026-XX-XX
-Unreleased
+## [0.1.2] - 2026-03-03
+
+Maintenance release
 
 - Upgrade supported Python versions to 3.11 -> 3.14
 
