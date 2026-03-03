@@ -9,11 +9,11 @@ on:
 jobs:
   packaging:
     name: Python packaging
-    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v12
+    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v13
 
   test:
     name: Python
-    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v12
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v13
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python }}
@@ -21,5 +21,5 @@ jobs:
     secrets: inherit
     strategy:
       matrix:
-        python: ["3.11", "3.14"]
+        python: ["3.11", "3.13"]
         os: [macos-latest, ubuntu-24.04, windows-latest]
