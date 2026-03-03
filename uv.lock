@@ -28,6 +28,15 @@ wheels = [
 ]
 
 [[package]]
+name = "appdirs"
+version = "1.4.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/d8/05696357e0311f5b5c316d7b95f46c669dd9c15aaeecbb48c7d0aeb88c40/appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41", size = 13470, upload-time = "2020-05-11T07:59:51.037Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/00/2344469e2084fb287c2e0b57b72910309874c3245463acd6cf5e3db69324/appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128", size = 9566, upload-time = "2020-05-11T07:59:49.499Z" },
+]
+
+[[package]]
 name = "appnope"
 version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -702,6 +711,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/fd/d05a4b7acd0154ed758797f0a43b4c0962a843bedfe980115e842c5b2d08/greenlet-3.3.2-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:1fb39a11ee2e4d94be9a76671482be9398560955c9e568550de0224e41104727", size = 1618857, upload-time = "2026-02-20T20:49:37.309Z" },
     { url = "https://files.pythonhosted.org/packages/6f/e1/50ee92a5db521de8f35075b5eff060dd43d39ebd46c2181a2042f7070385/greenlet-3.3.2-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:20154044d9085151bc309e7689d6f7ba10027f8f5a8c0676ad398b951913d89e", size = 1680010, upload-time = "2026-02-20T20:21:13.427Z" },
     { url = "https://files.pythonhosted.org/packages/29/4b/45d90626aef8e65336bed690106d1382f7a43665e2249017e9527df8823b/greenlet-3.3.2-cp314-cp314t-win_amd64.whl", hash = "sha256:c04c5e06ec3e022cbfe2cd4a846e1d4e50087444f875ff6d2c2ad8445495cf1a", size = 237086, upload-time = "2026-02-20T20:20:45.786Z" },
+]
+
+[[package]]
+name = "humanize"
+version = "4.15.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/66/a3921783d54be8a6870ac4ccffcd15c4dc0dd7fcce51c6d63b8c63935276/humanize-4.15.0.tar.gz", hash = "sha256:1dd098483eb1c7ee8e32eb2e99ad1910baefa4b75c3aff3a82f4d78688993b10", size = 83599, upload-time = "2025-12-20T20:16:13.19Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c5/7b/bca5613a0c3b542420cf92bd5e5fb8ebd5435ce1011a091f66bb7693285e/humanize-4.15.0-py3-none-any.whl", hash = "sha256:b1186eb9f5a9749cd9cb8565aee77919dd7c8d076161cf44d70e59e3301e1769", size = 132203, upload-time = "2025-12-20T20:16:11.67Z" },
 ]
 
 [[package]]
@@ -1909,6 +1927,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pyslim"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "msprime" },
+    { name = "numpy" },
+    { name = "tskit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c7/1f/0d278036af7464b91771925524b04dc86b8b5cd0898c685aa29bb761deb3/pyslim-1.1.0.tar.gz", hash = "sha256:4f4112d1aec1e324c850c5d0803122223c4525f64d980edeb93a5aec99abc905", size = 2026204, upload-time = "2025-08-16T10:01:28.651Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/80/7c97b08fddc251b10864a8f7e97334fc1df40bc568eda1fb4f1e4c4c380a/pyslim-1.1.0-py3-none-any.whl", hash = "sha256:28bb7c1d16a4f3d6037b19f08944888396a5c37cb8913f53bd5f7a7d4152b948", size = 72544, upload-time = "2025-08-16T10:01:24.551Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "8.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2763,6 +2795,23 @@ wheels = [
 ]
 
 [[package]]
+name = "stdpopsim"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "appdirs" },
+    { name = "attrs" },
+    { name = "humanize" },
+    { name = "msprime" },
+    { name = "numpy" },
+    { name = "pyslim" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/08/c52c12a068460261efff9940a04068a68541533551904a4ed31d14d108a7/stdpopsim-0.3.0.tar.gz", hash = "sha256:fa9b6d55bfebd7bd5a0e224bf21cad2ff102da8a08a51bcad1136219622c7144", size = 471603, upload-time = "2025-03-19T02:48:20.218Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/04/80c8f180babb0a3f664b59488590c87b25e42da3dd666126833d9baec3a7/stdpopsim-0.3.0-py3-none-any.whl", hash = "sha256:4ad3b64bb6baccb4ef761ece740d6bc0399ac070ed40dad9eefa4e26e1f972f8", size = 244631, upload-time = "2025-03-19T02:48:17.931Z" },
+]
+
+[[package]]
 name = "tabulate"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2913,7 +2962,6 @@ dev = [
     { name = "jupyter-book" },
     { name = "matplotlib" },
     { name = "msprime" },
-    { name = "numba" },
     { name = "numpydoc" },
     { name = "pandas" },
     { name = "prek" },
@@ -2923,7 +2971,6 @@ dev = [
     { name = "ruff" },
     { name = "scipy" },
     { name = "sphinx-issues" },
-    { name = "tskit" },
     { name = "twine" },
     { name = "validate-pyproject", extra = ["all"] },
 ]
@@ -2931,11 +2978,9 @@ docs = [
     { name = "jupyter-book" },
     { name = "matplotlib" },
     { name = "msprime" },
-    { name = "numba" },
     { name = "numpydoc" },
     { name = "pandas" },
     { name = "sphinx-issues" },
-    { name = "tskit" },
 ]
 lint = [
     { name = "prek" },
@@ -2947,13 +2992,10 @@ packaging = [
 ]
 test = [
     { name = "msprime" },
-    { name = "numba" },
-    { name = "pandas" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "scipy" },
-    { name = "tskit" },
 ]
 verification = [
     { name = "argparse" },
@@ -2965,6 +3007,7 @@ verification = [
     { name = "scipy" },
     { name = "seaborn" },
     { name = "statsmodels" },
+    { name = "stdpopsim" },
     { name = "tqdm" },
 ]
 
@@ -2981,7 +3024,6 @@ dev = [
     { name = "jupyter-book", specifier = "<2" },
     { name = "matplotlib" },
     { name = "msprime" },
-    { name = "numba" },
     { name = "numpydoc" },
     { name = "pandas" },
     { name = "prek", specifier = "==0.3.3" },
@@ -2991,7 +3033,6 @@ dev = [
     { name = "ruff", specifier = "==0.15.1" },
     { name = "scipy" },
     { name = "sphinx-issues" },
-    { name = "tskit" },
     { name = "twine" },
     { name = "validate-pyproject", extras = ["all"] },
 ]
@@ -2999,11 +3040,9 @@ docs = [
     { name = "jupyter-book", specifier = "<2" },
     { name = "matplotlib" },
     { name = "msprime" },
-    { name = "numba" },
     { name = "numpydoc" },
     { name = "pandas" },
     { name = "sphinx-issues" },
-    { name = "tskit" },
 ]
 lint = [
     { name = "prek", specifier = "==0.3.3" },
@@ -3015,13 +3054,10 @@ packaging = [
 ]
 test = [
     { name = "msprime" },
-    { name = "numba" },
-    { name = "pandas" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "scipy" },
-    { name = "tskit" },
 ]
 verification = [
     { name = "argparse" },
@@ -3033,6 +3069,7 @@ verification = [
     { name = "scipy" },
     { name = "seaborn" },
     { name = "statsmodels" },
+    { name = "stdpopsim" },
     { name = "tqdm" },
 ]
 
