@@ -25,13 +25,13 @@ This creates the directory `tstrait` and connects your repository to the upstrea
 tstrait repository.
 
 - Install the [requirements](requirements).
-- Run the tests to ensure everything has worked: `python3 -m pytest`. These should all pass.
+- Run the tests to ensure everything has worked: `uv run pytest`. These should all pass.
 
 ### Develop your contribution
 
 - Make your changes in a local branch. On each commit, a
-  [pre-commit hook](https://pre-commit.com/) will check for code styles and common problems.
-  You can also use `pre-commit run` to run the checks without committing.
+  [prek](https://prek.j178.dev) hook will check for code styles and common problems.
+  You can also use `uv run prek --all-files` to run the checks without committing.
 
 ### Submit your contribution
 
@@ -51,21 +51,11 @@ Afterwards, go to Github and open a pull request by pressing a green Pull Reques
 
 ## Requirements
 
-The packages needed for development are specified as optional dependencies
-in the ``pyproject.toml`` file. Install these using:
+The packages needed for development are specified as dependency groups
+in ``pyproject.toml``. Install them using:
 
 ```
-python3 -m venv env
-source env/bin/activate
-python3 -m pip install -e ".[dev]"
-```
-
-Alternatively, you can use uv for faster dependency management:
-
-```
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 ## Documentation
@@ -80,7 +70,7 @@ All files that are used in the documentation are included in the `docs` director
 the documentation, run the following code in the `doc` directory:
 
 ```
-jupyter-book build .
+make
 ```
 
 ### API Reference
@@ -102,7 +92,7 @@ the code examples will always be up to date.
 ## Continuous integration tests
 
 Continuous integration tests are implemented in [Github actions](https://docs.github.com/en/actions), and it runs a variety of code style and quality checks using
-[pre-commit](https://pre-commit.com/) along with Python tests on Linux.
+[prek](https://prek.j178.dev) along with Python tests on Linux.
 
 All tests are located in the `tests` directory, and run using [pytest](https://docs.pytest.org/en/stable/).
 All new code must have high test coverage, which will be checked as part of the continuous integration
@@ -114,13 +104,15 @@ We run many statistical tests to ensure that tstrait is simulating the correct p
 the desired statistical properties. Since these tests are quite expensive to run and difficult to automatically
 validate, they are not run as part of continuous integration (CI) but instead as a pre-release sanity check.
 
-The statistical tests are all run via the `verification.py` script in the project root. The script has some
-extra dependencies specified in the `verification` optional dependencies in `pyproject.toml`, which can be installed using
-`pip install -e ".[verification]"` or `uv pip install -e ".[verification]"`. You should also need to install [R](https://www.r-project.org/)
-into your environment. Run this script using:
+The statistical tests are all run via the `verification.py` script in the project root.
+You need to install [R](https://www.r-project.org/) into your environment
+for these checks. The script has some
+extra dependencies specified in the `verification` dependency group in `pyproject.toml`,
+which are installed automatically.
+Run this script using:
 
 ```
-$ python3 verification.py
+$ uv run --group verification verification.py
 ```
 
 The statistical tests use scripts in `scripts` directory to compare the tstrait simulation output
