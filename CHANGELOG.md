@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.3] - 2026-xx-xx
+
+In development
+
 ## [0.1.2] - 2026-03-03
 
 Maintenance release
