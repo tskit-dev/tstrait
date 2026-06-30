@@ -12,18 +12,17 @@ permissions:
 jobs:
   packaging:
     name: Python packaging
-    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v18
+    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v19
 
   test:
     name: Python
-    # Trusted first-party tskit-dev reusable workflow that needs inherited
-    # secrets (e.g. CODECOV_TOKEN).
-    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v17 # zizmor: ignore[secrets-inherit]
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v19
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python }}
       coverage-directory: tstrait
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       matrix:
         python: ["3.11", "3.13"]
