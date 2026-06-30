@@ -57,7 +57,7 @@ class TestInput:
             tstrait.genetic_value(ts=1, trait_df=sample_df)
         with pytest.raises(
             TypeError,
-            match="trait_df must be a <class 'pandas.core.frame.DataFrame'> instance",
+            match=f"trait_df must be a {pd.DataFrame} instance",
         ):
             tstrait.genetic_value(ts=sample_ts, trait_df=1)
 

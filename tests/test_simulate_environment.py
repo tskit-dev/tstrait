@@ -48,7 +48,7 @@ class TestInput:
     def test_input_type(self):
         with pytest.raises(
             TypeError,
-            match="genetic_df must be a <class 'pandas.core.frame.DataFrame'> instance",
+            match=f"genetic_df must be a {pd.DataFrame} instance",
         ):
             tstrait.sim_env(genetic_df=1, h2=0.3)
 
