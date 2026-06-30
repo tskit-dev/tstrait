@@ -81,7 +81,7 @@ class TestDataFrame:
     def test_type(self):
         with pytest.raises(
             TypeError,
-            match="df must be a <class 'pandas.core.frame.DataFrame'> instance",
+            match=f"df must be a {pd.DataFrame} instance",
         ):
             _check_dataframe(1, {"one"}, "df")
 
