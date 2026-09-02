@@ -1076,3 +1076,184 @@ class TestNormaliseGenetic:
         var_array = grouped.var().values.T[0]
         np.testing.assert_almost_equal(mean_array, np.zeros(2), decimal=2)
         np.testing.assert_almost_equal(var_array, np.ones(2), decimal=2)
+
+
+def naive_genetic_value(ts, trait_df, level):
+    """Reference implementation of genetic_value, computed tree by tree.
+
+    For each row of the trait dataframe this seeks to the tree at the causal
+    site and propagates the causal allele down from the virtual root, stopping
+    wherever a mutation changes the state, which is how genetic values were
+    computed before the ARG descent.
+    """
+    num_trait = int(np.max(trait_df["trait_id"])) + 1
+    size = {
+        "individual": ts.num_individuals,
+        "node": ts.num_nodes,
+        "edge": ts.num_edges,
+    }[level]
+    genetic_value_table = np.zeros((num_trait, size))
+    tree = tskit.Tree(ts)
+    for data in trait_df.itertuples():
+        site = ts.site(data.site_id)
+        tree.seek(site.position)
+        state = {tree.virtual_root: site.ancestral_state}
+        has_mutation = set()
+        for m in site.mutations:
+            state[m.node] = m.derived_state
+            has_mutation.add(m.node)
+        # One extra entry, so that the virtual root can be a causal node.
+        nodes_value = np.zeros(ts.num_nodes + 1)
+        stack = [u for u, allele in state.items() if allele == data.causal_allele]
+        while len(stack) > 0:
+            u = stack.pop()
+            nodes_value[u] = data.effect_size
+            for child in tree.children(u):
+                if child not in has_mutation:
+                    stack.append(child)
+        nodes_value = nodes_value[: ts.num_nodes]
+
+        if level == "individual":
+            value = np.zeros(ts.num_individuals)
+            for u, individual in enumerate(ts.nodes_individual):
+                if individual != tskit.NULL:
+                    value[individual] += nodes_value[u]
+        elif level == "edge":
+            value = np.zeros(ts.num_edges)
+            for u in range(ts.num_nodes):
+                edge = tree.edge(u)
+                if edge != tskit.NULL:
+                    value[edge] += nodes_value[u]
+        else:
+            value = nodes_value
+        genetic_value_table[data.trait_id] += value
+
+    return pd.DataFrame(
+        {
+            "trait_id": np.repeat(np.arange(num_trait), size),
+            f"{level}_id": np.tile(np.arange(size), num_trait),
+            "genetic_value": genetic_value_table.flatten(),
+        }
+    )
+
+
+class TestGeneticValueReference:
+    """Compare genetic_value against a tree by tree reference implementation
+    over a range of tree topologies and allele configurations.
+
+    The causal alleles drawn by random_trait_df include the ancestral state of
+    a site, which is the case the ARG descent folds into the value it seeds the
+    roots with, so it is covered here rather than separately.
+    """
+
+    def verify(self, ts, num_trait, seed=1, levels=("node", "edge")):
+        trait_df = random_trait_df(ts, num_trait, seed)
+        for level in levels:
+            if level == "individual" and ts.num_individuals == 0:
+                continue
+            expected = naive_genetic_value(ts, trait_df, level)
+            result = tstrait.genetic_value(ts=ts, trait_df=trait_df, level=level)
+            pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+    @pytest.mark.parametrize(
+        "ts_func",
+        [
+            binary_tree,
+            diff_ind_tree,
+            non_binary_tree,
+            triploid_tree,
+            binary_tree_seq,
+            simple_tree_seq,
+            allele_freq_one,
+        ],
+    )
+    @pytest.mark.parametrize("num_trait", [1, 3])
+    def test_data_tree_sequence(self, ts_func, num_trait):
+        self.verify(ts_func(), num_trait, levels=("individual", "node", "edge"))
+
+    @pytest.mark.parametrize("n", [2, 3, 4, 5])
+    @pytest.mark.parametrize("rate", [2.0, 10.0])
+    def test_all_trees(self, n, rate):
+        ts = multi_allelic_mutations(all_trees_ts(n), rate=rate, seed=n)
+        self.verify(ts, num_trait=2)
+
+    @pytest.mark.parametrize("recombination_rate", [0, 1e-7])
+    @pytest.mark.parametrize("seed", [1, 2, 3])
+    def test_simulated(self, recombination_rate, seed):
+        ts = msprime.sim_ancestry(
+            8,
+            sequence_length=10_000,
+            recombination_rate=recombination_rate,
+            population_size=1000,
+            random_seed=seed,
+        )
+        ts = multi_allelic_mutations(ts, rate=1e-4, seed=seed)
+        self.verify(ts, num_trait=3, seed=seed, levels=("individual", "node", "edge"))
+
+    def test_isolated_samples(self):
+        """Isolated samples are roots, so they carry the ancestral state."""
+        tables = tskit.TableCollection(sequence_length=10)
+        for _ in range(4):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        site = tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=site, node=0, derived_state="T")
+        ts = tables.tree_sequence()
+        for causal_allele in ["A", "T"]:
+            trait_df = pd.DataFrame(
+                {
+                    "site_id": [0],
+                    "effect_size": [2.5],
+                    "trait_id": [0],
+                    "causal_allele": [causal_allele],
+                }
+            )
+            for level in ("node", "edge"):
+                expected = naive_genetic_value(ts, trait_df, level)
+                result = tstrait.genetic_value(ts=ts, trait_df=trait_df, level=level)
+                pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+    def test_multiple_roots(self):
+        """A forest has several roots, each carrying the ancestral state."""
+        tables = tskit.Tree.generate_balanced(4).tree_sequence.dump_tables()
+        tables.edges.replace_with(tables.edges[tables.edges.parent != 6])
+        site = tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=site, node=4, derived_state="T")
+        tables.sort()
+        ts = tables.tree_sequence()
+        for causal_allele in ["A", "T"]:
+            trait_df = pd.DataFrame(
+                {
+                    "site_id": [0],
+                    "effect_size": [3.0],
+                    "trait_id": [0],
+                    "causal_allele": [causal_allele],
+                }
+            )
+            for level in ("node", "edge"):
+                expected = naive_genetic_value(ts, trait_df, level)
+                result = tstrait.genetic_value(ts=ts, trait_df=trait_df, level=level)
+                pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+    def test_mutation_above_a_root(self):
+        """A mutation with no edge applies to the root it sits above."""
+        tables = tskit.Tree.generate_balanced(4).tree_sequence.dump_tables()
+        site = tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=site, node=6, derived_state="T")
+        tables.mutations.add_row(site=site, node=4, derived_state="G")
+        tables.sort()
+        tables.build_index()
+        tables.compute_mutation_parents()
+        ts = tables.tree_sequence()
+        for causal_allele in ["A", "T", "G"]:
+            trait_df = pd.DataFrame(
+                {
+                    "site_id": [0],
+                    "effect_size": [1.5],
+                    "trait_id": [0],
+                    "causal_allele": [causal_allele],
+                }
+            )
+            for level in ("node", "edge"):
+                expected = naive_genetic_value(ts, trait_df, level)
+                result = tstrait.genetic_value(ts=ts, trait_df=trait_df, level=level)
+                pd.testing.assert_frame_equal(result, expected, check_dtype=False)

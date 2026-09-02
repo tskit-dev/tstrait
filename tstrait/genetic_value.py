@@ -1,23 +1,116 @@
 import numpy as np
 import pandas as pd
 import tskit
+import tskit.jit.numba as tskit_numba
 
 from . import jit
 from .base import _check_dataframe, _check_instance, _check_non_decreasing  # noreorder
 
 
-def _accumulate_edge_values(nodes_genetic_value, nodes_edge, num_nodes, num_edges):
+def _causal_mutations(ts, trait_df):
     """
-    Accumulate the edge genetic values by summing their node contributions.
+    Expand the trait dataframe to one entry per (row, mutation at that row's
+    site) pair, and return the row, the mutation and the change in causal
+    allele state for the mutations that change the state. Mutations that leave
+    the state unchanged contribute nothing and are dropped.
     """
-    nodes_edge = nodes_edge[:num_nodes]
-    nodes_genetic_value = nodes_genetic_value[:num_nodes]
-    has_edge = nodes_edge != tskit.NULL
-    return np.bincount(
-        nodes_edge[has_edge],
-        weights=nodes_genetic_value[has_edge],
-        minlength=num_edges,
+    site_id = trait_df["site_id"].to_numpy()
+    # Mutations are sorted by site, so each site owns a contiguous run of IDs.
+    offset = np.searchsorted(ts.mutations_site, np.arange(ts.num_sites + 1))
+    start = offset[site_id]
+    count = offset[site_id + 1] - start
+    row = np.repeat(np.arange(len(trait_df)), count)
+    mutation = np.arange(count.sum()) + np.repeat(
+        start - (np.cumsum(count) - count), count
     )
+
+    derived_state = ts.mutations_derived_state
+    causal_allele = np.asarray(
+        trait_df["causal_allele"].to_numpy(), dtype=derived_state.dtype
+    )[row]
+    had_causal_allele = ts.mutations_inherited_state[mutation] == causal_allele
+    has_causal_allele = derived_state[mutation] == causal_allele
+    state_change = has_causal_allele.astype(np.int8) - had_causal_allele.astype(np.int8)
+
+    changed = state_change != 0
+    return row[changed], mutation[changed], state_change[changed]
+
+
+def _root_runs(ts):
+    """
+    Return the roots of the tree sequence as ``(node, left, right)`` arrays,
+    where each root spans a maximal interval over which it is a root.
+
+    The roots are taken as the children of the virtual root, so that a node
+    counts as being in a tree exactly when the tree based implementation would
+    have reached it from the virtual root. Isolated samples are roots.
+    """
+    node = []
+    left = []
+    right = []
+    tree = tskit.Tree(ts)
+    left_child_array = tree.left_child_array
+    right_sib_array = tree.right_sib_array
+    virtual_root = tree.virtual_root
+    tree.first()
+    while True:
+        interval_left, interval_right = tree.interval
+        u = left_child_array[virtual_root]
+        while u != tskit.NULL:
+            if len(node) > 0 and node[-1] == u and right[-1] == interval_left:
+                right[-1] = interval_right
+            else:
+                node.append(u)
+                left.append(interval_left)
+                right.append(interval_right)
+            u = right_sib_array[u]
+        if not tree.next():
+            break
+    return (
+        np.array(node, dtype=np.int32),
+        np.array(left, dtype=float),
+        np.array(right, dtype=float),
+    )
+
+
+def _group_by(key, num_key, weight, site):
+    """
+    Group the causal mutation weights by ``key``, returning the offsets of each
+    key's group, the causal site index of each entry sorted within its group,
+    and the cumulative sum of the weights with a leading zero.
+    """
+    order = np.argsort(key, kind="stable")
+    offset = np.searchsorted(key[order], np.arange(num_key + 1)).astype(np.int32)
+    weight_sum = np.zeros(len(order) + 1)
+    np.cumsum(weight[order], out=weight_sum[1:])
+    return offset, site[order].astype(np.int32), weight_sum
+
+
+def _root_mutation_groups(
+    node, site, weight, roots, roots_site_start, roots_site_stop, num_causal_site
+):
+    """
+    Group the causal mutations that sit above a root by the root run they
+    belong to.
+
+    A mutation with no edge is above a root, so its effect applies to that root
+    and to everything below it. Root runs for a given node are disjoint, so the
+    run a mutation belongs to is the one for its node containing its site.
+    """
+    run = np.full(len(node), tskit.NULL, dtype=np.int32)
+    if len(node) > 0:
+        # Runs keyed by node and start, so that one search finds the last run
+        # of the mutation's node that starts at or before the mutation's site.
+        scale = num_causal_site + 1
+        order = np.lexsort((roots_site_start, roots))
+        key = roots[order] * scale + roots_site_start[order]
+        found = np.searchsorted(key, node * scale + site, side="right") - 1
+        valid = found >= 0
+        candidate = order[np.where(valid, found, 0)]
+        valid &= roots[candidate] == node
+        valid &= site < roots_site_stop[candidate]
+        run[valid] = candidate[valid]
+    return _group_by(run, len(roots), weight, site)
 
 
 def _check_trait_df(ts, trait_df):
@@ -47,6 +140,15 @@ class _GeneticValue:
     """
     GeneticValue class to compute genetic values of individuals, nodes, or edges.
 
+    The genetic values of every causal site are accumulated in a single descent
+    of the ARG. Each causal mutation changes the causal allele state by
+    ``[derived == causal] - [inherited == causal]``, and that change applies to
+    every node below it. These changes telescope down a path, so a node's value
+    is the sum of the changes on the mutations above it, plus the effect size
+    of every causal site whose ancestral state is itself the causal allele.
+    That makes the value additive along a root to node path, which is what the
+    descent accumulates. Nested and back mutations need no special handling.
+
     Parameters
     ----------
     ts : tskit.TreeSequence
@@ -59,31 +161,117 @@ class _GeneticValue:
     def __init__(self, ts, trait_df):
         self.trait_df = trait_df[["site_id", "effect_size", "trait_id", "causal_allele"]]
         self.ts = ts
+        self.child_index = tskit_numba.jitwrap(ts).child_index()
 
-    def _node_genetic_values(self, tree, site, causal_allele, effect_size):
-        """
-        Returns a numpy array with node genetic values.
-        """
-        has_mutation = np.zeros(self.ts.num_nodes + 1, dtype=bool)
-        state_transitions = {tree.virtual_root: site.ancestral_state}
-        for m in site.mutations:
-            state_transitions[m.node] = m.derived_state
-            has_mutation[m.node] = True
-        causal_nodes = np.array(
-            [
-                node
-                for node, allele in state_transitions.items()
-                if allele == causal_allele
-            ],
-            dtype=np.int32,
+        site_id = self.trait_df["site_id"].to_numpy()
+        self.effect_size = self.trait_df["effect_size"].to_numpy()
+        self.trait_id = self.trait_df["trait_id"].to_numpy()
+        self.num_trait = np.max(self.trait_id) + 1
+
+        # Everything below indexes positions by their rank among the causal
+        # sites, so that the descent prunes on integers and never considers a
+        # position that cannot matter.
+        causal_site = np.unique(site_id)
+        causal_position = ts.sites_position[causal_site]
+        self.num_causal_site = len(causal_site)
+        self.rows_site = np.searchsorted(causal_site, site_id)
+        self.edges_site_start = np.searchsorted(causal_position, ts.edges_left).astype(
+            np.int32
         )
-        return jit._compute_nodes_genetic_value(
-            left_child_array=tree.left_child_array,
-            right_sib_array=tree.right_sib_array,
-            causal_nodes=causal_nodes,
-            has_mutation=has_mutation,
-            effect_size=effect_size,
+        self.edges_site_stop = np.searchsorted(causal_position, ts.edges_right).astype(
+            np.int32
         )
+
+        self.row, self.mutation, state_change = _causal_mutations(ts, self.trait_df)
+        self.weight = self.effect_size[self.row] * state_change
+        self.mutations_edge = ts.mutations_edge[self.mutation]
+        # A mutation above a root has no edge to sit on, so its effect applies
+        # to the root itself rather than to an edge.
+        self.on_edge = self.mutations_edge != tskit.NULL
+
+        # An effect size counts towards every node in a tree when the ancestral
+        # state of its site is the causal allele.
+        self.ancestral_is_causal = (
+            ts.sites_ancestral_state[site_id]
+            == self.trait_df["causal_allele"].to_numpy()
+        )
+        self.roots, roots_left, roots_right = _root_runs(ts)
+        self.roots_site_start = np.searchsorted(causal_position, roots_left).astype(
+            np.int32
+        )
+        self.roots_site_stop = np.searchsorted(causal_position, roots_right).astype(
+            np.int32
+        )
+
+    def _descent_arguments(self, level, trait):
+        """
+        Return the arguments to the descent kernel for one trait, with the
+        contributions directed at nodes or at edges according to ``level``.
+        """
+        ts = self.ts
+        if level == "edge":
+            edges_output = np.arange(ts.num_edges, dtype=np.int32)
+            roots_output = np.full(len(self.roots), tskit.NULL, dtype=np.int32)
+            output_size = ts.num_edges
+        else:
+            edges_output = ts.edges_child
+            roots_output = self.roots
+            output_size = ts.num_nodes
+
+        in_trait = self.trait_id[self.row] == trait
+        on_edge = in_trait & self.on_edge
+        above_root = in_trait & ~self.on_edge
+
+        mutations_offset, mutations_site, mutations_weight_sum = _group_by(
+            self.mutations_edge[on_edge],
+            ts.num_edges,
+            self.weight[on_edge],
+            self.rows_site[self.row[on_edge]],
+        )
+        (
+            roots_mutations_offset,
+            roots_mutations_site,
+            roots_mutations_weight_sum,
+        ) = _root_mutation_groups(
+            ts.mutations_node[self.mutation[above_root]],
+            self.rows_site[self.row[above_root]],
+            self.weight[above_root],
+            self.roots,
+            self.roots_site_start,
+            self.roots_site_stop,
+            self.num_causal_site,
+        )
+
+        ancestral = self.ancestral_is_causal & (self.trait_id == trait)
+        ancestral_sum = np.zeros(self.num_causal_site + 1)
+        np.cumsum(
+            np.bincount(
+                self.rows_site[ancestral],
+                weights=self.effect_size[ancestral],
+                minlength=self.num_causal_site,
+            ),
+            out=ancestral_sum[1:],
+        )
+
+        return {
+            "child_index": self.child_index,
+            "edges_child": ts.edges_child,
+            "edges_output": edges_output,
+            "edges_site_start": self.edges_site_start,
+            "edges_site_stop": self.edges_site_stop,
+            "mutations_offset": mutations_offset,
+            "mutations_site": mutations_site,
+            "mutations_weight_sum": mutations_weight_sum,
+            "ancestral_sum": ancestral_sum,
+            "roots": self.roots,
+            "roots_output": roots_output,
+            "roots_site_start": self.roots_site_start,
+            "roots_site_stop": self.roots_site_stop,
+            "roots_mutations_offset": roots_mutations_offset,
+            "roots_mutations_site": roots_mutations_site,
+            "roots_mutations_weight_sum": roots_mutations_weight_sum,
+            "output": np.zeros(output_size),
+        }
 
     def _run(self, level):
         """
@@ -95,47 +283,29 @@ class _GeneticValue:
         pandas.DataFrame
             Dataframe with trait ID, [individual|node|edge] ID, and genetic value.
         """
-
         ts = self.ts
-        size_map = {
+        N = {
             "individual": ts.num_individuals,
             "node": ts.num_nodes,
             "edge": ts.num_edges,
-        }
-        N = size_map[level]
+        }[level]
 
-        num_trait = np.max(self.trait_df.trait_id) + 1
-        genetic_value_table = np.zeros((num_trait, N))
-        tree = tskit.Tree(self.ts)
-
-        for data in self.trait_df.itertuples():
-            site = self.ts.site(data.site_id)
-            tree.seek(site.position)
-            genetic_value = self._node_genetic_values(
-                tree=tree,
-                site=site,
-                causal_allele=data.causal_allele,
-                effect_size=data.effect_size,
-            )
+        genetic_value_table = np.zeros((self.num_trait, N))
+        for trait in range(self.num_trait):
+            output = jit._descend_arg(**self._descent_arguments(level, trait))
             if level == "individual":
-                genetic_value = jit._accumulate_individual_values(
-                    genetic_value, ts.nodes_individual, ts.num_individuals
+                output = jit._accumulate_individual_values(
+                    output, ts.nodes_individual, ts.num_individuals
                 )
-            elif level == "edge":
-                genetic_value = _accumulate_edge_values(
-                    genetic_value, tree.edge_array, ts.num_nodes, ts.num_edges
-                )
-            genetic_value_table[data.trait_id, :] += genetic_value
+            genetic_value_table[trait, :] = output
 
-        df = pd.DataFrame(
+        return pd.DataFrame(
             {
-                "trait_id": np.repeat(np.arange(num_trait), N),
-                f"{level}_id": np.tile(np.arange(N), num_trait),
+                "trait_id": np.repeat(np.arange(self.num_trait), N),
+                f"{level}_id": np.tile(np.arange(N), self.num_trait),
                 "genetic_value": genetic_value_table.flatten(),
             }
         )
-
-        return df
 
 
 def genetic_value(ts, trait_df, level="individual"):
@@ -231,34 +401,10 @@ def edge_effect(ts, trait_df):
 
     N = ts.num_edges
     num_trait = np.max(trait_df.trait_id) + 1
-    site_id = trait_df["site_id"].to_numpy()
     effect_size = trait_df["effect_size"].to_numpy()
     trait_id = trait_df["trait_id"].to_numpy()
 
-    # Mutations are sorted by site, so each site owns a contiguous run of IDs.
-    offset = np.searchsorted(ts.mutations_site, np.arange(ts.num_sites + 1))
-    start = offset[site_id]
-    count = offset[site_id + 1] - start
-    # Expand to one entry per (trait_df row, mutation at that row's site) pair.
-    row = np.repeat(np.arange(len(trait_df)), count)
-    mutation = np.arange(count.sum()) + np.repeat(
-        start - (np.cumsum(count) - count), count
-    )
-
-    derived_state = ts.mutations_derived_state
-    causal_allele = np.asarray(
-        trait_df["causal_allele"].to_numpy(), dtype=derived_state.dtype
-    )[row]
-    had_causal_allele = ts.mutations_inherited_state[mutation] == causal_allele
-    has_causal_allele = derived_state[mutation] == causal_allele
-    state_change = has_causal_allele.astype(np.int8) - had_causal_allele.astype(np.int8)
-
-    # Mutations that do not change the causal allele state contribute nothing, and
-    # are allowed to sit above a root.
-    changed = state_change != 0
-    row = row[changed]
-    mutation = mutation[changed]
-    state_change = state_change[changed]
+    row, mutation, state_change = _causal_mutations(ts, trait_df)
     edge = ts.mutations_edge[mutation]
     if np.any(edge == tskit.NULL):
         bad_mutation = mutation[edge == tskit.NULL][0]

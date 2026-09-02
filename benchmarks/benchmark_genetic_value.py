@@ -18,12 +18,14 @@ import sys
 import time
 
 import msprime
+import numpy as np
 import tskit
 
 import tstrait
 
 DEFAULT_NUM_CAUSAL = [1, 100, 1000, 10_000, 100_000]
 LEVELS = ["individual", "node", "edge"]
+SELECTIONS = ["uniform", "rare"]
 
 
 def cached_simulation(args):
@@ -83,6 +85,34 @@ def time_call(func, replicates):
     return result, times
 
 
+def causal_site_pool(ts, model, seed):
+    """
+    Simulate effect sizes for every site, so that causal sites can be drawn
+    from the pool by allele frequency without resimulating.
+    """
+    before = time.perf_counter()
+    pool = tstrait.sim_trait(ts, model=model, num_causal=ts.num_sites, random_seed=seed)
+    print(
+        f"Effect sizes for all {ts.num_sites} sites: {time.perf_counter() - before:.1f}s"
+    )
+    return pool
+
+
+def select_causal(pool, selection, num_causal, rare_threshold, rng):
+    """
+    Draw num_causal rows from the pool, either uniformly over the sites or
+    restricted to the rare ones. Uniform selection is dominated by the common
+    variants in the tail of the frequency spectrum, which behave quite
+    differently from the weakly causal sites the ARG descent is aimed at.
+    """
+    if selection == "rare":
+        pool = pool[pool["allele_freq"] < rare_threshold]
+    if len(pool) < num_causal:
+        return None
+    keep = rng.choice(len(pool), size=num_causal, replace=False)
+    return pool.iloc[np.sort(keep)]
+
+
 def warm_up(ts, model, levels):
     """
     Run the smallest possible simulation through each code path so that the
@@ -103,10 +133,11 @@ def run_benchmark(ts, args):
     model = tstrait.trait_model(distribution="normal", mean=0, var=1)
     warm_up(ts, model, args.levels)
 
+    pool = causal_site_pool(ts, model, args.seed)
     rows = []
     completed = []
     for num_causal in args.num_causal:
-        trait_df, times = time_call(
+        _, times = time_call(
             functools.partial(
                 tstrait.sim_trait,
                 ts,
@@ -117,18 +148,35 @@ def run_benchmark(ts, args):
             args.replicates,
         )
         for replicate, seconds in enumerate(times):
-            rows.append(("sim_trait", num_causal, "", replicate, seconds))
+            rows.append(("sim_trait", num_causal, "uniform", "", replicate, seconds))
         report(rows[-1])
         slowest = max(times)
-        for level in args.levels:
-            _, times = time_call(
-                functools.partial(tstrait.genetic_value, ts, trait_df, level=level),
-                args.replicates,
+        for selection in args.selections:
+            rng = np.random.default_rng(args.seed)
+            trait_df = select_causal(
+                pool, selection, num_causal, args.rare_threshold, rng
             )
-            for replicate, seconds in enumerate(times):
-                rows.append(("genetic_value", num_causal, level, replicate, seconds))
-            report(rows[-1])
-            slowest = max(slowest, max(times))
+            if trait_df is None:
+                print(f"  too few {selection} sites for num_causal={num_causal}")
+                continue
+            for level in args.levels:
+                _, times = time_call(
+                    functools.partial(tstrait.genetic_value, ts, trait_df, level=level),
+                    args.replicates,
+                )
+                for replicate, seconds in enumerate(times):
+                    rows.append(
+                        (
+                            "genetic_value",
+                            num_causal,
+                            selection,
+                            level,
+                            replicate,
+                            seconds,
+                        )
+                    )
+                report(rows[-1])
+                slowest = max(slowest, max(times))
         completed.append(num_causal)
         # The cost is superlinear in num_causal, so once a single call is over
         # budget the next point on the grid is not worth waiting for.
@@ -144,8 +192,8 @@ def run_benchmark(ts, args):
 
 
 def report(row):
-    phase, num_causal, level, _, seconds = row
-    print(f"  {phase:<14} {num_causal:>7} {level:<11} {seconds:8.3f}s")
+    phase, num_causal, selection, level, _, seconds = row
+    print(f"  {phase:<14} {num_causal:>7} {selection:<8} {level:<11} {seconds:8.3f}s")
 
 
 def summarise(rows, completed, ts, args):
@@ -154,25 +202,31 @@ def summarise(rows, completed, ts, args):
     with the time per causal site.
     """
     best = {}
-    for phase, num_causal, level, _, seconds in rows:
-        key = (phase, level, num_causal)
+    for phase, num_causal, selection, level, _, seconds in rows:
+        key = (phase, selection, level, num_causal)
         best[key] = min(best.get(key, seconds), seconds)
 
     print(f"\n{describe(ts)}")
     print(f"Minimum of {args.replicates} replicates\n")
     header = (
-        f"{'phase':<14} {'level':<11} {'num_causal':>10} {'seconds':>10} {'us/site':>10}"
+        f"{'phase':<14} {'selection':<10} {'level':<11} {'num_causal':>10} "
+        f"{'seconds':>10} {'us/site':>10}"
     )
     print(header)
     print("-" * len(header))
-    for phase, level in [("sim_trait", "")] + [
-        ("genetic_value", x) for x in args.levels
-    ]:
+    combinations = [("sim_trait", "uniform", "")]
+    combinations += [
+        ("genetic_value", s, x) for s in args.selections for x in args.levels
+    ]
+    for phase, selection, level in combinations:
         for num_causal in completed:
-            seconds = best[(phase, level, num_causal)]
+            key = (phase, selection, level, num_causal)
+            if key not in best:
+                continue
+            seconds = best[key]
             print(
-                f"{phase:<14} {level:<11} {num_causal:>10} {seconds:>10.3f} "
-                f"{seconds / num_causal * 1e6:>10.1f}"
+                f"{phase:<14} {selection:<10} {level:<11} {num_causal:>10} "
+                f"{seconds:>10.3f} {seconds / num_causal * 1e6:>10.1f}"
             )
 
 
@@ -184,6 +238,7 @@ def write_csv(rows, ts, args):
             [
                 "phase",
                 "num_causal",
+                "selection",
                 "level",
                 "replicate",
                 "seconds",
@@ -223,6 +278,15 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-causal", type=int, nargs="+", default=DEFAULT_NUM_CAUSAL)
     parser.add_argument("--levels", nargs="+", choices=LEVELS, default=LEVELS)
+    parser.add_argument(
+        "--selections", nargs="+", choices=SELECTIONS, default=SELECTIONS
+    )
+    parser.add_argument(
+        "--rare-threshold",
+        type=float,
+        default=0.001,
+        help="Allele frequency below which a causal site counts as rare",
+    )
     parser.add_argument("--replicates", type=int, default=3)
     parser.add_argument(
         "--max-seconds",

@@ -13,23 +13,6 @@ import pytest
 import tskit
 
 import tstrait
-from tstrait.genetic_value import _accumulate_edge_values
-
-
-def test_accumulate_edge_values():
-    nodes_genetic_value = np.array([10, 2, 0, 0, -3, 3, 5, 20, -1])
-    node_edges = np.array(
-        [tskit.NULL, 0, tskit.NULL, 1, 1, 1, 2, tskit.NULL, 2], dtype=int
-    )
-
-    observed = _accumulate_edge_values(
-        nodes_genetic_value=nodes_genetic_value,
-        nodes_edge=node_edges,
-        num_nodes=len(nodes_genetic_value),
-        num_edges=3,
-    )
-
-    np.testing.assert_array_equal(observed, [2, 0, 4])
 
 
 @pytest.fixture(scope="module")
