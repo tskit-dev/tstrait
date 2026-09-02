@@ -10,7 +10,8 @@ checking and lets coverage measure the kernels.
 The examples are small trees from the tskit generators, drawn in the class
 docstrings so that the expected values can be checked against the topology.
 Each is turned into a tree sequence with a single causal site, since the
-descent works from the mutations of the ARG rather than from a tree.
+kernel pushes the effects of mutations down the ARG rather than working from
+a tree.
 """
 
 import numpy as np
@@ -65,7 +66,7 @@ def node_genetic_value(request):
     state of "A", and a node's value is ``effect_size`` when the allele it
     inherits is ``causal_allele``.
     """
-    func = kernel(jit._descend_arg, request.param)
+    func = kernel(jit._push_down_arg, request.param)
 
     def f(
         tree,
@@ -138,72 +139,6 @@ def empty_ts():
     tables = tskit.TableCollection(sequence_length=1)
     tables.sites.add_row(position=0, ancestral_state=ANCESTRAL_STATE)
     return tables.tree_sequence()
-
-
-class TestSearchSorted:
-    """
-    The binary search the descent uses to find the mutations of an edge that
-    lie in a range of causal sites.
-    """
-
-    @pytest.fixture(params=["jit", "nojit"])
-    def search_sorted(self, request):
-        return kernel(jit._search_sorted, request.param)
-
-    @pytest.mark.parametrize(
-        ("key", "expected"), [(-1, 0), (0, 0), (1, 1), (3, 1), (4, 1), (5, 3), (9, 4), (10, 5)]
-    )
-    def test_search(self, search_sorted, key, expected):
-        values = np.array([0, 4, 4, 7, 9], dtype=np.int32)
-        assert search_sorted(values, 0, len(values), key) == expected
-
-    def test_restricted_range(self, search_sorted):
-        # Only the values in [1, 4) are searched, so a key below the range
-        # comes back as the start of it.
-        values = np.array([0, 4, 4, 7, 9], dtype=np.int32)
-        assert search_sorted(values, 1, 4, -1) == 1
-        assert search_sorted(values, 1, 4, 8) == 4
-
-    def test_empty_range(self, search_sorted):
-        values = np.array([0, 4, 4, 7, 9], dtype=np.int32)
-        assert search_sorted(values, 2, 2, 4) == 2
-
-
-class TestGroupWeight:
-    """
-    The total weight of the entries of one group that fall in a range of
-    causal sites. Group 0 holds sites 1 and 3, group 1 is empty and group 2
-    holds sites 0, 2 and 2.
-    """
-
-    @pytest.fixture(params=["jit", "nojit"])
-    def group_weight(self, request):
-        func = kernel(jit._group_weight, request.param)
-        offset = np.array([0, 2, 2, 5], dtype=np.int32)
-        site = np.array([1, 3, 0, 2, 2], dtype=np.int32)
-        weight_sum = np.array([0.0, 1.0, 3.0, 7.0, 15.0, 31.0])
-
-        def f(group, start, stop):
-            return func(offset, site, weight_sum, group, start, stop)
-
-        return f
-
-    def test_whole_group(self, group_weight):
-        assert group_weight(0, 0, 4) == 3.0
-        assert group_weight(2, 0, 4) == 28.0
-
-    def test_empty_group(self, group_weight):
-        assert group_weight(1, 0, 4) == 0.0
-
-    def test_partial_range(self, group_weight):
-        assert group_weight(0, 0, 2) == 1.0
-        assert group_weight(0, 2, 4) == 2.0
-        # Both entries at site 2 are inside the range or outside it together.
-        assert group_weight(2, 2, 3) == 24.0
-        assert group_weight(2, 0, 1) == 4.0
-
-    def test_range_outside_group(self, group_weight):
-        assert group_weight(0, 4, 8) == 0.0
 
 
 class TestBalancedBinaryTree:

@@ -73,46 +73,6 @@ def _root_runs(ts):
     )
 
 
-def _group_by(key, num_key, weight, site):
-    """
-    Group the causal mutation weights by ``key``, returning the offsets of each
-    key's group, the causal site index of each entry sorted within its group,
-    and the cumulative sum of the weights with a leading zero.
-    """
-    order = np.argsort(key, kind="stable")
-    offset = np.searchsorted(key[order], np.arange(num_key + 1)).astype(np.int32)
-    weight_sum = np.zeros(len(order) + 1)
-    np.cumsum(weight[order], out=weight_sum[1:])
-    return offset, site[order].astype(np.int32), weight_sum
-
-
-def _root_mutation_groups(
-    node, site, weight, roots, roots_site_start, roots_site_stop, num_causal_site
-):
-    """
-    Group the causal mutations that sit above a root by the root run they
-    belong to.
-
-    A mutation with no edge is above a root, so its effect applies to that root
-    and to everything below it. Root runs for a given node are disjoint, so the
-    run a mutation belongs to is the one for its node containing its site.
-    """
-    run = np.full(len(node), tskit.NULL, dtype=np.int32)
-    if len(node) > 0:
-        # Runs keyed by node and start, so that one search finds the last run
-        # of the mutation's node that starts at or before the mutation's site.
-        scale = num_causal_site + 1
-        order = np.lexsort((roots_site_start, roots))
-        key = roots[order] * scale + roots_site_start[order]
-        found = np.searchsorted(key, node * scale + site, side="right") - 1
-        valid = found >= 0
-        candidate = order[np.where(valid, found, 0)]
-        valid &= roots[candidate] == node
-        valid &= site < roots_site_stop[candidate]
-        run[valid] = candidate[valid]
-    return _group_by(run, len(roots), weight, site)
-
-
 def _check_trait_df(ts, trait_df):
     """
     Check the trait dataframe against the tree sequence, returning the required
@@ -164,94 +124,87 @@ class _GeneticValue:
         self.child_index = tskit_numba.jitwrap(ts).child_index()
 
         site_id = self.trait_df["site_id"].to_numpy()
-        self.effect_size = self.trait_df["effect_size"].to_numpy()
+        effect_size = self.trait_df["effect_size"].to_numpy()
         self.trait_id = self.trait_df["trait_id"].to_numpy()
         self.num_trait = np.max(self.trait_id) + 1
 
-        # Everything below indexes positions by their rank among the causal
-        # sites, so that the descent prunes on integers and never considers a
-        # position that cannot matter.
+        # Causal sites are identified by their rank among the causal sites, so
+        # that matching an edge to one is an integer comparison and a position
+        # that cannot matter is never considered.
         causal_site = np.unique(site_id)
         causal_position = ts.sites_position[causal_site]
-        self.num_causal_site = len(causal_site)
-        self.rows_site = np.searchsorted(causal_site, site_id)
+        rows_site = np.searchsorted(causal_site, site_id)
         self.edges_site_start = np.searchsorted(causal_position, ts.edges_left).astype(
             np.int32
         )
         self.edges_site_stop = np.searchsorted(causal_position, ts.edges_right).astype(
             np.int32
         )
+        # tskit does not require the node IDs to be in time order.
+        self.nodes_by_time = np.argsort(-ts.nodes_time, kind="stable").astype(np.int32)
 
-        self.row, self.mutation, state_change = _causal_mutations(ts, self.trait_df)
-        self.weight = self.effect_size[self.row] * state_change
-        self.mutations_edge = ts.mutations_edge[self.mutation]
-        # A mutation above a root has no edge to sit on, so its effect applies
-        # to the root itself rather than to an edge.
-        self.on_edge = self.mutations_edge != tskit.NULL
+        row, mutation, state_change = _causal_mutations(ts, self.trait_df)
+        self.seed_trait = self.trait_id[row]
+        self.seed_node = ts.mutations_node[mutation].astype(np.int32)
+        self.seed_site = rows_site[row].astype(np.int32)
+        self.seed_weight = effect_size[row] * state_change
+        # A mutation above a root has no edge, and needs no special handling:
+        # seeding at its node and pushing down is already right, and the
+        # missing edge contribution matches the tree based implementation.
+        self.seed_edge = ts.mutations_edge[mutation]
 
-        # An effect size counts towards every node in a tree when the ancestral
-        # state of its site is the causal allele.
-        self.ancestral_is_causal = (
+        # When the ancestral state of a site is the causal allele, every node
+        # in its tree carries it. There is no mutation to seed from, so the
+        # roots are seeded instead and the effect reaches the same nodes.
+        ancestral = np.flatnonzero(
             ts.sites_ancestral_state[site_id]
             == self.trait_df["causal_allele"].to_numpy()
         )
-        self.roots, roots_left, roots_right = _root_runs(ts)
-        self.roots_site_start = np.searchsorted(causal_position, roots_left).astype(
-            np.int32
-        )
-        self.roots_site_stop = np.searchsorted(causal_position, roots_right).astype(
-            np.int32
-        )
+        if len(ancestral) > 0:
+            roots, roots_left, roots_right = _root_runs(ts)
+            start = np.searchsorted(causal_position, roots_left)
+            stop = np.searchsorted(causal_position, roots_right)
+            # Each root run takes the ancestral rows spanned by its interval.
+            ancestral_site = rows_site[ancestral]
+            first = np.searchsorted(ancestral_site, start)
+            count = np.searchsorted(ancestral_site, stop) - first
+            run = np.repeat(np.arange(len(roots)), count)
+            index = np.arange(count.sum()) + np.repeat(
+                first - (np.cumsum(count) - count), count
+            )
+            self.seed_trait = np.concatenate(
+                [self.seed_trait, self.trait_id[ancestral[index]]]
+            )
+            self.seed_node = np.concatenate([self.seed_node, roots[run]])
+            self.seed_site = np.concatenate(
+                [self.seed_site, ancestral_site[index].astype(np.int32)]
+            )
+            self.seed_weight = np.concatenate(
+                [self.seed_weight, effect_size[ancestral[index]]]
+            )
+            # A root has no edge above it, so it contributes nothing at the
+            # edge level, which is what the tree based implementation does too.
+            self.seed_edge = np.concatenate(
+                [self.seed_edge, np.full(len(run), tskit.NULL, dtype=np.int32)]
+            )
 
     def _descent_arguments(self, level, trait):
         """
-        Return the arguments to the descent kernel for one trait, with the
+        Return the arguments to the push down kernel for one trait, with the
         contributions directed at nodes or at edges according to ``level``.
         """
         ts = self.ts
+        in_trait = self.seed_trait == trait
         if level == "edge":
             edges_output = np.arange(ts.num_edges, dtype=np.int32)
-            roots_output = np.full(len(self.roots), tskit.NULL, dtype=np.int32)
+            # A seed is credited to the edge above the mutation, which does not
+            # exist when the mutation is above a root.
+            seed_output = self.seed_edge[in_trait].astype(np.int32)
             output_size = ts.num_edges
         else:
             edges_output = ts.edges_child
-            roots_output = self.roots
+            seed_output = self.seed_node[in_trait]
             output_size = ts.num_nodes
-
-        in_trait = self.trait_id[self.row] == trait
-        on_edge = in_trait & self.on_edge
-        above_root = in_trait & ~self.on_edge
-
-        mutations_offset, mutations_site, mutations_weight_sum = _group_by(
-            self.mutations_edge[on_edge],
-            ts.num_edges,
-            self.weight[on_edge],
-            self.rows_site[self.row[on_edge]],
-        )
-        (
-            roots_mutations_offset,
-            roots_mutations_site,
-            roots_mutations_weight_sum,
-        ) = _root_mutation_groups(
-            ts.mutations_node[self.mutation[above_root]],
-            self.rows_site[self.row[above_root]],
-            self.weight[above_root],
-            self.roots,
-            self.roots_site_start,
-            self.roots_site_stop,
-            self.num_causal_site,
-        )
-
-        ancestral = self.ancestral_is_causal & (self.trait_id == trait)
-        ancestral_sum = np.zeros(self.num_causal_site + 1)
-        np.cumsum(
-            np.bincount(
-                self.rows_site[ancestral],
-                weights=self.effect_size[ancestral],
-                minlength=self.num_causal_site,
-            ),
-            out=ancestral_sum[1:],
-        )
 
         return {
             "child_index": self.child_index,
@@ -259,17 +212,11 @@ class _GeneticValue:
             "edges_output": edges_output,
             "edges_site_start": self.edges_site_start,
             "edges_site_stop": self.edges_site_stop,
-            "mutations_offset": mutations_offset,
-            "mutations_site": mutations_site,
-            "mutations_weight_sum": mutations_weight_sum,
-            "ancestral_sum": ancestral_sum,
-            "roots": self.roots,
-            "roots_output": roots_output,
-            "roots_site_start": self.roots_site_start,
-            "roots_site_stop": self.roots_site_stop,
-            "roots_mutations_offset": roots_mutations_offset,
-            "roots_mutations_site": roots_mutations_site,
-            "roots_mutations_weight_sum": roots_mutations_weight_sum,
+            "nodes_by_time": self.nodes_by_time,
+            "seed_node": self.seed_node[in_trait],
+            "seed_site": self.seed_site[in_trait],
+            "seed_weight": self.seed_weight[in_trait],
+            "seed_output": seed_output,
             "output": np.zeros(output_size),
         }
 
@@ -292,7 +239,7 @@ class _GeneticValue:
 
         genetic_value_table = np.zeros((self.num_trait, N))
         for trait in range(self.num_trait):
-            output = jit._descend_arg(**self._descent_arguments(level, trait))
+            output = jit._push_down_arg(**self._descent_arguments(level, trait))
             if level == "individual":
                 output = jit._accumulate_individual_values(
                     output, ts.nodes_individual, ts.num_individuals
