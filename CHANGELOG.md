@@ -17,6 +17,12 @@ In development
   edge effects, and edge, node, and individual genetic values {pr}`155`
 - Clarified that tstrait currently uses a site-mode effect model {pr}`155`
 
+### Fix
+
+- Fix an out-of-bounds write in the node traversal when the causal allele is
+  the ancestral allele, in which case the virtual root is a causal node
+  {pr}`157`
+
 ## [0.1.2] - 2026-03-03
 
 Maintenance release

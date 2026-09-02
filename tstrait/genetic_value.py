@@ -1,49 +1,9 @@
-import numba
 import numpy as np
 import pandas as pd
 import tskit
 
+from . import jit
 from .base import _check_dataframe, _check_instance, _check_non_decreasing  # noreorder
-
-
-@numba.njit
-def _compute_nodes_genetic_value(
-    left_child_array,
-    right_sib_array,
-    stack,
-    has_mutation,
-    num_nodes,
-    effect_size,
-):  # pragma: no cover
-    """
-    Compute the node genetic values for the specified set of mutations
-    encoded in the stack.
-    """
-    genetic_value = np.zeros(num_nodes)
-    while len(stack) > 0:
-        parent_node_id = stack.pop()
-        genetic_value[parent_node_id] = effect_size
-        child_node_id = left_child_array[parent_node_id]
-        while child_node_id != tskit.NULL:
-            if not has_mutation[child_node_id]:
-                stack.append(child_node_id)
-            child_node_id = right_sib_array[child_node_id]
-    return genetic_value
-
-
-@numba.njit
-def _accumulate_individual_values(
-    nodes_genetic_value, nodes_individual, num_nodes, num_individuals
-):  # pragma: no cover
-    """
-    Accumulate the individual genetic values by summing their node contributions.
-    """
-    individuals_genetic_value = np.zeros(num_individuals)
-    for u in range(num_nodes):
-        ind = nodes_individual[u]
-        if ind != tskit.NULL:
-            individuals_genetic_value[ind] += nodes_genetic_value[u]
-    return individuals_genetic_value
 
 
 def _accumulate_edge_values(nodes_genetic_value, nodes_edge, num_nodes, num_edges):
@@ -86,23 +46,21 @@ class _GeneticValue:
         for m in site.mutations:
             state_transitions[m.node] = m.derived_state
             has_mutation[m.node] = True
-        stack = numba.typed.List()
-        for node, allele in state_transitions.items():
-            if allele == causal_allele:
-                stack.append(node)
-
-        if len(stack) == 0:
-            genetic_value = np.zeros(self.ts.num_nodes)
-        else:
-            genetic_value = _compute_nodes_genetic_value(
-                left_child_array=tree.left_child_array,
-                right_sib_array=tree.right_sib_array,
-                stack=stack,
-                has_mutation=has_mutation,
-                num_nodes=self.ts.num_nodes,
-                effect_size=effect_size,
-            )
-        return genetic_value
+        causal_nodes = np.array(
+            [
+                node
+                for node, allele in state_transitions.items()
+                if allele == causal_allele
+            ],
+            dtype=np.int32,
+        )
+        return jit._compute_nodes_genetic_value(
+            left_child_array=tree.left_child_array,
+            right_sib_array=tree.right_sib_array,
+            causal_nodes=causal_nodes,
+            has_mutation=has_mutation,
+            effect_size=effect_size,
+        )
 
     def _run(self, level):
         """
@@ -137,8 +95,8 @@ class _GeneticValue:
                 effect_size=data.effect_size,
             )
             if level == "individual":
-                genetic_value = _accumulate_individual_values(
-                    genetic_value, ts.nodes_individual, ts.num_nodes, ts.num_individuals
+                genetic_value = jit._accumulate_individual_values(
+                    genetic_value, ts.nodes_individual, ts.num_individuals
                 )
             elif level == "edge":
                 genetic_value = _accumulate_edge_values(
