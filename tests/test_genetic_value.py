@@ -77,13 +77,8 @@ def naive_edge_effect(ts, trait_df):
         state = {u: site.ancestral_state for u in tree.nodes()}
         for m in site.mutations:
             if tree.parent(m.node) == tskit.NULL:
-                inherited_state = (
-                    site.ancestral_state
-                    if m.parent == tskit.NULL
-                    else ts.mutation(m.parent).derived_state
-                )
                 if (m.derived_state == data.causal_allele) != (
-                    inherited_state == data.causal_allele
+                    m.inherited_state == data.causal_allele
                 ):
                     raise ValueError(
                         "Cannot assign an edge effect to a mutation on a root node"
