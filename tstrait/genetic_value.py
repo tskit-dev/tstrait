@@ -20,6 +20,29 @@ def _accumulate_edge_values(nodes_genetic_value, nodes_edge, num_nodes, num_edge
     )
 
 
+def _check_trait_df(ts, trait_df):
+    """
+    Check the trait dataframe against the tree sequence, returning the required
+    columns with trait_id cast to int.
+    """
+    trait_df = _check_dataframe(
+        trait_df, ["site_id", "effect_size", "trait_id", "causal_allele"], "trait_df"
+    )
+    if len(trait_df) == 0:
+        raise ValueError("trait_df must contain at least one row")
+    _check_non_decreasing(trait_df["site_id"], "site_id")
+    site_id = trait_df["site_id"].to_numpy()
+    if site_id.min() < 0 or site_id.max() >= ts.num_sites:
+        raise ValueError(f"site_id must be in [0, {ts.num_sites})")
+
+    trait_id = trait_df["trait_id"].unique()
+
+    if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
+        raise ValueError("trait_id must be consecutive and start from 0")
+
+    return trait_df.astype({"trait_id": int})
+
+
 class _GeneticValue:
     """
     GeneticValue class to compute genetic values of individuals, nodes, or edges.
@@ -158,19 +181,7 @@ def genetic_value(ts, trait_df, level="individual"):
         raise ValueError("level must be one of 'individual', 'node', or 'edge'")
     if level == "individual" and ts.num_individuals == 0:
         raise ValueError("No individuals in the provided tree sequence dataset")
-    trait_df = _check_dataframe(
-        trait_df, ["site_id", "effect_size", "trait_id", "causal_allele"], "trait_df"
-    )
-    if len(trait_df) == 0:
-        raise ValueError("trait_df must contain at least one row")
-    _check_non_decreasing(trait_df["site_id"], "site_id")
-
-    trait_id = trait_df["trait_id"].unique()
-
-    if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
-        raise ValueError("trait_id must be consecutive and start from 0")
-
-    trait_df = trait_df.astype({"trait_id": int})
+    trait_df = _check_trait_df(ts, trait_df)
 
     genetic = _GeneticValue(ts=ts, trait_df=trait_df)
 
@@ -203,6 +214,8 @@ def edge_effect(ts, trait_df):
     ValueError
         If a causal-allele transition occurs on a root node,
         which has no immediately ancestral edge to which an edge effect can be assigned.
+    ValueError
+        If a ``site_id`` in `trait_df` is not a valid site ID in `ts`.
 
     See Also
     --------
@@ -214,50 +227,56 @@ def edge_effect(ts, trait_df):
     while :ref:`phenotype_model` describes quantitative genetics model assumptions.
     """
     ts = _check_instance(ts, "ts", tskit.TreeSequence)
-    trait_df = _check_dataframe(
-        trait_df, ["site_id", "effect_size", "trait_id", "causal_allele"], "trait_df"
-    )
-    if len(trait_df) == 0:
-        raise ValueError("trait_df must contain at least one row")
-    _check_non_decreasing(trait_df["site_id"], "site_id")
-
-    trait_id = trait_df["trait_id"].unique()
-
-    if np.min(trait_id) != 0 or np.max(trait_id) != len(trait_id) - 1:
-        raise ValueError("trait_id must be consecutive and start from 0")
-
-    trait_df = trait_df.astype({"trait_id": int})
+    trait_df = _check_trait_df(ts, trait_df)
 
     N = ts.num_edges
     num_trait = np.max(trait_df.trait_id) + 1
-    edge_effect_table = np.zeros((num_trait, N))
+    site_id = trait_df["site_id"].to_numpy()
+    effect_size = trait_df["effect_size"].to_numpy()
+    trait_id = trait_df["trait_id"].to_numpy()
 
-    # TODO: This implementation is slow - replace with a numba algorithm using tskit 1.0
-    tree = tskit.Tree(ts)
-    for data in trait_df.itertuples():
-        site = ts.site(data.site_id)
-        tree.seek(site.position)
-        for m in site.mutations:
-            if m.parent == tskit.NULL:
-                state_before_mutation = site.ancestral_state
-            else:
-                state_before_mutation = m.inherited_state
-            had_causal_allele = int(state_before_mutation == data.causal_allele)
-            has_causal_allele = int(m.derived_state == data.causal_allele)
-            state_change = has_causal_allele - had_causal_allele
-            if state_change != 0:
-                e = tree.edge(m.node)
-                if e == tskit.NULL:
-                    raise ValueError(
-                        "Cannot assign an edge effect to a mutation on a root node"
-                    )
-                edge_effect_table[data.trait_id, e] += state_change * data.effect_size
+    # Mutations are sorted by site, so each site owns a contiguous run of IDs.
+    offset = np.searchsorted(ts.mutations_site, np.arange(ts.num_sites + 1))
+    start = offset[site_id]
+    count = offset[site_id + 1] - start
+    # Expand to one entry per (trait_df row, mutation at that row's site) pair.
+    row = np.repeat(np.arange(len(trait_df)), count)
+    mutation = np.arange(count.sum()) + np.repeat(
+        start - (np.cumsum(count) - count), count
+    )
+
+    derived_state = ts.mutations_derived_state
+    causal_allele = np.asarray(
+        trait_df["causal_allele"].to_numpy(), dtype=derived_state.dtype
+    )[row]
+    had_causal_allele = ts.mutations_inherited_state[mutation] == causal_allele
+    has_causal_allele = derived_state[mutation] == causal_allele
+    state_change = has_causal_allele.astype(np.int8) - had_causal_allele.astype(np.int8)
+
+    # Mutations that do not change the causal allele state contribute nothing, and
+    # are allowed to sit above a root.
+    changed = state_change != 0
+    row = row[changed]
+    mutation = mutation[changed]
+    state_change = state_change[changed]
+    edge = ts.mutations_edge[mutation]
+    if np.any(edge == tskit.NULL):
+        bad_mutation = mutation[edge == tskit.NULL][0]
+        raise ValueError(
+            "Cannot assign an edge effect to a mutation on a root node "
+            f"(mutation {bad_mutation})"
+        )
+    edge_effect_table = np.bincount(
+        trait_id[row] * N + edge,
+        weights=effect_size[row] * state_change,
+        minlength=num_trait * N,
+    )
 
     df = pd.DataFrame(
         {
             "trait_id": np.repeat(np.arange(num_trait), N),
             "edge_id": np.tile(np.arange(N), num_trait),
-            "effect_size": edge_effect_table.flatten(),
+            "effect_size": edge_effect_table,
         }
     )
     return df

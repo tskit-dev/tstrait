@@ -11,6 +11,18 @@ In development
   {pr}`189`
 - Added `edge_effect` to compute introduced effects on edges {pr}`189`
 
+### Breaking changes
+
+- `genetic_value` and `edge_effect` now raise a `ValueError` if a `site_id` in
+  the trait dataframe is not a valid site ID in the tree sequence. Negative
+  values previously wrapped around to the end of the site table {pr}`193`
+
+### Performance
+
+- `edge_effect` is now vectorised over the tskit `mutations_edge` and
+  `mutations_inherited_state` arrays instead of looping over the mutations at
+  each causal site, making it around 20 times faster {pr}`193`
+
 ### Documentation
 
 - Added a worked example relating causal-allele effects,

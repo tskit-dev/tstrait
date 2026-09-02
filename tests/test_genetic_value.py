@@ -2,15 +2,19 @@ import msprime
 import numpy as np
 import pandas as pd
 import pytest
+import tskit
 
 import tstrait
 from tstrait.base import _check_numeric_array
 
 from .data import (
+    all_trees_ts,
+    allele_freq_one,
     binary_tree,
     binary_tree_seq,
     diff_ind_tree,
     non_binary_tree,
+    simple_tree_seq,
     triploid_tree,
 )  # noreorder
 
@@ -58,39 +62,161 @@ def individual_genetic_values(tree, site, causal_allele, effect_size):
     return result["genetic_value"].to_numpy()
 
 
+def naive_edge_effect(ts, trait_df):
+    """Reference implementation of edge_effect, computed from allele states.
+
+    Rather than working from the mutations directly, this determines the allele
+    that each node carries at a causal site and assigns to every edge the change
+    in causal allele state between its parent and child node.
+    """
+    num_trait = int(np.max(trait_df["trait_id"])) + 1
+    edge_effect_table = np.zeros((num_trait, ts.num_edges))
+    for data in trait_df.itertuples():
+        site = ts.site(data.site_id)
+        tree = ts.at(site.position)
+        state = {u: site.ancestral_state for u in tree.nodes()}
+        for m in site.mutations:
+            if tree.parent(m.node) == tskit.NULL:
+                inherited_state = (
+                    site.ancestral_state
+                    if m.parent == tskit.NULL
+                    else ts.mutation(m.parent).derived_state
+                )
+                if (m.derived_state == data.causal_allele) != (
+                    inherited_state == data.causal_allele
+                ):
+                    raise ValueError(
+                        "Cannot assign an edge effect to a mutation on a root node"
+                    )
+            for u in tree.nodes(m.node):
+                state[u] = m.derived_state
+        for u in state:
+            edge = tree.edge(u)
+            if edge != tskit.NULL:
+                state_change = int(state[u] == data.causal_allele) - int(
+                    state[tree.parent(u)] == data.causal_allele
+                )
+                edge_effect_table[data.trait_id, edge] += state_change * data.effect_size
+    return pd.DataFrame(
+        {
+            "trait_id": np.repeat(np.arange(num_trait), ts.num_edges),
+            "edge_id": np.tile(np.arange(ts.num_edges), num_trait),
+            "effect_size": edge_effect_table.flatten(),
+        }
+    )
+
+
+def sites_without_root_mutations(ts):
+    """Return the IDs of the sites where no mutation sits above a local root."""
+    site_id = [
+        site.id
+        for site in ts.sites()
+        if all(ts.at(site.position).parent(m.node) != tskit.NULL for m in site.mutations)
+    ]
+    return np.array(site_id, dtype=int)
+
+
+def random_trait_df(ts, num_trait, seed, site_id=None):
+    """Return a trait dataframe over a sample of the sites in ``ts``.
+
+    The causal allele of a row is drawn from the alleles that occur at its site,
+    so that the effects are not trivially zero.
+    """
+    rng = np.random.default_rng(seed)
+    if site_id is None:
+        site_id = np.arange(ts.num_sites)
+    num_site = min(len(site_id), 10)
+    assert num_site > 0
+    site_id = np.sort(rng.choice(site_id, size=num_site, replace=False))
+    causal_allele = []
+    for site in site_id:
+        alleles = [str(ts.sites_ancestral_state[site])]
+        alleles.extend(map(str, ts.mutations_derived_state[ts.mutations_site == site]))
+        causal_allele.extend(rng.choice(alleles, size=num_trait))
+    return pd.DataFrame(
+        {
+            "site_id": np.repeat(site_id, num_trait),
+            "effect_size": rng.normal(size=num_site * num_trait),
+            "trait_id": np.tile(np.arange(num_trait), num_site),
+            "causal_allele": causal_allele,
+        }
+    )
+
+
+def mutated_binary_tree(sites):
+    """Return binary_tree() with its sites and mutations replaced.
+
+    ``sites`` is a list of ``(position, ancestral_state, mutations)`` tuples,
+    where each mutation is a ``(node, derived_state)`` pair. Repeated mutations
+    on a node are chained together through the mutation parent.
+    """
+    tables = binary_tree().dump_tables()
+    tables.sites.clear()
+    tables.mutations.clear()
+    for position, ancestral_state, mutations in sites:
+        site_id = tables.sites.add_row(
+            position=position, ancestral_state=ancestral_state
+        )
+        parent = {}
+        for node, derived_state in mutations:
+            parent[node] = tables.mutations.add_row(
+                site=site_id,
+                node=node,
+                derived_state=derived_state,
+                parent=parent.get(node, tskit.NULL),
+            )
+    return tables.tree_sequence()
+
+
+def multi_allelic_mutations(ts, rate, seed):
+    """Add mutations under a model that gives recurrent and back mutations.
+
+    The genome is discrete, so sites generally carry several mutations.
+    """
+    return msprime.sim_mutations(ts, rate=rate, model=msprime.JC69(), random_seed=seed)
+
+
 class TestInput:
     """This test will check that an informative error is raised when the input parameter
     does not have an appropriate type or value.
     """
 
-    def test_input_type(self, sample_ts, sample_df):
+    @pytest.mark.parametrize("function", [tstrait.genetic_value, tstrait.edge_effect])
+    def test_input_type(self, sample_ts, sample_df, function):
         with pytest.raises(
             TypeError, match="ts must be a <class 'tskit.trees.TreeSequence'> instance"
         ):
-            tstrait.genetic_value(ts=1, trait_df=sample_df)
+            function(ts=1, trait_df=sample_df)
         with pytest.raises(
             TypeError,
             match=f"trait_df must be a {pd.DataFrame} instance",
         ):
-            tstrait.genetic_value(ts=sample_ts, trait_df=1)
+            function(ts=sample_ts, trait_df=1)
 
-    def test_bad_input(self, sample_ts, sample_df):
+    @pytest.mark.parametrize("function", [tstrait.genetic_value, tstrait.edge_effect])
+    @pytest.mark.parametrize("column", ["site_id", "effect_size", "trait_id"])
+    def test_missing_column(self, sample_ts, sample_df, function, column):
         with pytest.raises(
             ValueError, match="columns must be included in trait_df dataframe"
         ):
-            df = sample_df.drop(columns=["site_id"])
-            tstrait.genetic_value(ts=sample_ts, trait_df=df)
+            function(ts=sample_ts, trait_df=sample_df.drop(columns=[column]))
 
-        with pytest.raises(
-            ValueError, match="columns must be included in trait_df dataframe"
-        ):
-            df = sample_df.drop(columns=["effect_size"])
-            tstrait.genetic_value(ts=sample_ts, trait_df=df)
-
+    @pytest.mark.parametrize("function", [tstrait.genetic_value, tstrait.edge_effect])
+    def test_bad_input(self, sample_ts, sample_df, function):
         with pytest.raises(ValueError, match="site_id must be non-decreasing"):
             df = sample_df.copy()
             df["site_id"] = [2, 0]
-            tstrait.genetic_value(ts=sample_ts, trait_df=df)
+            function(ts=sample_ts, trait_df=df)
+
+    @pytest.mark.parametrize("function", [tstrait.genetic_value, tstrait.edge_effect])
+    @pytest.mark.parametrize("site_id", [[-2, -1], [0, 10**6]])
+    def test_site_id_out_of_bounds(self, sample_ts, sample_df, function, site_id):
+        with pytest.raises(
+            ValueError, match=f"site_id must be in \\[0, {sample_ts.num_sites}\\)"
+        ):
+            df = sample_df.copy()
+            df["site_id"] = site_id
+            function(ts=sample_ts, trait_df=df)
 
     @pytest.mark.parametrize("function", [tstrait.genetic_value, tstrait.edge_effect])
     @pytest.mark.parametrize("trait_id", [[2, 3], [0, 2]])
@@ -235,6 +361,325 @@ class TestEdgeEffect:
             match="Cannot assign an edge effect to a mutation on a root node",
         ):
             tstrait.edge_effect(ts=ts, trait_df=trait_df)
+
+    def test_output_dim(self):
+        ts = mutated_binary_tree([(0, "A", [(4, "T")]), (5, "A", [(5, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0, 0, 1, 1],
+                "effect_size": [1, 2, 3, 4],
+                "trait_id": [0, 1, 0, 1],
+                "causal_allele": ["T", "T", "T", "T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        assert list(result.columns) == ["trait_id", "edge_id", "effect_size"]
+        assert len(result) == 2 * ts.num_edges
+        np.testing.assert_array_equal(
+            result["trait_id"], np.repeat([0, 1], ts.num_edges)
+        )
+        np.testing.assert_array_equal(
+            result["edge_id"], np.tile(np.arange(ts.num_edges), 2)
+        )
+
+    def test_multiple_traits(self):
+        """Traits with different causal alleles and effect sizes are kept apart."""
+        ts = mutated_binary_tree([(0, "A", [(4, "T")]), (5, "A", [(5, "G")])])
+        tree = ts.first()
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0, 0, 1, 1],
+                "effect_size": [1.5, -2.5, 3.5, 4.5],
+                "trait_id": [0, 1, 0, 1],
+                "causal_allele": ["T", "A", "G", "T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+
+        expected = np.zeros((2, ts.num_edges))
+        # Trait 0: site 0 gains "T" on node 4, site 1 gains "G" on node 5.
+        expected[0, tree.edge(4)] = 1.5
+        expected[0, tree.edge(5)] = 3.5
+        # Trait 1: site 0 loses the ancestral "A" on node 4, site 1 is unchanged
+        # because "T" occurs at neither end of the "A" -> "G" transition.
+        expected[1, tree.edge(4)] = 2.5
+        np.testing.assert_array_almost_equal(result["effect_size"], expected.flatten())
+
+    def test_site_shared_between_traits(self):
+        ts = mutated_binary_tree([(0, "A", [(4, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0, 0, 0],
+                "effect_size": [1, 2, 4],
+                "trait_id": [0, 1, 2],
+                "causal_allele": ["T", "T", "T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        expected = np.zeros((3, ts.num_edges))
+        expected[:, ts.first().edge(4)] = [1, 2, 4]
+        np.testing.assert_array_equal(result["effect_size"], expected.flatten())
+
+    def test_site_without_mutations(self):
+        ts = mutated_binary_tree([(0, "A", []), (5, "A", [(4, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [2],
+                "trait_id": [0],
+                "causal_allele": ["T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        np.testing.assert_array_equal(result["effect_size"], np.zeros(ts.num_edges))
+
+    def test_stacked_mutations(self):
+        """Mutations chained on one branch telescope to the net state change."""
+        ts = mutated_binary_tree([(0, "A", [(4, "T"), (4, "G"), (4, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [2],
+                "trait_id": [0],
+                "causal_allele": ["T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        # The individual transitions contribute +2, -2 and +2.
+        expected = np.zeros(ts.num_edges)
+        expected[ts.first().edge(4)] = 2
+        np.testing.assert_array_equal(result["effect_size"], expected)
+
+    def test_mutations_accumulate_on_one_edge(self):
+        """Mutations at different sites on the same branch are summed."""
+        ts = mutated_binary_tree([(0, "A", [(4, "T")]), (5, "A", [(4, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0, 1],
+                "effect_size": [1.5, 2.5],
+                "trait_id": [0, 0],
+                "causal_allele": ["T", "T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        expected = np.zeros(ts.num_edges)
+        expected[ts.first().edge(4)] = 4
+        np.testing.assert_array_almost_equal(result["effect_size"], expected)
+
+    @pytest.mark.parametrize("effect_size", [-2.5, 0, 0.25])
+    def test_effect_size(self, effect_size):
+        ts = mutated_binary_tree([(0, "A", [(4, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [effect_size],
+                "trait_id": [0],
+                "causal_allele": ["T"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        expected = np.zeros(ts.num_edges)
+        expected[ts.first().edge(4)] = effect_size
+        np.testing.assert_array_almost_equal(result["effect_size"], expected)
+
+    @pytest.mark.parametrize(
+        ("causal_allele", "expected_effect"), [("GGGT", 2), ("AAC", -2), ("G", 0)]
+    )
+    def test_multi_character_alleles(self, causal_allele, expected_effect):
+        ts = mutated_binary_tree([(0, "AAC", [(4, "GGGT")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [2],
+                "trait_id": [0],
+                "causal_allele": [causal_allele],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        expected = np.zeros(ts.num_edges)
+        expected[ts.first().edge(4)] = expected_effect
+        np.testing.assert_array_equal(result["effect_size"], expected)
+
+    @pytest.mark.parametrize("is_sample", [True, False])
+    def test_mutation_on_isolated_node(self, is_sample):
+        """An isolated node has no ancestral edge, just like a root."""
+        ts = binary_tree()
+        tables = ts.dump_tables()
+        tables.sites.clear()
+        tables.mutations.clear()
+        flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+        node = tables.nodes.add_row(flags=flags, time=0)
+        site_id = tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=site_id, node=node, derived_state="T")
+        ts = tables.tree_sequence()
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [site_id],
+                "effect_size": [1],
+                "trait_id": [0],
+                "causal_allele": ["T"],
+            }
+        )
+        with pytest.raises(
+            ValueError,
+            match="Cannot assign an edge effect to a mutation on a root node",
+        ):
+            tstrait.edge_effect(ts=ts, trait_df=trait_df)
+
+    def test_mutation_on_root_without_state_change(self):
+        """A mutation above a root is fine if it does not change the state."""
+        ts = mutated_binary_tree([(0, "A", [(6, "T")])])
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [0],
+                "effect_size": [1],
+                "trait_id": [0],
+                "causal_allele": ["G"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        np.testing.assert_array_equal(result["effect_size"], np.zeros(ts.num_edges))
+
+    def test_multiple_roots(self):
+        """A mutation above one root of a forest has no edge to sit on."""
+        ts = binary_tree()
+        tables = ts.dump_tables()
+        tables.sites.clear()
+        tables.mutations.clear()
+        # Detach node 4 and node 5 from the root, leaving two roots.
+        edges = tables.edges.copy()
+        tables.edges.clear()
+        for edge in edges:
+            if edge.parent != 6:
+                tables.edges.append(edge)
+        site_id = tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=site_id, node=4, derived_state="T")
+        tables.sort()
+        ts = tables.tree_sequence()
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [site_id],
+                "effect_size": [1],
+                "trait_id": [0],
+                "causal_allele": ["T"],
+            }
+        )
+        with pytest.raises(
+            ValueError,
+            match="Cannot assign an edge effect to a mutation on a root node",
+        ):
+            tstrait.edge_effect(ts=ts, trait_df=trait_df)
+
+    def test_no_edges(self):
+        tables = tskit.TableCollection(sequence_length=10)
+        for _ in range(2):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        site_id = tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=site_id, node=0, derived_state="T")
+        ts = tables.tree_sequence()
+        trait_df = pd.DataFrame(
+            {
+                "site_id": [site_id],
+                "effect_size": [1],
+                "trait_id": [0],
+                "causal_allele": ["G"],
+            }
+        )
+        result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        assert len(result) == 0
+
+
+class TestEdgeEffectReference:
+    """Compare edge_effect against a state-based reference implementation over
+    a range of tree topologies and allele configurations.
+    """
+
+    def verify(self, ts, num_trait, seed=1):
+        trait_df = random_trait_df(ts, num_trait, seed)
+        try:
+            expected = naive_edge_effect(ts, trait_df)
+        except ValueError:
+            with pytest.raises(
+                ValueError, match="Cannot assign an edge effect to a mutation"
+            ):
+                tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        else:
+            result = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+            pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+    @pytest.mark.parametrize(
+        "ts_func",
+        [
+            binary_tree,
+            diff_ind_tree,
+            non_binary_tree,
+            triploid_tree,
+            binary_tree_seq,
+            simple_tree_seq,
+            allele_freq_one,
+        ],
+    )
+    @pytest.mark.parametrize("num_trait", [1, 3])
+    def test_data_tree_sequence(self, ts_func, num_trait):
+        self.verify(ts_func(), num_trait)
+
+    @pytest.mark.parametrize("n", [2, 3, 4, 5])
+    @pytest.mark.parametrize("rate", [2.0, 10.0])
+    def test_all_trees(self, n, rate):
+        ts = multi_allelic_mutations(all_trees_ts(n), rate=rate, seed=n)
+        self.verify(ts, num_trait=2)
+
+    @pytest.mark.parametrize("recombination_rate", [0, 1e-7])
+    @pytest.mark.parametrize("seed", [1, 2, 3])
+    def test_simulated(self, recombination_rate, seed):
+        ts = msprime.sim_ancestry(
+            8,
+            sequence_length=10_000,
+            recombination_rate=recombination_rate,
+            population_size=1000,
+            random_seed=seed,
+        )
+        ts = multi_allelic_mutations(ts, rate=1e-4, seed=seed)
+        self.verify(ts, num_trait=3, seed=seed)
+
+
+class TestEdgeEffectAndNodeValues:
+    """In a tree sequence with a single tree every edge spans every site, so
+    the effect introduced on an edge is exactly the difference between the
+    genetic values of its child and parent node.
+    """
+
+    def verify(self, ts, num_trait=2, seed=1):
+        assert ts.num_trees == 1
+        trait_df = random_trait_df(
+            ts, num_trait, seed, site_id=sites_without_root_mutations(ts)
+        )
+        effect_df = tstrait.edge_effect(ts=ts, trait_df=trait_df)
+        value_df = tstrait.genetic_value(ts=ts, trait_df=trait_df, level="node")
+        for trait_id in range(num_trait):
+            effect = effect_df[effect_df["trait_id"] == trait_id]
+            value = value_df[value_df["trait_id"] == trait_id]
+            value = value.set_index("node_id")["genetic_value"]
+            expected = (
+                value[ts.edges_child].to_numpy() - value[ts.edges_parent].to_numpy()
+            )
+            np.testing.assert_allclose(
+                effect["effect_size"].to_numpy(), expected, atol=1e-9
+            )
+
+    @pytest.mark.parametrize(
+        "ts_func", [binary_tree, non_binary_tree, triploid_tree, allele_freq_one]
+    )
+    def test_data_tree_sequence(self, ts_func):
+        self.verify(ts_func())
+
+    @pytest.mark.parametrize("seed", [1, 2, 3])
+    def test_simulated(self, seed):
+        ts = msprime.sim_ancestry(
+            8, sequence_length=1000, population_size=1000, random_seed=seed
+        )
+        ts = multi_allelic_mutations(ts, rate=1e-3, seed=seed)
+        self.verify(ts, num_trait=3, seed=seed)
 
 
 class TestOutputDim:
