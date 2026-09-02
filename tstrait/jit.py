@@ -20,9 +20,13 @@ Two conventions apply throughout this module:
 import numba
 import numpy as np
 import tskit
+from numba.core import types
+from numba.typed import List
 
-# The arena starts at this many tuples and doubles whenever it fills up.
-INITIAL_ARENA_SIZE = 1024
+# What a node holds while it waits to be swept: the indexes of the seeds whose
+# effect has reached it. The causal site and effect size of a seed are looked
+# up in arrays that are fixed for the whole sweep, so an item is one integer.
+_SEED_LIST = types.ListType(types.int32)
 
 
 @numba.njit
@@ -42,17 +46,17 @@ def _push_down_arg(
     """
     Accumulate the genetic value of every causal site in one sweep of the nodes.
 
-    Each node conceptually holds a set of ``(causal site, effect)`` tuples,
-    seeded at the node of each causal mutation. Sweeping the nodes from the
-    past to the present visits every node after all of its ancestors, because
-    a parent is always older than its child, so a tuple can be pushed from a
-    node to its children and is guaranteed to have arrived before that child is
-    reached. For each tuple the outbound edges spanning its causal site are
-    found, and the tuple is credited to the edge and to the node at the far end
-    before being passed on to it.
+    Each node holds the seeds whose effect has reached it, seeded at the node
+    of each causal mutation. Sweeping the nodes from the past to the present
+    visits every node after all of its ancestors, because a parent is always
+    older than its child, so a seed can be passed from a node to its children
+    and is guaranteed to have arrived before that child is reached. For each
+    seed the outbound edges spanning its causal site are found, and the seed is
+    credited to the edge and to the node at the far end before being passed on
+    to it.
 
-    A node is credited when a tuple arrives rather than when it is swept, so a
-    node that is never a parent never holds a tuple. On a large tree sequence
+    A node is credited when a seed arrives rather than when it is swept, so a
+    node that is never a parent never holds anything. On a large tree sequence
     that is about half of the work.
 
     ``child_index`` is the tskit child index, in which a node that is never a
@@ -63,91 +67,52 @@ def _push_down_arg(
     discards the contribution.
     """
     num_nodes = len(child_index)
-    head = np.full(num_nodes, tskit.NULL, dtype=np.int32)
-    arena_size = INITIAL_ARENA_SIZE
-    tuple_site = np.empty(arena_size, dtype=np.int32)
-    tuple_weight = np.empty(arena_size, dtype=np.float64)
-    tuple_next = np.empty(arena_size, dtype=np.int32)
-    # Slots are taken from the free list first, and from the top of the arena
-    # only when it is empty. Every tuple of a node is dead once that node has
-    # been swept, so the arena only ever holds the tuples still in flight.
-    arena_top = 0
-    free = tskit.NULL
+    # A node's list is made when something first reaches it. Most nodes are
+    # never reached when the causal alleles are rare, and making a list for
+    # every one of them up front then costs more than the sweep does.
+    empty = List.empty_list(types.int32)
+    pending = List.empty_list(_SEED_LIST)
+    for _ in range(num_nodes):
+        pending.append(empty)
+    reached = np.zeros(num_nodes, dtype=np.bool_)
 
     for j in range(len(seed_node)):
         u = seed_node[j]
-        weight = seed_weight[j]
         if seed_output[j] >= 0:
-            output[seed_output[j]] += weight
+            output[seed_output[j]] += seed_weight[j]
         if child_index[u, 0] < 0:
             continue
-        if free != tskit.NULL:
-            slot = free
-            free = tuple_next[slot]
-        else:
-            if arena_top == arena_size:
-                arena_size *= 2
-                grown_site = np.empty(arena_size, dtype=np.int32)
-                grown_weight = np.empty(arena_size, dtype=np.float64)
-                grown_next = np.empty(arena_size, dtype=np.int32)
-                grown_site[:arena_top] = tuple_site
-                grown_weight[:arena_top] = tuple_weight
-                grown_next[:arena_top] = tuple_next
-                tuple_site = grown_site
-                tuple_weight = grown_weight
-                tuple_next = grown_next
-            slot = arena_top
-            arena_top += 1
-        tuple_site[slot] = seed_site[j]
-        tuple_weight[slot] = weight
-        tuple_next[slot] = head[u]
-        head[u] = slot
+        if not reached[u]:
+            pending[u] = List.empty_list(types.int32)
+            reached[u] = True
+        pending[u].append(np.int32(j))
 
     for i in range(len(nodes_by_time)):
         parent = nodes_by_time[i]
-        slot = head[parent]
-        if slot == tskit.NULL:
+        if not reached[parent]:
             continue
-        head[parent] = tskit.NULL
+        items = pending[parent]
         edge_start = child_index[parent, 0]
         edge_stop = child_index[parent, 1]
-        while slot != tskit.NULL:
-            site = tuple_site[slot]
-            weight = tuple_weight[slot]
+        for k in range(len(items)):
+            item = items[k]
+            site = seed_site[item]
+            weight = seed_weight[item]
             for e in range(edge_start, edge_stop):
                 if edges_site_start[e] <= site and site < edges_site_stop[e]:
                     if edges_output[e] >= 0:
                         output[edges_output[e]] += weight
                     child = edges_child[e]
                     if child_index[child, 0] < 0:
-                        # Nothing below, so there is no tuple to hold.
+                        # Nothing below, so there is nothing to hold.
                         continue
-                    if free != tskit.NULL:
-                        child_slot = free
-                        free = tuple_next[child_slot]
-                    else:
-                        if arena_top == arena_size:
-                            arena_size *= 2
-                            grown_site = np.empty(arena_size, dtype=np.int32)
-                            grown_weight = np.empty(arena_size, dtype=np.float64)
-                            grown_next = np.empty(arena_size, dtype=np.int32)
-                            grown_site[:arena_top] = tuple_site
-                            grown_weight[:arena_top] = tuple_weight
-                            grown_next[:arena_top] = tuple_next
-                            tuple_site = grown_site
-                            tuple_weight = grown_weight
-                            tuple_next = grown_next
-                        child_slot = arena_top
-                        arena_top += 1
-                    tuple_site[child_slot] = site
-                    tuple_weight[child_slot] = weight
-                    tuple_next[child_slot] = head[child]
-                    head[child] = child_slot
-            # This tuple is finished with, so its slot can be reused.
-            next_slot = tuple_next[slot]
-            tuple_next[slot] = free
-            free = slot
-            slot = next_slot
+                    if not reached[child]:
+                        pending[child] = List.empty_list(types.int32)
+                        reached[child] = True
+                    pending[child].append(np.int32(item))
+        # A node is swept once, so dropping the reference here hands its
+        # storage back for the nodes still to come.
+        pending[parent] = empty
 
     return output
 

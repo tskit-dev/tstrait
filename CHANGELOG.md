@@ -11,6 +11,15 @@ In development
   {pr}`189`
 - Added `edge_effect` to compute introduced effects on edges {pr}`189`
 
+### Performance
+
+- `genetic_value` pushes the effect of each causal mutation down the ARG
+  instead of working through the trees one at a time, so its cost is the
+  number of nodes carrying a causal allele rather than the size of the tree
+  sequence. On 100,000 samples, a trait with 100,000 rare causal sites is
+  around 70 times faster; traits whose causal sites are mostly common
+  variants are around 1.5 times slower.
+
 ### Breaking changes
 
 - `genetic_value` and `edge_effect` now raise a `ValueError` if a `site_id` in
