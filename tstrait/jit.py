@@ -145,7 +145,7 @@ def _tree_roots(tree, samples, marked, mark, roots):
     return num_roots
 
 
-@numba.njit
+@numba.njit(nogil=True)
 def _descend_trees(
     numba_ts,
     edges_parent,
@@ -161,6 +161,8 @@ def _descend_trees(
     node_output,
     edge_level,
     output,
+    row_start,
+    row_stop,
 ):
     """
     Accumulate the genetic value of the selected causal sites in one pass over
@@ -181,6 +183,15 @@ def _descend_trees(
     ``output`` is accumulated into, and the count of nodes visited is returned.
     That count is what the run time is proportional to, so the benchmark
     divides by it rather than keeping a copy of this loop that only counts.
+
+    Only the rows in ``[row_start, row_stop)`` are accumulated, which is how the
+    work is divided between threads. The GIL is released, and everything a
+    thread writes to is allocated here, so the ranges need nothing of each
+    other: the rows are marked with their own index and the indexes of two
+    ranges cannot collide. Note that a range still walks the whole tree
+    sequence, since a tree is built from the one before it and there is no
+    seeking to the first tree a range wants, so the tree building costs a pass
+    per range rather than a pass per call.
     """
     num_nodes = numba_ts.num_nodes
     tree = tree_state(num_nodes)
@@ -195,13 +206,12 @@ def _descend_trees(
     stack = np.empty(num_nodes, dtype=np.int32)
 
     visits = 0
-    row = 0
-    num_rows = len(row_site)
+    row = row_start
     tree_index = numba_ts.tree_index()
     while tree_index.next():
         _apply_edge_diffs(tree_index, edges_parent, edges_child, tree)
         site_stop = tree_index.site_range[1]
-        while row < num_rows and row_site[row] < site_stop:
+        while row < row_stop and row_site[row] < site_stop:
             start = pair_offset[row]
             stop = pair_offset[row + 1]
             # Every mutation at the site blocks the allele above it, whatever

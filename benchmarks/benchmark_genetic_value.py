@@ -173,6 +173,8 @@ def warm_up(ts, model, levels, counters):
     trait_df = tstrait.sim_trait(ts, model=model, num_causal=1, random_seed=1)
     for level in levels:
         tstrait.genetic_value(ts, trait_df, level=level)
+    # The threaded kernel is a specialisation of its own to compile.
+    tstrait.genetic_value(ts, trait_df, level=levels[0], num_threads=1)
     if counters:
         # A kernel of its own to compile, so only pay for it when it is used.
         count_work(ts, _check_trait_df(ts, trait_df))
@@ -337,7 +339,11 @@ def run_benchmark(ts, args):
                 )
             for level in args.levels:
                 call = functools.partial(
-                    tstrait.genetic_value, ts, trait_df, level=level
+                    tstrait.genetic_value,
+                    ts,
+                    trait_df,
+                    level=level,
+                    num_threads=args.num_threads,
                 )
                 if args.memory:
                     _, memory[(num_causal, selection, level)] = peak_memory(call)
@@ -395,7 +401,12 @@ def summarise(rows, counts, memory, completed, ts, args):
         best[key] = min(best.get(key, seconds), seconds)
 
     print(f"\n{describe(ts)}")
-    print(f"Minimum of {args.replicates} replicates\n")
+    threads = (
+        "on the calling thread"
+        if args.num_threads <= 0
+        else (f"over {args.num_threads} worker threads")
+    )
+    print(f"Minimum of {args.replicates} replicates, {threads}\n")
     columns = f"{'phase':<14} {'selection':<10} {'level':<11} {'num_causal':>10} "
     columns += f"{'seconds':>10} {'us/site':>10}"
     if args.counters:
@@ -489,6 +500,7 @@ def write_csv(rows, ts, args):
                 "num_edges",
                 "num_trees",
                 "num_sites",
+                "num_threads",
             ]
         )
         for row in rows:
@@ -501,6 +513,7 @@ def write_csv(rows, ts, args):
                     ts.num_edges,
                     ts.num_trees,
                     ts.num_sites,
+                    args.num_threads,
                 ]
             )
     print(f"\nWrote {args.output}")
@@ -573,6 +586,15 @@ def parse_args():
         help=(
             "Stop before the next number of causal sites once a single call has "
             "taken longer than this"
+        ),
+    )
+    parser.add_argument(
+        "--num-threads",
+        type=int,
+        default=0,
+        help=(
+            "Worker threads to divide the causal sites between. 0, the "
+            "default, does the work on the calling thread"
         ),
     )
     parser.add_argument(

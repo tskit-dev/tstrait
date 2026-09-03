@@ -13,6 +13,15 @@ In development
 
 ### Performance
 
+- `genetic_value` takes a `num_threads` argument, dividing the causal sites
+  between that many worker threads and defaulting to 0, which does the work on
+  the calling thread. Each thread holds arrays the length of the nodes, so how
+  well it scales is set by the size of the tree sequence rather than by the
+  number of causal sites: on 30,000 samples a trait of 10,000 uniformly drawn
+  causal sites is 3.4 times faster on four threads, while on 100,000 samples,
+  where the arrays no longer fit in cache, the same trait is 1.6 times faster.
+  Threads do not pay for themselves on a trait whose causal sites are few or
+  rare, since each of them walks the trees.
 - `genetic_value` descends from the mutations of each causal site instead of
   making a pass over every node for each of them, so its cost is the number of
   nodes carrying a causal allele rather than the number of causal sites times

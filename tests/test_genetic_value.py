@@ -1,3 +1,6 @@
+import concurrent.futures
+from unittest import mock
+
 import msprime
 import numpy as np
 import pandas as pd
@@ -5,7 +8,9 @@ import pytest
 import tskit
 
 import tstrait
+from tstrait import jit
 from tstrait.base import _check_numeric_array
+from tstrait.genetic_value import _check_trait_df, _GeneticValue
 
 from .data import (
     all_trees_ts,
@@ -1330,3 +1335,109 @@ class TestDescent:
         expected = naive_genetic_value(ts, trait_df, "node")
         result = tstrait.genetic_value(ts, trait_df, level="node")
         pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+
+class TestNumThreads:
+    """
+    Dividing the rows between threads must not change the answer, whatever the
+    number of threads and however few rows there are to divide.
+    """
+
+    THREADS = [1, 2, 3, 5]
+
+    @pytest.mark.parametrize("num_threads", THREADS)
+    @pytest.mark.parametrize("level", ["individual", "node", "edge"])
+    @pytest.mark.parametrize("num_trait", [1, 3])
+    def test_matches_sequential(self, num_threads, level, num_trait):
+        ts = multi_allelic_mutations(
+            msprime.sim_ancestry(
+                20, sequence_length=10_000, recombination_rate=1e-4, random_seed=3
+            ),
+            rate=1e-3,
+            seed=3,
+        )
+        trait_df = random_trait_df(ts, num_trait, seed=5)
+        # The chunks are summed in a different order from the sequential
+        # accumulation, so this is equal to tolerance rather than bit for bit.
+        pd.testing.assert_frame_equal(
+            tstrait.genetic_value(ts, trait_df, level=level, num_threads=num_threads),
+            tstrait.genetic_value(ts, trait_df, level=level),
+            check_dtype=False,
+        )
+
+    @pytest.mark.parametrize("num_threads", THREADS)
+    def test_matches_reference(self, num_threads):
+        # Against the tree by tree reference rather than against the
+        # sequential path, so that the threads are not being checked only
+        # against themselves.
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=2, seed=1)
+        for level in ("individual", "node", "edge"):
+            pd.testing.assert_frame_equal(
+                tstrait.genetic_value(
+                    ts, trait_df, level=level, num_threads=num_threads
+                ),
+                naive_genetic_value(ts, trait_df, level),
+                check_dtype=False,
+            )
+
+    @pytest.mark.parametrize("num_threads", [2, 8, 100])
+    def test_more_threads_than_rows(self, num_threads):
+        # A thread with no rows would walk the trees for nothing, so the count
+        # is clamped to the rows there are.
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=1, seed=1).iloc[:1]
+        assert len(trait_df) == 1
+        pd.testing.assert_frame_equal(
+            tstrait.genetic_value(ts, trait_df, num_threads=num_threads),
+            tstrait.genetic_value(ts, trait_df),
+            check_dtype=False,
+        )
+
+    def test_zero_is_sequential(self):
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=1, seed=1)
+        pd.testing.assert_frame_equal(
+            tstrait.genetic_value(ts, trait_df, num_threads=0),
+            tstrait.genetic_value(ts, trait_df),
+            check_dtype=False,
+        )
+
+    def test_zero_starts_no_threads(self):
+        # The default has to stay a plain synchronous call, not a pool of one.
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=1, seed=1)
+        with mock.patch.object(
+            concurrent.futures, "ThreadPoolExecutor", side_effect=AssertionError
+        ) as pool:
+            tstrait.genetic_value(ts, trait_df)
+        pool.assert_not_called()
+
+    def test_bad_num_threads(self):
+        # Zero already means sequential, so a negative is a mistake rather
+        # than another way of asking for it.
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=1, seed=1)
+        with pytest.raises(TypeError, match="num_threads must be an integer"):
+            tstrait.genetic_value(ts, trait_df, num_threads=1.5)
+        with pytest.raises(
+            ValueError, match="num_threads must be an integer not less than 0"
+        ):
+            tstrait.genetic_value(ts, trait_df, num_threads=-1)
+
+    def test_keyword_only(self):
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=1, seed=1)
+        with pytest.raises(TypeError):
+            tstrait.genetic_value(ts, trait_df, "node", 2)
+
+    def test_exception_in_a_thread_is_raised(self):
+        # A thread failing must not be swallowed by the pool.
+        ts = binary_tree_seq()
+        trait_df = random_trait_df(ts, num_trait=1, seed=1)
+        genetic = _GeneticValue(ts, _check_trait_df(ts, trait_df))
+        with mock.patch.object(
+            jit, "_descend_trees", side_effect=ValueError("kernel blew up")
+        ):
+            with pytest.raises(ValueError, match="kernel blew up"):
+                genetic._run("node", num_threads=2)

@@ -89,6 +89,43 @@ was tried and rejected: it takes `sites/nodes` from 0.68 to about 2.7 against
 the large preset's 1.08, and the per-call setup floor grows with the number of
 sites, so the low end of the curve stops being comparable.
 
+### Threads
+
+`--num-threads` divides the causal sites between that many worker threads, and
+defaults to 0, which does the work on the calling thread. The rows of the trait
+dataframe are independent, so a thread takes a contiguous range of them and its
+own accumulator, and the accumulators are summed at the end.
+
+Minimum of two replicates at `level="node"`, on four cores:
+
+| preset | selection | num_causal | 1 thread | 2 | 3 | 4 |
+|---|---|---|---|---|---|---|
+| small | uniform | 10,000 | 980ms | 1.94x | 2.86x | **3.41x** |
+| small | uniform | 300 | 41ms | 1.36x | 1.66x | 1.69x |
+| small | rare | 10,000 | 17ms | 0.94x | 0.91x | 0.89x |
+| small | rare | 300 | 12ms | 0.82x | 0.78x | 0.77x |
+| large | uniform | 10,000 | 3338ms | 1.47x | 1.64x | 1.64x |
+| large | rare | 10,000 | 76ms | 1.01x | 1.00x | 0.99x |
+
+Two things in that table are worth understanding before reading a number off it
+as a bug.
+
+**A bigger trait parallelises; a bigger tree sequence does not.** The kernel
+holds about eleven arrays the length of the nodes per thread, 49 bytes a node.
+That is 3.1MB on `small`, so four threads fit inside this machine's 16MB L3 and
+scale nearly linearly, and 10.6MB on `large`, where four threads want 42MB and
+are limited by memory bandwidth instead. Raising the causal sites from 10,000 to
+100,000 on `large` moves four threads from 1.50x only to 1.61x, and shrinking
+the two stamp arrays to `int32` gets 1.74x, so this is cache capacity rather
+than anything the division of work can fix. A machine with more L3 or more
+memory channels should do better on `large`.
+
+**Threads do not pay for themselves on a rare or a small trait.** A thread walks
+the whole tree sequence whatever range of rows it takes, because a tree is built
+from the one before it and there is no seeking to the first tree a range wants.
+That pass is 2.2ms on `small` and 12.4ms on `large`, so it is nothing against a
+second of descending and everything against seventeen milliseconds of it.
+
 ### What else it measures
 
 Wall time on its own does not say why a configuration is slow. Four optional

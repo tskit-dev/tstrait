@@ -49,6 +49,18 @@ trait_df
 : Trait dataframe that is described in [](effect_size_sim). There are some requirements for the trait
   dataframe input, which are described in [](req_trait_df).
 
+level
+
+: The entity that genetic values are returned for, one of `"individual"`, `"node"` or `"edge"`. It
+  defaults to `"individual"`, and the other two are described in [](genetic_individual_node_edge_doc).
+
+num_threads
+
+: Number of worker threads to divide the causal sites between, defaulting to 0, which does the work
+  on the calling thread. Each thread holds arrays the length of the nodes, so how well it scales is
+  set by the size of the tree sequence rather than by the number of causal sites, and it is worth
+  measuring on your own data before relying on it.
+
 The details of the parameters and how they influence the genetic value simulation are described in detail
 below.
 

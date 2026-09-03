@@ -1,10 +1,17 @@
+import concurrent.futures
+
 import numpy as np
 import pandas as pd
 import tskit
 import tskit.jit.numba as tskit_numba
 
 from . import jit
-from .base import _check_dataframe, _check_instance, _check_non_decreasing  # noreorder
+from .base import (  # noreorder
+    _check_dataframe,
+    _check_instance,
+    _check_int,
+    _check_non_decreasing,
+)
 
 
 def _row_mutations(ts, trait_df):
@@ -152,7 +159,10 @@ class _GeneticValue:
         """
         Return the arguments to the descent kernel, with the contributions
         directed at nodes, individuals or edges according to ``level`` and
-        accumulated into ``output``.
+        accumulated into ``output``, over every row.
+
+        A caller dividing the rows between threads overrides ``row_start`` and
+        ``row_stop`` in what it gets back.
         """
         ts = self.ts
         return {
@@ -170,9 +180,46 @@ class _GeneticValue:
             "node_output": self._node_output(level),
             "edge_level": level == "edge",
             "output": output,
+            "row_start": 0,
+            "row_stop": len(self.row_site),
         }
 
-    def _run(self, level):
+    def _run_threaded(self, level, N, num_threads):
+        """
+        Accumulate the genetic values on a pool of threads, each taking a
+        contiguous range of the rows, and return the sum of what they produced.
+
+        The rows are independent of each other, so a range needs nothing from
+        any other. Each gets an accumulator of its own rather than sharing one,
+        since the kernel adds into it and that is not atomic; summing them
+        afterwards is where the results stop being bit for bit what one thread
+        would have produced.
+        """
+        # A range with no rows in it would walk the trees for nothing.
+        num_threads = min(num_threads, len(self.row_site))
+        bounds = np.linspace(0, len(self.row_site), num_threads + 1).astype(int)
+        tables = [np.zeros((self.num_trait, N)) for _ in range(num_threads)]
+        # Built once, so that the threads share the arrays they only read
+        # rather than each making its own. All that varies is where a range
+        # starts and stops and which accumulator it adds into.
+        shared = self._descend_arguments(level, None)
+
+        def descend(chunk):
+            return jit._descend_trees(
+                **{
+                    **shared,
+                    "output": tables[chunk],
+                    "row_start": bounds[chunk],
+                    "row_stop": bounds[chunk + 1],
+                }
+            )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
+            # Drain the results, so that an exception in a thread is raised here.
+            list(pool.map(descend, range(num_threads)))
+        return sum(tables[1:], tables[0])
+
+    def _run(self, level, num_threads=0):
         """
         Computes genetic values of individuals, nodes, or edges
         depending on the value of "level"
@@ -183,8 +230,11 @@ class _GeneticValue:
             Dataframe with trait ID, [individual|node|edge] ID, and genetic value.
         """
         N = self._output_size(level)
-        genetic_value_table = np.zeros((self.num_trait, N))
-        jit._descend_trees(**self._descend_arguments(level, genetic_value_table))
+        if num_threads <= 0:
+            genetic_value_table = np.zeros((self.num_trait, N))
+            jit._descend_trees(**self._descend_arguments(level, genetic_value_table))
+        else:
+            genetic_value_table = self._run_threaded(level, N, num_threads)
 
         return pd.DataFrame(
             {
@@ -195,7 +245,7 @@ class _GeneticValue:
         )
 
 
-def genetic_value(ts, trait_df, level="individual"):
+def genetic_value(ts, trait_df, level="individual", *, num_threads=0):
     """
     Compute genetic values for a tree sequence given a trait dataframe.
 
@@ -209,6 +259,14 @@ def genetic_value(ts, trait_df, level="individual"):
         requirements.
     level : {"individual", "node", "edge"}, default "individual"
         The level (entity) at which genetic values are returned.
+    num_threads : int, default 0
+        Number of worker threads to divide the causal sites between. The
+        default of 0 does the work on the calling thread. How well it scales
+        is set by the size of the tree sequence rather than by the number of
+        causal sites, because each thread holds arrays the length of the
+        nodes: a tree sequence small enough for those to stay in cache scales
+        almost linearly, and a larger one is limited by memory bandwidth well
+        before it runs out of cores.
 
     Returns
     -------
@@ -238,11 +296,12 @@ def genetic_value(ts, trait_df, level="individual"):
         raise ValueError("level must be one of 'individual', 'node', or 'edge'")
     if level == "individual" and ts.num_individuals == 0:
         raise ValueError("No individuals in the provided tree sequence dataset")
+    num_threads = _check_int(num_threads, "num_threads", minimum=0)
     trait_df = _check_trait_df(ts, trait_df)
 
     genetic = _GeneticValue(ts=ts, trait_df=trait_df)
 
-    genetic_result = genetic._run(level)
+    genetic_result = genetic._run(level, num_threads)
 
     return genetic_result
 
