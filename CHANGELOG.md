@@ -13,12 +13,14 @@ In development
 
 ### Performance
 
-- `genetic_value` pushes the effect of each causal mutation down the ARG
-  instead of working through the trees one at a time, so its cost is the
-  number of nodes carrying a causal allele rather than the size of the tree
-  sequence. On 100,000 samples, a trait with 100,000 rare causal sites is
-  around 70 times faster; traits whose causal sites are mostly common
-  variants are around 1.5 times slower.
+- `genetic_value` descends from the mutations of each causal site instead of
+  making a pass over every node for each of them, so its cost is the number of
+  nodes carrying a causal allele rather than the number of causal sites times
+  the size of the tree sequence. On 100,000 samples, a trait with 100,000 rare
+  causal sites is around 180 times faster, and one whose causal sites are drawn
+  uniformly, and so are mostly common variants, around 1.2 times faster. Every
+  trait of a tree sequence is computed in one pass over the trees rather than
+  one pass each.
 
 ### Breaking changes
 

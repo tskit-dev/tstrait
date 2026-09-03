@@ -12,8 +12,10 @@ a trait.
 uv run --group test benchmarks/benchmark_genetic_value.py
 ```
 
-The cost of the ARG sweep is the number of nodes that carry a causal allele, so
-the allele frequency of the causal sites matters more than how many there are.
+`genetic_value` builds each tree in turn and descends from the mutations of the
+causal sites it carries, at around 20ns a node once the tree building is
+amortised, so its cost is the number of nodes that carry a causal allele and the
+allele frequency of the causal sites matters more than how many there are.
 `--selections` therefore draws them two ways: `uniform` over all sites, which
 the common variants in the tail of the frequency spectrum dominate, and `rare`,
 restricted to sites below `--rare-threshold`. The two differ by two orders of
@@ -22,7 +24,7 @@ site" is meaningless without saying which.
 
 `sim_trait` is timed separately, because it has a per-site Python loop of its
 own that we do not want folded into the `genetic_value` numbers. The numba
-kernels are compiled by a warm up call that is not timed.
+kernel is compiled by a warm up call that is not timed.
 
 The mutation rate defaults to 1e-7, ten times the human rate, so that there are
 enough sites in a genome short enough to simulate quickly. The mutation rate
@@ -71,7 +73,7 @@ and parity between the three levels. The uniform plateau is 109µs/site against
 
 What makes the small preset a fair substitute is not the timings but the
 distribution underneath them: the fraction of the nodes that a causal site's
-effect reaches, which is what the sweep costs. `--structure` measures it.
+effect reaches, which is what the descent costs. `--structure` measures it.
 
 | | mean carrier fraction | median |
 |---|---|---|
@@ -86,44 +88,6 @@ about 37% of its 42,794 sites. Raising the mutation rate to lift the ceiling
 was tried and rejected: it takes `sites/nodes` from 0.68 to about 2.7 against
 the large preset's 1.08, and the per-call setup floor grows with the number of
 sites, so the low end of the curve stops being comparable.
-
-### The two implementations
-
-There are two, and `--threshold` chooses between them per causal site. Below
-the threshold a site goes through the push down of the ARG, which sweeps the
-nodes once from the past to the present carrying the effect of each causal
-mutation to its carriers. At or above it the site goes through a descent of the
-trees, which builds each tree in turn and walks down from each causal mutation.
-`0` sends everything to the descent and `inf` everything to the push down.
-
-Both cost the nodes that carry a causal allele. The descent is cheaper per
-node, around 20ns against 28ns, because a child is the next link of a list
-rather than a search of the out edges of a node, and because it holds nothing
-per node while it works. Against that it has to build the trees, one insertion
-and one removal per edge, which the push down never does.
-
-That fixed cost is the whole of the argument for a threshold, and the
-measurement says it is not enough of one. Comparing thresholds over the whole
-grid, on both presets, at all three levels, for one and three traits, and for
-causal sites drawn both uniformly and from the rare ones, a threshold of zero
-was fastest or tied in every cell:
-
-| | uniform 1,000 | uniform 10,000 | rare 1,000 | rare 10,000 |
-|---|---|---|---|---|
-| small, all descent | 122ms | 1058ms | 15ms | 23ms |
-| small, all push down | 196ms | 1619ms | 16ms | 35ms |
-| large, all descent | 427ms | 3709ms | 71ms | 90ms |
-| large, all push down | 592ms | 4917ms | 68ms | 108ms |
-
-The push down leads only where there are few causal sites and they are rare, so
-the tree pass is not amortised, and there it leads by a millisecond or two on a
-call that takes a few. With three traits the gap widens the other way, to 2.27x
-on rare causal sites, because the push down sweeps once per trait where the
-descent takes all of them in one pass.
-
-So the default threshold is zero and the push down is not used. It is kept, and
-`--threshold inf` still runs it, only so that the two can go on being compared;
-the intention is to end with the descent alone.
 
 ### What else it measures
 
@@ -168,8 +132,7 @@ optimisation has to move. Two things fall out of the table:
 - `ns/visit` is around 20ns once there are enough causal sites to amortise the
   tree pass, and hundreds of nanoseconds below that. The pass is 2.2ms on
   `small` and 12.4ms on `large`, so a rare trait of a hundred causal sites is
-  paying for a tree sequence it barely touches. That is the one regime the
-  push down still wins, by a millisecond or two.
+  paying to build a tree sequence it barely touches.
 
 `--structure` reports the shape of the tree sequence and the carrier fraction
 distribution described above.
@@ -178,15 +141,10 @@ distribution described above.
 so it is reset before each call by writing to `/proc/self/clear_refs`; on a
 kernel without that the column reads `unavailable`.
 
-It is the clearest difference between the two implementations. The push down
-holds the seeds still in flight, which grows with the causal sites; the descent
-holds a fixed handful of arrays the length of the nodes however many causal
-sites there are. At 100,000 uniformly drawn causal sites on `large`:
-
-| | peak RSS | over baseline |
-|---|---|---|
-| descent | 0.42 GB | 0.01 GB |
-| push down | 1.30 GB | 0.89 GB |
+The working set is a fixed handful of arrays the length of the nodes however
+many causal sites there are: at 100,000 uniformly drawn causal sites on `large`
+the peak is 0.42GB, of which 0.01GB is what the call added over the tree
+sequence and the interpreter.
 
 ### Output
 
@@ -194,8 +152,8 @@ Results are written to `_output/genetic_value.csv` in long format, one row per
 replicate, together with the dimensions of the tree sequence they were measured
 on; `--counters` writes a second file alongside it. `_output/` is gitignored.
 
-`baseline_small.csv` and `baseline_small_counters.csv` are the `small` preset at
-the tip of the ARG sweep work, for diffing against. The timings in the first are
+`baseline_small.csv` and `baseline_small_counters.csv` are the `small` preset as
+it stands, for diffing against. The timings in the first are
 specific to the machine they were taken on; the counts in the second are not,
 and are the part worth treating as a regression test.
 
@@ -210,12 +168,9 @@ uv run --group test benchmarks/profile_genetic_value.py --mode kernel
 ```
 
 `--mode python` is cProfile around the public call. It is the only way to see
-the setup, and it shows `jitwrap` and its `builtins.max` rows plainly. The
-kernel appears in it as one opaque dispatcher frame.
-
-Note that `--mode kernel` runs the push down, not the descent, so its numbers
-describe the implementation that `--threshold inf` selects rather than the
-default one. The perf figures below were taken that way.
+the setup, and it shows `jitwrap` and its `builtins.max` rows plainly, which is
+now nearly all of what setup costs. The kernel appears in it as one opaque
+dispatcher frame.
 
 `--mode kernel` sets one cell up and runs only the kernel, so that a sampling
 profile is not swamped by simulating effect sizes for the whole site pool. Run
@@ -228,16 +183,18 @@ Two things to know before reading a perf profile of this code.
 `PerfJITEventListener`, so nothing writes a `/tmp/perf-<pid>.map` or a jitdump
 and the kernel shows up as raw addresses under `[JIT]`. Use `--counters` for
 attribution inside the kernel. What perf does give is the split between the
-kernel, the numba runtime, the interpreter and LLVM compilation, with the typed
-list functions resolved by name — which is how to size the typed list overhead:
+kernel, the interpreter, LLVM compilation and the numba runtime:
 
 ```
-64.42%  [JIT] tid 4722                    <- the kernel
-12.18%  python3.11                        <- setup
- 6.27%  libc.so.6
- 6.02%  libllvmlite.so                    <- compilation, not work
- 4.93%  _helperlib.cpython-311-...so      <- numba_list_append, numba_list_resize
+59.19%  [JIT] tid 23771                   <- the kernel
+19.24%  python3.11                        <- setup
+11.78%  libllvmlite.so                    <- compilation, not work
+ 4.14%  [kernel.kallsyms]
+ 1.75%  libc.so.6
 ```
+
+The numba runtime does not appear at all: the descent allocates nothing per
+node, so there is no `_helperlib` row.
 
 That is `--repeats 10`; the setup is a fixed few seconds, so raise `--repeats`
 until the `[JIT]` share stops moving.
@@ -245,19 +202,11 @@ until the `[JIT]` share stops moving.
 **Do not set `NUMBA_ENABLE_PROFILING=1`.** It is the documented way to profile
 numba and is wrong here: it would only help through the listener llvmlite does
 not have, and it defaults `NUMBA_DEBUGINFO` to 1, which changes the generated
-code. The same kernel measured 2.62s a call with it and 1.61s without. perf
-finds the JIT mappings by itself, so the recipe does not set it.
+code and measured the kernel over 60% slower. perf finds the JIT mappings by
+itself, so the recipe does not set it.
 
 ## Gotchas
 
-- `_GeneticValue` takes a `_root_runs` branch when a drawn causal allele is the
-  ancestral state of its site *and* that row goes to the push down. It is a
-  Python loop over every tree, costing 7ms on `small` and 38ms on `large`, so on
-  `large` it was over a third of the setup. It is not an edge case: drawing
-  10,000 sites uniformly makes it near certain that one of them qualifies. At
-  the default threshold those rows go to the descent, which has the roots to
-  hand, and the branch never runs; `--threshold inf` brings it back. The
-  benchmark prints a line when a cell actually takes it.
 - Never compare replicate 0 against replicates 1 and up. `mutations_inherited_state`
   and its neighbours are built lazily and cached on the tree sequence, so the
   first call on a given tree sequence pays for all of them. The warm up call

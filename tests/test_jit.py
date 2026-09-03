@@ -10,8 +10,7 @@ checking and lets coverage measure the kernels.
 The examples are small trees from the tskit generators, drawn in the class
 docstrings so that the expected values can be checked against the topology.
 Each is turned into a tree sequence with a single causal site, since the
-kernel pushes the effects of mutations down the ARG rather than working from
-a tree.
+kernel works from the trees of a tree sequence rather than from a tree.
 """
 
 import numba
@@ -72,7 +71,7 @@ def node_genetic_value(request):
     state of "A", and a node's value is ``effect_size`` when the allele it
     inherits is ``causal_allele``.
     """
-    func = kernel(jit._push_down_arg, request.param)
+    func = kernel(jit._descend_trees, request.param)
 
     def f(
         tree,
@@ -90,11 +89,12 @@ def node_genetic_value(request):
                 "causal_allele": [causal_allele],
             }
         )
-        # These test the push down kernel, so keep every row on it rather
-        # than letting the default threshold send them to the descent.
-        genetic = _GeneticValue(ts, trait_df, threshold=np.inf)
-        output = np.zeros(genetic._output_size(level))
-        return func(**genetic._descent_arguments(level, 0, output))
+        genetic = _GeneticValue(ts, trait_df)
+        # The kernel accumulates into a row per trait and returns the number
+        # of nodes it visited, so the values come back through the array.
+        output = np.zeros((genetic.num_trait, genetic._output_size(level)))
+        func(**genetic._descend_arguments(level, output))
+        return output[0]
 
     return f
 

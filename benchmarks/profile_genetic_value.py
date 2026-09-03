@@ -11,9 +11,9 @@ modes, because the Python setup and the numba kernel need different tools:
     opaque dispatcher frame.
 
 ``--mode kernel``
-    Set up one cell and run only the kernel, so that a sampling profile is not
-    swamped by the effect size simulation over the whole site pool. Run it
-    under perf; ``--mode kernel`` on its own prints the commands.
+    Set up one cell and run only the descent kernel, so that a sampling profile
+    is not swamped by the effect size simulation over the whole site pool. Run
+    it under perf; ``--mode kernel`` on its own prints the commands.
 
 Two things about perf and numba are worth knowing before reading a profile.
 
@@ -21,16 +21,15 @@ perf cannot attribute time to source lines inside the kernel here: this
 llvmlite has no LLVM PerfJITEventListener, so nothing emits a
 /tmp/perf-<pid>.map or a jitdump and the kernel shows up as raw addresses
 under ``[JIT]``. What perf does give is the split between the kernel, the
-numba runtime, the interpreter and LLVM compilation, with the typed list
-runtime functions resolved by name. For attribution inside the kernel use
-``benchmark_genetic_value.py --counters``.
+numba runtime, the interpreter and LLVM compilation. For attribution inside
+the kernel use ``benchmark_genetic_value.py --counters``.
 
 NUMBA_ENABLE_PROFILING=1 is the documented way to profile numba and is the
 wrong thing to use here. It would only help by way of the listener llvmlite
 does not have, and it defaults NUMBA_DEBUGINFO to 1, which changes the code
-that is generated: the kernel measured 2.62s a call with it and 1.61s
-without. perf finds the JIT mappings on its own, so the recipe below does not
-set it, and a profile taken with it is a profile of a different kernel.
+that is generated and measured the kernel over 60% slower. perf finds the JIT
+mappings on its own, so the recipe below does not set it, and a profile taken
+with it is a profile of a different kernel.
 
 Run with ``uv run --group test benchmarks/profile_genetic_value.py``.
 """
@@ -110,13 +109,12 @@ def run_kernel(args):
     """
     ts, trait_df = prepare(args)
     genetic = _GeneticValue(ts, _check_trait_df(ts, trait_df))
-    size = genetic._output_size(args.level)
-    arguments = genetic._descent_arguments(args.level, 0, np.zeros(size))
-    jit._push_down_arg(**{**arguments, "output": np.zeros(size)})
+    shape = (genetic.num_trait, genetic._output_size(args.level))
+    jit._descend_trees(**genetic._descend_arguments(args.level, np.zeros(shape)))
 
     before = time.perf_counter()
     for _ in range(args.repeats):
-        jit._push_down_arg(**{**arguments, "output": np.zeros(size)})
+        jit._descend_trees(**genetic._descend_arguments(args.level, np.zeros(shape)))
     elapsed = time.perf_counter() - before
     print(
         f"{args.repeats} kernel calls in {elapsed:.3f}s "
@@ -159,9 +157,8 @@ def print_perf_commands(args):
     )
     print(
         "\n# The kernel is the [JIT] rows, and libllvmlite is compilation, not\n"
-        "# work. numba_list_append and numba_list_resize in the second report\n"
-        "# are the typed list traffic. Source lines inside the kernel are not\n"
-        "# available; use --counters on the benchmark instead."
+        "# work. Source lines inside the kernel are not available; use\n"
+        "# --counters on the benchmark instead."
     )
 
 

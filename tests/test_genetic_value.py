@@ -6,7 +6,6 @@ import tskit
 
 import tstrait
 from tstrait.base import _check_numeric_array
-from tstrait.genetic_value import _check_trait_df, _GeneticValue
 
 from .data import (
     all_trees_ts,
@@ -37,7 +36,6 @@ def sample_df():
             "causal_allele": ["A", "A"],
             "effect_size": [0.1, 0.1],
             "trait_id": [0, 0],
-            "allele_freq": [0.2, 0.3],
         }
     )
 
@@ -117,11 +115,6 @@ def random_trait_df(ts, num_trait, seed, site_id=None):
 
     The causal allele of a row is drawn from the alleles that occur at its site,
     so that the effects are not trivially zero.
-
-    The allele_freq column alternates between two values rather than being the
-    real frequency. It is only there to decide which implementation a row goes
-    through, and alternating splits the rows whatever the topology is, which is
-    what the tests want to exercise.
     """
     rng = np.random.default_rng(seed)
     if site_id is None:
@@ -140,9 +133,6 @@ def random_trait_df(ts, num_trait, seed, site_id=None):
             "effect_size": rng.normal(size=num_site * num_trait),
             "trait_id": np.tile(np.arange(num_trait), num_site),
             "causal_allele": causal_allele,
-            "allele_freq": np.tile([0.25, 0.75], num_site * num_trait)[
-                : num_site * num_trait
-            ],
         }
     )
 
@@ -1155,23 +1145,14 @@ class TestGeneticValueReference:
     roots with, so it is covered here rather than separately.
     """
 
-    # All rows through the descent of the trees, split between the two, and
-    # all rows through the push down of the ARG. A row whose causal allele is
-    # the ancestral state always goes through the descent, so the last of these
-    # is not quite everything.
-    THRESHOLDS = [0.0, 0.5, np.inf]
-
     def verify(self, ts, num_trait, seed=1, levels=("node", "edge")):
         trait_df = random_trait_df(ts, num_trait, seed)
         for level in levels:
             if level == "individual" and ts.num_individuals == 0:
                 continue
             expected = naive_genetic_value(ts, trait_df, level)
-            for threshold in self.THRESHOLDS:
-                result = tstrait.genetic_value(
-                    ts=ts, trait_df=trait_df, level=level, _threshold=threshold
-                )
-                pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+            result = tstrait.genetic_value(ts=ts, trait_df=trait_df, level=level)
+            pd.testing.assert_frame_equal(result, expected, check_dtype=False)
 
     @pytest.mark.parametrize(
         "ts_func",
@@ -1277,55 +1258,12 @@ class TestGeneticValueReference:
                 pd.testing.assert_frame_equal(result, expected, check_dtype=False)
 
 
-class TestDescentAndPushDown:
+class TestDescent:
     """
-    The two implementations against each other and against the reference, over
-    the cases where they are most likely to disagree.
-
-    A row goes through the descent of the trees when its allele frequency is at
-    or above the threshold, so a threshold of zero sends everything there and
-    an infinite one sends everything to the push down, apart from the rows
-    whose causal allele is the ancestral state, which always take the descent.
+    The cases where the descent of the trees is most likely to go wrong: a
+    mutation sitting on a root, a causal site carrying no mutations at all, and
+    a site falling exactly on a tree boundary.
     """
-
-    def simulated_ts(self, seed=3):
-        ts = msprime.sim_ancestry(
-            20, sequence_length=10_000, recombination_rate=1e-4, random_seed=seed
-        )
-        return multi_allelic_mutations(ts, rate=1e-3, seed=seed)
-
-    @pytest.mark.parametrize("level", ["individual", "node", "edge"])
-    @pytest.mark.parametrize("num_trait", [1, 3])
-    def test_paths_agree(self, level, num_trait):
-        # naive_genetic_value is too slow to run on anything this size, so the
-        # two implementations are checked against each other instead.
-        ts = self.simulated_ts()
-        trait_df = random_trait_df(ts, num_trait, seed=5)
-        descent = tstrait.genetic_value(ts, trait_df, level=level, _threshold=0.0)
-        push_down = tstrait.genetic_value(ts, trait_df, level=level, _threshold=np.inf)
-        pd.testing.assert_frame_equal(descent, push_down, check_dtype=False)
-
-    def test_split_is_a_split(self):
-        # The reference tests would pass just as well if every row went the
-        # same way, so check that a middling threshold really does divide them.
-        ts = self.simulated_ts()
-        trait_df = _check_trait_df(ts, random_trait_df(ts, 2, seed=5))
-        genetic = _GeneticValue(ts, trait_df, threshold=0.5)
-        assert np.any(genetic.descent_rows)
-        assert np.any(~genetic.descent_rows)
-        assert not np.all(genetic.descent_rows[genetic.seed_row])
-
-    def test_no_allele_freq_needs_no_threshold(self):
-        # A trait dataframe assembled by hand has no allele_freq, so there is
-        # nothing for a positive threshold to compare against and every row
-        # takes the push down. The default threshold of zero needs no
-        # comparison, so those rows take the descent like any other.
-        ts = self.simulated_ts()
-        trait_df = _check_trait_df(
-            ts, random_trait_df(ts, 1, seed=5).drop(columns=["allele_freq"])
-        )
-        assert not np.any(_GeneticValue(ts, trait_df, threshold=0.5).descent_rows)
-        assert np.all(_GeneticValue(ts, trait_df, threshold=0.0).descent_rows)
 
     @pytest.mark.parametrize("derived_state", ["A", "T"])
     def test_mutation_on_root(self, derived_state):
@@ -1341,17 +1279,13 @@ class TestDescentAndPushDown:
                 "effect_size": [1.0],
                 "trait_id": [0],
                 "causal_allele": ["A"],
-                "allele_freq": [0.5],
             }
         )
         expected = 1.0 if derived_state == "A" else 0.0
-        for threshold in (0.0, np.inf):
-            result = tstrait.genetic_value(
-                ts, trait_df, level="node", _threshold=threshold
-            )
-            np.testing.assert_array_equal(
-                result["genetic_value"], np.full(ts.num_nodes, expected)
-            )
+        result = tstrait.genetic_value(ts, trait_df, level="node")
+        np.testing.assert_array_equal(
+            result["genetic_value"], np.full(ts.num_nodes, expected)
+        )
 
     def test_site_with_no_mutations(self):
         # A causal site need not carry any mutation, and when its ancestral
@@ -1364,14 +1298,10 @@ class TestDescentAndPushDown:
                 "effect_size": [1.0],
                 "trait_id": [0],
                 "causal_allele": ["A"],
-                "allele_freq": [0.5],
             }
         )
-        for threshold in (0.0, np.inf):
-            result = tstrait.genetic_value(
-                ts, trait_df, level="node", _threshold=threshold
-            )
-            np.testing.assert_array_equal(result["genetic_value"], np.ones(ts.num_nodes))
+        result = tstrait.genetic_value(ts, trait_df, level="node")
+        np.testing.assert_array_equal(result["genetic_value"], np.ones(ts.num_nodes))
 
     def test_site_on_a_breakpoint(self):
         # A site at a tree boundary belongs to the tree that starts there,
@@ -1395,12 +1325,8 @@ class TestDescentAndPushDown:
                 "effect_size": [1.0, 2.0],
                 "trait_id": [0, 0],
                 "causal_allele": ["T", "T"],
-                "allele_freq": [0.5, 0.5],
             }
         )
         expected = naive_genetic_value(ts, trait_df, "node")
-        for threshold in (0.0, np.inf):
-            result = tstrait.genetic_value(
-                ts, trait_df, level="node", _threshold=threshold
-            )
-            pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+        result = tstrait.genetic_value(ts, trait_df, level="node")
+        pd.testing.assert_frame_equal(result, expected, check_dtype=False)

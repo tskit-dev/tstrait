@@ -3,7 +3,7 @@ Benchmark tstrait.genetic_value as the number of causal sites grows.
 
 The interesting regime is a trait with a large number of weakly causal sites,
 i.e. many causal sites that are each carried by a small number of samples. The
-cost of the ARG sweep is the number of nodes that carry a causal allele, so the
+cost of the descent is the number of nodes that carry a causal allele, so the
 allele frequency of the causal sites matters more than how many there are, and
 ``--selections`` draws them either uniformly over all sites or from the rare
 ones alone.
@@ -26,7 +26,7 @@ import tskit
 
 import tstrait
 from tstrait import jit
-from tstrait.genetic_value import _COMMON_THRESHOLD, _check_trait_df, _GeneticValue
+from tstrait.genetic_value import _check_trait_df, _GeneticValue
 
 LEVELS = ["individual", "node", "edge"]
 SELECTIONS = ["uniform", "rare"]
@@ -154,7 +154,7 @@ def select_causal(pool, selection, num_causal, rare_threshold, rng):
     Draw num_causal rows from the pool, either uniformly over the sites or
     restricted to the rare ones. Uniform selection is dominated by the common
     variants in the tail of the frequency spectrum, which behave quite
-    differently from the weakly causal sites the ARG sweep is aimed at.
+    differently from the weakly causal sites the descent is aimed at.
     """
     if selection == "rare":
         pool = pool[pool["allele_freq"] < rare_threshold]
@@ -172,12 +172,10 @@ def warm_up(ts, model, levels, counters):
     before = time.perf_counter()
     trait_df = tstrait.sim_trait(ts, model=model, num_causal=1, random_seed=1)
     for level in levels:
-        # Both implementations, since the grid may use either.
-        for threshold in (0.0, np.inf):
-            tstrait.genetic_value(ts, trait_df, level=level, _threshold=threshold)
+        tstrait.genetic_value(ts, trait_df, level=level)
     if counters:
         # A kernel of its own to compile, so only pay for it when it is used.
-        count_work(ts, _check_trait_df(ts, trait_df), 0.0)
+        count_work(ts, _check_trait_df(ts, trait_df))
     print(f"Warm up (includes numba compilation): {time.perf_counter() - before:.1f}s")
 
 
@@ -201,12 +199,10 @@ def time_phases(ts, trait_df, level, replicates):
     genetic = _GeneticValue(ts, checked)
 
     size = genetic._output_size(level)
-    arguments = genetic._descent_arguments(level, 0, np.zeros(size))
+    shape = (genetic.num_trait, size)
     _, times = time_call(
         # A fresh output array each time, since the kernel accumulates into it.
-        lambda: jit._push_down_arg(
-            **{**arguments, "output": np.zeros(len(arguments["output"]))}
-        ),
+        lambda: jit._descend_trees(**genetic._descend_arguments(level, np.zeros(shape))),
         replicates,
     )
     phases.append(("kernel", times))
@@ -236,7 +232,7 @@ def _build_frame(num_trait, size, level, values):
 COUNTERS = ["rows", "visits"]
 
 
-def count_work(ts, trait_df, threshold):
+def count_work(ts, trait_df):
     """
     Return the work the descent does, as a dict keyed by COUNTERS.
 
@@ -248,44 +244,10 @@ def count_work(ts, trait_df, threshold):
     The counts do not depend on the level, because the same descent serves all
     three and only the array the contributions land in differs.
     """
-    genetic = _GeneticValue(ts, trait_df, threshold=threshold)
-    if not np.any(genetic.descent_rows):
-        return {"rows": 0, "visits": 0}
-    visits = jit._descend_trees(
-        genetic.numba_ts,
-        ts.edges_parent,
-        ts.edges_child,
-        genetic.row_site,
-        genetic.row_trait,
-        genetic.row_effect,
-        genetic.row_ancestral,
-        genetic.descent_rows,
-        genetic.pair_offset,
-        genetic.pair_node,
-        genetic.pair_carries,
-        ts.samples().astype(np.int32),
-        genetic._node_output("node"),
-        False,
-        np.zeros((genetic.num_trait, ts.num_nodes)),
-    )
-    return {"rows": int(np.sum(genetic.descent_rows)), "visits": int(visits)}
-
-
-def root_runs_fired(ts, trait_df, descent_rows):
-    """
-    Whether this trait takes the _root_runs branch in _GeneticValue.
-
-    That branch is a Python loop over every tree, so it costs O(num_trees) at
-    Python speed. It fires when a drawn causal allele happens to be the
-    ancestral state of its site and that row goes to the push down, which needs
-    the roots found for it; the descent has them to hand. It therefore appears
-    and vanishes with the seed and the threshold, which makes for confusing
-    non-monotonic timings unless it is reported.
-    """
-    site_id = trait_df["site_id"].to_numpy()
-    causal_allele = trait_df["causal_allele"].to_numpy()
-    ancestral = ts.sites_ancestral_state[site_id] == causal_allele
-    return bool(np.any(ancestral & ~descent_rows))
+    genetic = _GeneticValue(ts, trait_df)
+    output = np.zeros((genetic.num_trait, ts.num_nodes))
+    visits = jit._descend_trees(**genetic._descend_arguments("node", output))
+    return {"rows": len(trait_df), "visits": int(visits)}
 
 
 def carrier_fractions(ts, pool, sample_size, rng):
@@ -369,26 +331,13 @@ def run_benchmark(ts, args):
             if trait_df is None:
                 print(f"  too few {selection} sites for num_causal={num_causal}")
                 continue
-            checked = _check_trait_df(ts, trait_df)
-            descent = _GeneticValue(ts, checked, threshold=args.threshold).descent_rows
-            print(
-                f"  {selection} num_causal={num_causal}: "
-                f"{descent.sum()} of {len(descent)} rows take the descent"
-            )
-            if root_runs_fired(ts, checked, descent):
-                print(
-                    f"  {selection} num_causal={num_causal} takes the _root_runs "
-                    "branch, a Python loop over every tree"
-                )
             if args.counters:
-                counts[(num_causal, selection)] = count_work(ts, checked, args.threshold)
+                counts[(num_causal, selection)] = count_work(
+                    ts, _check_trait_df(ts, trait_df)
+                )
             for level in args.levels:
                 call = functools.partial(
-                    tstrait.genetic_value,
-                    ts,
-                    trait_df,
-                    level=level,
-                    _threshold=args.threshold,
+                    tstrait.genetic_value, ts, trait_df, level=level
                 )
                 if args.memory:
                     _, memory[(num_causal, selection, level)] = peak_memory(call)
@@ -446,7 +395,7 @@ def summarise(rows, counts, memory, completed, ts, args):
         best[key] = min(best.get(key, seconds), seconds)
 
     print(f"\n{describe(ts)}")
-    print(f"Minimum of {args.replicates} replicates, threshold {args.threshold:g}\n")
+    print(f"Minimum of {args.replicates} replicates\n")
     columns = f"{'phase':<14} {'selection':<10} {'level':<11} {'num_causal':>10} "
     columns += f"{'seconds':>10} {'us/site':>10}"
     if args.counters:
@@ -540,7 +489,6 @@ def write_csv(rows, ts, args):
                 "num_edges",
                 "num_trees",
                 "num_sites",
-                "threshold",
             ]
         )
         for row in rows:
@@ -553,7 +501,6 @@ def write_csv(rows, ts, args):
                     ts.num_edges,
                     ts.num_trees,
                     ts.num_sites,
-                    args.threshold,
                 ]
             )
     print(f"\nWrote {args.output}")
@@ -626,16 +573,6 @@ def parse_args():
         help=(
             "Stop before the next number of causal sites once a single call has "
             "taken longer than this"
-        ),
-    )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=_COMMON_THRESHOLD,
-        help=(
-            "Allele frequency at or above which a causal site goes through the "
-            "descent of the trees. 0 sends everything there and inf sends "
-            "everything to the push down of the ARG"
         ),
     )
     parser.add_argument(
