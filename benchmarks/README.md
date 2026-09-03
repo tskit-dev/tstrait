@@ -176,10 +176,17 @@ distribution described above.
 
 `--memory` reports the peak resident set size of each call. VmHWM never falls,
 so it is reset before each call by writing to `/proc/self/clear_refs`; on a
-kernel without that the column reads `unavailable`. It mattered more when the
-push down was the default, whose working set grew with the causal sites and
-reached gigabytes; the descent holds a fixed handful of arrays the length of
-the nodes however many causal sites there are.
+kernel without that the column reads `unavailable`.
+
+It is the clearest difference between the two implementations. The push down
+holds the seeds still in flight, which grows with the causal sites; the descent
+holds a fixed handful of arrays the length of the nodes however many causal
+sites there are. At 100,000 uniformly drawn causal sites on `large`:
+
+| | peak RSS | over baseline |
+|---|---|---|
+| descent | 0.42 GB | 0.01 GB |
+| push down | 1.30 GB | 0.89 GB |
 
 ### Output
 
