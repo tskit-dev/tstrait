@@ -17,8 +17,11 @@ Two conventions apply throughout this module:
    coverage measurement for free.
 """
 
+from collections import namedtuple
+
 import numba
 import numpy as np
+import tskit
 from numba.core import types
 from numba.typed import List
 
@@ -114,3 +117,111 @@ def _push_down_arg(
         pending[parent] = empty
 
     return output
+
+
+# The state of one tree, in the tskit quintuply linked encoding. A tree is
+# built by applying the edge differences between it and the tree before it, so
+# a full pass over the trees costs one insertion and one removal per edge.
+# There is no virtual root here: the descent starts at the mutations of a
+# causal site, and the roots are only needed when the ancestral state is the
+# causal allele, which _tree_roots finds on demand.
+_TreeState = namedtuple(
+    "_TreeState",
+    ["parent", "left_child", "right_child", "left_sib", "right_sib", "node_edge"],
+)
+
+
+@numba.njit
+def tree_state(num_nodes):
+    """
+    Return the arrays holding a tree, in the state of a tree with no edges.
+    """
+    return _TreeState(
+        parent=np.full(num_nodes, tskit.NULL, dtype=np.int32),
+        left_child=np.full(num_nodes, tskit.NULL, dtype=np.int32),
+        right_child=np.full(num_nodes, tskit.NULL, dtype=np.int32),
+        left_sib=np.full(num_nodes, tskit.NULL, dtype=np.int32),
+        right_sib=np.full(num_nodes, tskit.NULL, dtype=np.int32),
+        node_edge=np.full(num_nodes, tskit.NULL, dtype=np.int32),
+    )
+
+
+@numba.njit
+def _remove_edge(tree, parent_node, child_node):
+    """
+    Detach ``child_node`` from ``parent_node``, unlinking it from its siblings.
+    """
+    left_sib = tree.left_sib[child_node]
+    right_sib = tree.right_sib[child_node]
+    if left_sib == tskit.NULL:
+        tree.left_child[parent_node] = right_sib
+    else:
+        tree.right_sib[left_sib] = right_sib
+    if right_sib == tskit.NULL:
+        tree.right_child[parent_node] = left_sib
+    else:
+        tree.left_sib[right_sib] = left_sib
+    tree.parent[child_node] = tskit.NULL
+    tree.left_sib[child_node] = tskit.NULL
+    tree.right_sib[child_node] = tskit.NULL
+    tree.node_edge[child_node] = tskit.NULL
+
+
+@numba.njit
+def _insert_edge(tree, edge, parent_node, child_node):
+    """
+    Attach ``child_node`` to ``parent_node`` as its rightmost child, through
+    ``edge``.
+    """
+    right_child = tree.right_child[parent_node]
+    if right_child == tskit.NULL:
+        tree.left_child[parent_node] = child_node
+        tree.left_sib[child_node] = tskit.NULL
+    else:
+        tree.right_sib[right_child] = child_node
+        tree.left_sib[child_node] = right_child
+    tree.right_child[parent_node] = child_node
+    tree.right_sib[child_node] = tskit.NULL
+    tree.parent[child_node] = parent_node
+    tree.node_edge[child_node] = edge
+
+
+@numba.njit
+def _apply_edge_diffs(tree_index, edges_parent, edges_child, tree):
+    """
+    Advance ``tree`` to the tree that ``tree_index`` has moved to, by applying
+    the edges leaving and then the edges entering.
+    """
+    for j in range(tree_index.out_range.start, tree_index.out_range.stop):
+        edge = tree_index.out_range.order[j]
+        _remove_edge(tree, edges_parent[edge], edges_child[edge])
+    for j in range(tree_index.in_range.start, tree_index.in_range.stop):
+        edge = tree_index.in_range.order[j]
+        _insert_edge(tree, edge, edges_parent[edge], edges_child[edge])
+
+
+@numba.njit
+def _tree_roots(tree, samples, marked, mark, roots):
+    """
+    Fill ``roots`` with the roots of the current tree and return how many there
+    are.
+
+    A root is a node with no parent that has a sample at or below it, which is
+    what tskit calls a root, so walking up from each sample and taking the top
+    of the path finds all of them and nothing else. ``marked`` records the
+    nodes already walked through under the value ``mark``, so that the paths of
+    all the samples together cost one visit per node rather than one per
+    sample.
+    """
+    num_roots = 0
+    for i in range(len(samples)):
+        u = samples[i]
+        while marked[u] != mark:
+            marked[u] = mark
+            parent = tree.parent[u]
+            if parent == tskit.NULL:
+                roots[num_roots] = u
+                num_roots += 1
+                break
+            u = parent
+    return num_roots

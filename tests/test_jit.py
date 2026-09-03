@@ -14,17 +14,23 @@ kernel pushes the effects of mutations down the ARG rather than working from
 a tree.
 """
 
+import numba
 import numpy as np
 import pandas as pd
 import pytest
 import tskit
+import tskit.jit.numba as tskit_numba
 
 from tstrait import jit
 from tstrait.genetic_value import _GeneticValue
 
 from .data import (
+    all_trees_ts,
     binary_tree,
+    binary_tree_seq,
     diff_ind_tree,
+    non_binary_tree,
+    simple_tree_seq,
     triploid_tree,
 )  # noreorder
 
@@ -466,3 +472,129 @@ class TestIndividualLevel:
         np.testing.assert_array_equal(
             node_genetic_value(site, causal_allele="T", level="individual"), expected
         )
+
+
+@numba.njit
+def _walk_trees(
+    numba_ts,
+    edges_parent,
+    edges_child,
+    samples,
+    parent,
+    left_child,
+    right_sib,
+    node_edge,
+    roots,
+    num_roots,
+):
+    """
+    Build every tree in turn, recording the state of each one.
+
+    This is the loop that drives the tree state kernels, kept here rather than
+    imported because the production driver does its per site work inside it and
+    has nowhere to record a tree. It is three lines; everything it calls is the
+    code under test.
+    """
+    tree = jit.tree_state(numba_ts.num_nodes)
+    marked = np.full(numba_ts.num_nodes, -1, dtype=np.int64)
+    scratch = np.empty(numba_ts.num_nodes, dtype=np.int32)
+    tree_index = numba_ts.tree_index()
+    i = 0
+    while tree_index.next():
+        jit._apply_edge_diffs(tree_index, edges_parent, edges_child, tree)
+        parent[i, :] = tree.parent
+        left_child[i, :] = tree.left_child
+        right_sib[i, :] = tree.right_sib
+        node_edge[i, :] = tree.node_edge
+        n = jit._tree_roots(tree, samples, marked, i, scratch)
+        num_roots[i] = n
+        roots[i, :n] = scratch[:n]
+        i += 1
+    return i
+
+
+def walk_trees(ts):
+    """
+    Return the per tree state arrays that _walk_trees records.
+    """
+    numba_ts = tskit_numba.jitwrap(ts)
+    shape = (max(ts.num_trees, 1), ts.num_nodes)
+    got = {
+        name: np.zeros(shape, dtype=np.int32)
+        for name in ("parent", "left_child", "right_sib", "node_edge", "roots")
+    }
+    num_roots = np.zeros(shape[0], dtype=np.int32)
+    count = _walk_trees(
+        numba_ts,
+        ts.edges_parent,
+        ts.edges_child,
+        ts.samples().astype(np.int32),
+        got["parent"],
+        got["left_child"],
+        got["right_sib"],
+        got["node_edge"],
+        got["roots"],
+        num_roots,
+    )
+    assert count == ts.num_trees
+    return got, num_roots
+
+
+def unbalanced_ts(n):
+    """
+    Return a comb tree sequence, the worst case for anything that walks from a
+    node to its root.
+    """
+    return tskit.Tree.generate_comb(n).tree_sequence
+
+
+class TestTreeState:
+    """
+    The incrementally maintained tree must match what tskit builds, tree for
+    tree, over topologies that exercise multiple roots, isolated samples and
+    nodes that are in no tree at all.
+    """
+
+    @pytest.mark.parametrize(
+        "ts",
+        [
+            binary_tree(),
+            diff_ind_tree(),
+            non_binary_tree(),
+            triploid_tree(),
+            binary_tree_seq(),
+            simple_tree_seq(),
+            all_trees_ts(2),
+            all_trees_ts(3),
+            all_trees_ts(4),
+            all_trees_ts(5),
+            unbalanced_ts(10),
+            unbalanced_ts(50),
+            tskit.Tree.generate_balanced(8).tree_sequence,
+            multiroot_tree().tree_sequence,
+            isolated_samples_ts(4),
+            empty_ts(),
+        ],
+    )
+    def test_matches_tskit(self, ts):
+        got, num_roots = walk_trees(ts)
+        n = ts.num_nodes
+        for i, tree in enumerate(ts.trees()):
+            # tskit's arrays carry the virtual root in a final entry, which the
+            # kernel has no use for and does not keep.
+            np.testing.assert_array_equal(got["parent"][i, :n], tree.parent_array[:n])
+            np.testing.assert_array_equal(
+                got["left_child"][i, :n], tree.left_child_array[:n]
+            )
+            np.testing.assert_array_equal(got["node_edge"][i, :n], tree.edge_array[:n])
+            # tskit threads the roots together as children of the virtual root,
+            # so they are siblings of each other there and have no sibling
+            # here. The descent never walks the siblings of a root, since it
+            # starts at the roots that _tree_roots gives it, so the two agree
+            # everywhere the descent looks.
+            child = tree.parent_array[:n] != tskit.NULL
+            np.testing.assert_array_equal(
+                got["right_sib"][i, :n][child], tree.right_sib_array[:n][child]
+            )
+            assert np.all(got["right_sib"][i, :n][~child] == tskit.NULL)
+            assert sorted(got["roots"][i, : num_roots[i]]) == sorted(tree.roots)
