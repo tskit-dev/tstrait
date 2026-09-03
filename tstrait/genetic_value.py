@@ -7,12 +7,17 @@ from . import jit
 from .base import _check_dataframe, _check_instance, _check_non_decreasing  # noreorder
 
 
-def _causal_mutations(ts, trait_df):
+def _row_mutations(ts, trait_df):
     """
     Expand the trait dataframe to one entry per (row, mutation at that row's
-    site) pair, and return the row, the mutation and the change in causal
-    allele state for the mutations that change the state. Mutations that leave
-    the state unchanged contribute nothing and are dropped.
+    site) pair, returning the row, the mutation, whether the mutation carries
+    the causal allele and whether the state it replaced did.
+
+    Every mutation at a causal site is returned, including those that leave the
+    causal allele state unchanged. A descent of the trees needs all of them,
+    because a mutation blocks the inheritance of the allele above it whatever
+    it changes the state to; ``_causal_mutations`` drops the ones that a sum of
+    state changes does not need.
     """
     site_id = trait_df["site_id"].to_numpy()
     # Mutations are sorted by site, so each site owns a contiguous run of IDs.
@@ -30,8 +35,18 @@ def _causal_mutations(ts, trait_df):
     )[row]
     had_causal_allele = ts.mutations_inherited_state[mutation] == causal_allele
     has_causal_allele = derived_state[mutation] == causal_allele
-    state_change = has_causal_allele.astype(np.int8) - had_causal_allele.astype(np.int8)
+    return row, mutation, has_causal_allele, had_causal_allele
 
+
+def _causal_mutations(ts, trait_df):
+    """
+    Expand the trait dataframe to one entry per (row, mutation at that row's
+    site) pair, and return the row, the mutation and the change in causal
+    allele state for the mutations that change the state. Mutations that leave
+    the state unchanged contribute nothing and are dropped.
+    """
+    row, mutation, has_causal_allele, had_causal_allele = _row_mutations(ts, trait_df)
+    state_change = has_causal_allele.astype(np.int8) - had_causal_allele.astype(np.int8)
     changed = state_change != 0
     return row[changed], mutation[changed], state_change[changed]
 
@@ -144,6 +159,9 @@ class _GeneticValue:
         self.nodes_by_time = np.argsort(-ts.nodes_time, kind="stable").astype(np.int32)
 
         row, mutation, state_change = _causal_mutations(ts, self.trait_df)
+        # The row a seed came from, so that a subset of the rows can be
+        # selected without recomputing the seeds.
+        self.seed_row = row
         self.seed_trait = self.trait_id[row]
         self.seed_node = ts.mutations_node[mutation].astype(np.int32)
         self.seed_site = rows_site[row].astype(np.int32)
@@ -172,6 +190,7 @@ class _GeneticValue:
             index = np.arange(count.sum()) + np.repeat(
                 first - (np.cumsum(count) - count), count
             )
+            self.seed_row = np.concatenate([self.seed_row, ancestral[index]])
             self.seed_trait = np.concatenate(
                 [self.seed_trait, self.trait_id[ancestral[index]]]
             )
@@ -188,10 +207,32 @@ class _GeneticValue:
                 [self.seed_edge, np.full(len(run), tskit.NULL, dtype=np.int32)]
             )
 
-    def _descent_arguments(self, level, trait):
+    def _output_size(self, level):
+        return {
+            "individual": self.ts.num_individuals,
+            "node": self.ts.num_nodes,
+            "edge": self.ts.num_edges,
+        }[level]
+
+    def _node_output(self, level):
+        """
+        Return the output slot that a contribution arriving at each node is
+        credited to, with a negative slot discarding it.
+
+        Nodes and individuals differ only in this mapping, so the individual
+        values fall out of the same descent rather than needing a pass of their
+        own. A node belonging to no individual is tskit.NULL, which is already
+        negative.
+        """
+        if level == "individual":
+            return self.ts.nodes_individual
+        return np.arange(self.ts.num_nodes, dtype=np.int32)
+
+    def _descent_arguments(self, level, trait, output):
         """
         Return the arguments to the push down kernel for one trait, with the
-        contributions directed at nodes or at edges according to ``level``.
+        contributions directed at nodes, individuals or edges according to
+        ``level`` and accumulated into ``output``.
         """
         ts = self.ts
         in_trait = self.seed_trait == trait
@@ -200,11 +241,10 @@ class _GeneticValue:
             # A seed is credited to the edge above the mutation, which does not
             # exist when the mutation is above a root.
             seed_output = self.seed_edge[in_trait].astype(np.int32)
-            output_size = ts.num_edges
         else:
-            edges_output = ts.edges_child
-            seed_output = self.seed_node[in_trait]
-            output_size = ts.num_nodes
+            node_output = self._node_output(level)
+            edges_output = node_output[ts.edges_child]
+            seed_output = node_output[self.seed_node[in_trait]]
 
         return {
             "child_index": self.child_index,
@@ -217,7 +257,7 @@ class _GeneticValue:
             "seed_site": self.seed_site[in_trait],
             "seed_weight": self.seed_weight[in_trait],
             "seed_output": seed_output,
-            "output": np.zeros(output_size),
+            "output": output,
         }
 
     def _run(self, level):
@@ -230,21 +270,12 @@ class _GeneticValue:
         pandas.DataFrame
             Dataframe with trait ID, [individual|node|edge] ID, and genetic value.
         """
-        ts = self.ts
-        N = {
-            "individual": ts.num_individuals,
-            "node": ts.num_nodes,
-            "edge": ts.num_edges,
-        }[level]
-
+        N = self._output_size(level)
         genetic_value_table = np.zeros((self.num_trait, N))
         for trait in range(self.num_trait):
-            output = jit._push_down_arg(**self._descent_arguments(level, trait))
-            if level == "individual":
-                output = jit._accumulate_individual_values(
-                    output, ts.nodes_individual, ts.num_individuals
-                )
-            genetic_value_table[trait, :] = output
+            jit._push_down_arg(
+                **self._descent_arguments(level, trait, genetic_value_table[trait])
+            )
 
         return pd.DataFrame(
             {

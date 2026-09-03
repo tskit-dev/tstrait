@@ -110,8 +110,8 @@ def run_kernel(args):
     """
     ts, trait_df = prepare(args)
     genetic = _GeneticValue(ts, _check_trait_df(ts, trait_df))
-    arguments = genetic._descent_arguments(args.level, 0)
-    size = len(arguments["output"])
+    size = genetic._output_size(args.level)
+    arguments = genetic._descent_arguments(args.level, 0, np.zeros(size))
     jit._push_down_arg(**{**arguments, "output": np.zeros(size)})
 
     before = time.perf_counter()

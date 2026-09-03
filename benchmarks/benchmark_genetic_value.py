@@ -295,7 +295,8 @@ def time_phases(ts, trait_df, level, replicates):
     phases.append(("setup", times))
     genetic = _GeneticValue(ts, checked)
 
-    arguments = genetic._descent_arguments(level, 0)
+    size = genetic._output_size(level)
+    arguments = genetic._descent_arguments(level, 0, np.zeros(size))
     _, times = time_call(
         # A fresh output array each time, since the kernel accumulates into it.
         lambda: jit._push_down_arg(
@@ -305,7 +306,6 @@ def time_phases(ts, trait_df, level, replicates):
     )
     phases.append(("kernel", times))
 
-    size = len(arguments["output"])
     values = np.zeros((genetic.num_trait, size))
     _, times = time_call(
         functools.partial(_build_frame, genetic.num_trait, size, level, values),
@@ -336,7 +336,7 @@ def count_work(ts, trait_df):
     three and only the array the contributions land in differs.
     """
     genetic = _GeneticValue(ts, trait_df)
-    arguments = genetic._descent_arguments("node", 0)
+    arguments = genetic._descent_arguments("node", 0, np.zeros(ts.num_nodes))
     counts = _count_push_down_arg(
         arguments["child_index"],
         arguments["edges_child"],

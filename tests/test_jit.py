@@ -85,25 +85,8 @@ def node_genetic_value(request):
             }
         )
         genetic = _GeneticValue(ts, trait_df)
-        return func(**genetic._descent_arguments(level, 0))
-
-    return f
-
-
-@pytest.fixture(params=["jit", "nojit"])
-def individual_genetic_value(request):
-    """
-    Return a function accumulating node genetic values over the individuals of
-    a tree sequence.
-    """
-    func = kernel(jit._accumulate_individual_values, request.param)
-
-    def f(ts, nodes_genetic_value):
-        return func(
-            np.asarray(nodes_genetic_value, dtype=float),
-            ts.nodes_individual,
-            ts.num_individuals,
-        )
+        output = np.zeros(genetic._output_size(level))
+        return func(**genetic._descent_arguments(level, 0, output))
 
     return f
 
@@ -394,47 +377,11 @@ class TestDegenerateTrees:
         )
 
 
-class TestAccumulateIndividualValues:
+class TestIndividualLevel:
     """
-    Sum the node genetic values over the nodes of each individual, using the
-    tree sequences of tests.data.
-    """
-
-    def test_binary_tree(self, individual_genetic_value):
-        # Individual 0 is nodes 4 and 5, individual 1 nodes 0 and 1, and
-        # individual 2 nodes 2 and 3.
-        ts = binary_tree()
-        np.testing.assert_array_equal(
-            individual_genetic_value(ts, [1, 2, 4, 8, 16, 32, 64]), [48, 3, 12]
-        )
-
-    def test_diff_ind_tree(self, individual_genetic_value):
-        ts = diff_ind_tree()
-        np.testing.assert_array_equal(
-            individual_genetic_value(ts, [1, 2, 4, 8, 16, 32, 64]), [48, 5, 10]
-        )
-
-    def test_triploid_tree(self, individual_genetic_value):
-        # Individual 0 is nodes 0, 2 and 4, and individual 1 is nodes 1, 3
-        # and 5.
-        ts = triploid_tree()
-        np.testing.assert_array_equal(
-            individual_genetic_value(ts, [1, 2, 4, 8, 16, 32, 64, 128]), [21, 42]
-        )
-
-    def test_no_individuals(self, individual_genetic_value):
-        ts = tskit.Tree.generate_balanced(4).tree_sequence
-        assert ts.num_individuals == 0
-        np.testing.assert_array_equal(
-            individual_genetic_value(ts, np.ones(ts.num_nodes)), []
-        )
-
-
-class TestNodeAndIndividualValues:
-    """
-    The two kernels composed, as they are used in tstrait.genetic_value, so
-    that the individual values can be traced back to the tree topology. The
-    tree of tests.data.binary_tree is::
+    The individual level, which is the node level with a different output
+    mapping rather than a pass of its own, over the tree sequences of
+    tests.data. The tree of tests.data.binary_tree is::
 
            6
          +-+-+
@@ -442,29 +389,33 @@ class TestNodeAndIndividualValues:
         +++ +++
         0 1 2 3
 
-    with individual 0 being nodes 4 and 5, individual 1 nodes 0 and 1, and
-    individual 2 nodes 2 and 3.
+    A mutation on node 4 is inherited by nodes 0 and 1, which lands on
+    different individuals in each of these tree sequences and so pins the
+    mapping rather than only the total.
     """
 
-    def test_internal_node(self, node_genetic_value, individual_genetic_value):
+    def test_binary_tree(self, node_genetic_value):
+        # Individual 0 is nodes 4 and 5, individual 1 nodes 0 and 1, and
+        # individual 2 nodes 2 and 3, so individual 1 has two copies.
         ts = binary_tree()
-        value = node_genetic_value(one_site(ts.first(), [(4, "T")]), causal_allele="T")
-        np.testing.assert_array_equal(value, [1, 1, 0, 0, 1, 0, 0])
-        # Individual 0 has one copy through node 4, individual 1 has two
-        # copies through nodes 0 and 1, and individual 2 has none.
-        np.testing.assert_array_equal(individual_genetic_value(ts, value), [1, 2, 0])
+        site = one_site(ts.first(), [(4, "T")])
+        np.testing.assert_array_equal(
+            node_genetic_value(site, causal_allele="T"), [1, 1, 0, 0, 1, 0, 0]
+        )
+        np.testing.assert_array_equal(
+            node_genetic_value(site, causal_allele="T", level="individual"), [1, 2, 0]
+        )
 
-    def test_ancestral_state_is_causal(
-        self, node_genetic_value, individual_genetic_value
-    ):
-        # The causal allele is the ancestral state, so every node carries it
-        # and every diploid has two copies.
-        ts = binary_tree()
-        value = node_genetic_value(one_site(ts.first(), []))
-        np.testing.assert_array_equal(value, [1, 1, 1, 1, 1, 1, 1])
-        np.testing.assert_array_equal(individual_genetic_value(ts, value), [2, 2, 2])
+    def test_diff_ind_tree(self, node_genetic_value):
+        # The same tree and mutation, but individual 1 is nodes 0 and 2 and
+        # individual 2 is nodes 1 and 3, so the two copies are split.
+        ts = diff_ind_tree()
+        value = node_genetic_value(
+            one_site(ts.first(), [(4, "T")]), causal_allele="T", level="individual"
+        )
+        np.testing.assert_array_equal(value, [1, 1, 1])
 
-    def test_triploid(self, node_genetic_value, individual_genetic_value):
+    def test_triploid_tree(self, node_genetic_value):
         # tests.data.triploid_tree, in which node 6 is the parent of nodes 3,
         # 4 and 5 and node 7 is the root:
         #
@@ -474,9 +425,44 @@ class TestNodeAndIndividualValues:
         #     | | | +-+-+
         #     0 1 2 3 4 5
         #
-        ts = triploid_tree()
-        value = node_genetic_value(one_site(ts.first(), [(6, "T")]), causal_allele="T")
-        np.testing.assert_array_equal(value, [0, 0, 0, 1, 1, 1, 1, 0])
         # Individual 0 is nodes 0, 2 and 4, and individual 1 is nodes 1, 3
         # and 5.
-        np.testing.assert_array_equal(individual_genetic_value(ts, value), [1, 2])
+        ts = triploid_tree()
+        site = one_site(ts.first(), [(6, "T")])
+        np.testing.assert_array_equal(
+            node_genetic_value(site, causal_allele="T"), [0, 0, 0, 1, 1, 1, 1, 0]
+        )
+        np.testing.assert_array_equal(
+            node_genetic_value(site, causal_allele="T", level="individual"), [1, 2]
+        )
+
+    def test_ancestral_state_is_causal(self, node_genetic_value):
+        # The causal allele is the ancestral state, so every node carries it
+        # and every diploid has two copies.
+        ts = binary_tree()
+        value = node_genetic_value(one_site(ts.first(), []), level="individual")
+        np.testing.assert_array_equal(value, [2, 2, 2])
+
+    def test_no_individuals(self, node_genetic_value):
+        # Nodes belong to no individual, so every contribution is discarded.
+        tree = tskit.Tree.generate_balanced(4)
+        assert tree.tree_sequence.num_individuals == 0
+        value = node_genetic_value(
+            one_site(tree, [(4, "T")]), causal_allele="T", level="individual"
+        )
+        np.testing.assert_array_equal(value, [])
+
+    def test_matches_node_level(self, node_genetic_value):
+        # The individual values are the node values summed over each
+        # individual's nodes, however the nodes are assigned.
+        ts = diff_ind_tree()
+        site = one_site(ts.first(), [(4, "T")])
+        nodes = node_genetic_value(site, causal_allele="T")
+        expected = np.bincount(
+            ts.nodes_individual[ts.nodes_individual >= 0],
+            weights=nodes[ts.nodes_individual >= 0],
+            minlength=ts.num_individuals,
+        )
+        np.testing.assert_array_equal(
+            node_genetic_value(site, causal_allele="T", level="individual"), expected
+        )

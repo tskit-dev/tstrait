@@ -19,7 +19,6 @@ Two conventions apply throughout this module:
 
 import numba
 import numpy as np
-import tskit
 from numba.core import types
 from numba.typed import List
 
@@ -115,19 +114,3 @@ def _push_down_arg(
         pending[parent] = empty
 
     return output
-
-
-@numba.njit
-def _accumulate_individual_values(
-    nodes_genetic_value, nodes_individual, num_individuals
-):
-    """
-    Accumulate the individual genetic values by summing their node
-    contributions.
-    """
-    individuals_genetic_value = np.zeros(num_individuals)
-    for u in range(len(nodes_individual)):
-        ind = nodes_individual[u]
-        if ind != tskit.NULL:
-            individuals_genetic_value[ind] += nodes_genetic_value[u]
-    return individuals_genetic_value
