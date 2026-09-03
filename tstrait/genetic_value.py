@@ -6,6 +6,18 @@ import tskit.jit.numba as tskit_numba
 from . import jit
 from .base import _check_dataframe, _check_instance, _check_non_decreasing  # noreorder
 
+# The optional trait dataframe column that routes a causal site to one
+# implementation or the other.
+ALLELE_FREQ = "allele_freq"
+
+# Causal sites at or above this allele frequency go through the descent of the
+# trees, and the rest through the push down of the ARG. The descent is faster
+# almost everywhere, and measurably so from about a thousandth: below that the
+# tree pass it starts with is not amortised and the push down, which never
+# builds a tree, wins. Private while the two implementations are being
+# compared, since the intention is to end with one of them.
+_COMMON_THRESHOLD = 0.001
+
 
 def _row_mutations(ts, trait_df):
     """
@@ -92,10 +104,16 @@ def _check_trait_df(ts, trait_df):
     """
     Check the trait dataframe against the tree sequence, returning the required
     columns with trait_id cast to int.
+
+    ``allele_freq`` is kept when it is there. It is not required, and a trait
+    dataframe assembled by hand will not have it, but ``sim_trait`` returns it
+    and it is what decides which of the two implementations a causal site goes
+    through.
     """
-    trait_df = _check_dataframe(
-        trait_df, ["site_id", "effect_size", "trait_id", "causal_allele"], "trait_df"
-    )
+    columns = ["site_id", "effect_size", "trait_id", "causal_allele"]
+    if ALLELE_FREQ in getattr(trait_df, "columns", []):
+        columns.append(ALLELE_FREQ)
+    trait_df = _check_dataframe(trait_df, columns, "trait_df")
     if len(trait_df) == 0:
         raise ValueError("trait_df must contain at least one row")
     _check_non_decreasing(trait_df["site_id"], "site_id")
@@ -133,10 +151,14 @@ class _GeneticValue:
         size, and trait ID.
     """
 
-    def __init__(self, ts, trait_df):
-        self.trait_df = trait_df[["site_id", "effect_size", "trait_id", "causal_allele"]]
+    def __init__(self, ts, trait_df, threshold=_COMMON_THRESHOLD):
+        columns = ["site_id", "effect_size", "trait_id", "causal_allele"]
+        if ALLELE_FREQ in trait_df.columns:
+            columns.append(ALLELE_FREQ)
+        self.trait_df = trait_df[columns]
         self.ts = ts
-        self.child_index = tskit_numba.jitwrap(ts).child_index()
+        self.numba_ts = tskit_numba.jitwrap(ts)
+        self.child_index = self.numba_ts.child_index()
 
         site_id = self.trait_df["site_id"].to_numpy()
         effect_size = self.trait_df["effect_size"].to_numpy()
@@ -158,7 +180,37 @@ class _GeneticValue:
         # tskit does not require the node IDs to be in time order.
         self.nodes_by_time = np.argsort(-ts.nodes_time, kind="stable").astype(np.int32)
 
-        row, mutation, state_change = _causal_mutations(ts, self.trait_df)
+        # Every mutation at a causal site, which is what the descent needs,
+        # and the state changing ones, which is what the push down seeds from.
+        pair_row, pair_mutation, has, had = _row_mutations(ts, self.trait_df)
+        self.row_site = site_id.astype(np.int32)
+        self.row_trait = self.trait_id.astype(np.int32)
+        self.row_effect = effect_size.astype(float)
+        self.row_ancestral = (
+            ts.sites_ancestral_state[site_id]
+            == self.trait_df["causal_allele"].to_numpy()
+        )
+        self.pair_offset = np.searchsorted(
+            pair_row, np.arange(len(self.trait_df) + 1)
+        ).astype(np.int64)
+        self.pair_node = ts.mutations_node[pair_mutation].astype(np.int32)
+        self.pair_carries = has
+
+        # Rows go to the descent of the trees when their causal allele is
+        # common enough for the tree pass to pay for itself, and when it is the
+        # ancestral state, where the descent has the roots to hand and the push
+        # down would need them found for it.
+        if ALLELE_FREQ in self.trait_df.columns:
+            self.descent_rows = self.trait_df[ALLELE_FREQ].to_numpy() >= threshold
+            self.descent_rows |= self.row_ancestral
+        else:
+            self.descent_rows = np.zeros(len(self.trait_df), dtype=bool)
+
+        state_change = has.astype(np.int8) - had.astype(np.int8)
+        changed = state_change != 0
+        row = pair_row[changed]
+        mutation = pair_mutation[changed]
+        state_change = state_change[changed]
         # The row a seed came from, so that a subset of the rows can be
         # selected without recomputing the seeds.
         self.seed_row = row
@@ -174,10 +226,9 @@ class _GeneticValue:
         # When the ancestral state of a site is the causal allele, every node
         # in its tree carries it. There is no mutation to seed from, so the
         # roots are seeded instead and the effect reaches the same nodes.
-        ancestral = np.flatnonzero(
-            ts.sites_ancestral_state[site_id]
-            == self.trait_df["causal_allele"].to_numpy()
-        )
+        # Only for the rows the push down is taking: the descent seeds the
+        # roots of the tree it is already standing in.
+        ancestral = np.flatnonzero(self.row_ancestral & ~self.descent_rows)
         if len(ancestral) > 0:
             roots, roots_left, roots_right = _root_runs(ts)
             start = np.searchsorted(causal_position, roots_left)
@@ -235,7 +286,7 @@ class _GeneticValue:
         ``level`` and accumulated into ``output``.
         """
         ts = self.ts
-        in_trait = self.seed_trait == trait
+        in_trait = (self.seed_trait == trait) & ~self.descent_rows[self.seed_row]
         if level == "edge":
             edges_output = np.arange(ts.num_edges, dtype=np.int32)
             # A seed is credited to the edge above the mutation, which does not
@@ -270,12 +321,34 @@ class _GeneticValue:
         pandas.DataFrame
             Dataframe with trait ID, [individual|node|edge] ID, and genetic value.
         """
+        ts = self.ts
         N = self._output_size(level)
         genetic_value_table = np.zeros((self.num_trait, N))
-        for trait in range(self.num_trait):
-            jit._push_down_arg(
-                **self._descent_arguments(level, trait, genetic_value_table[trait])
+
+        if np.any(self.descent_rows):
+            jit._descend_trees(
+                self.numba_ts,
+                ts.edges_parent,
+                ts.edges_child,
+                self.row_site,
+                self.row_trait,
+                self.row_effect,
+                self.row_ancestral,
+                self.descent_rows,
+                self.pair_offset,
+                self.pair_node,
+                self.pair_carries,
+                ts.samples().astype(np.int32),
+                self._node_output(level),
+                level == "edge",
+                genetic_value_table,
             )
+        # Compiling the push down is not worth it when nothing is left for it.
+        if not np.all(self.descent_rows[self.seed_row]):
+            for trait in range(self.num_trait):
+                jit._push_down_arg(
+                    **self._descent_arguments(level, trait, genetic_value_table[trait])
+                )
 
         return pd.DataFrame(
             {
@@ -286,7 +359,7 @@ class _GeneticValue:
         )
 
 
-def genetic_value(ts, trait_df, level="individual"):
+def genetic_value(ts, trait_df, level="individual", *, _threshold=_COMMON_THRESHOLD):
     """
     Compute genetic values for a tree sequence given a trait dataframe.
 
@@ -331,7 +404,7 @@ def genetic_value(ts, trait_df, level="individual"):
         raise ValueError("No individuals in the provided tree sequence dataset")
     trait_df = _check_trait_df(ts, trait_df)
 
-    genetic = _GeneticValue(ts=ts, trait_df=trait_df)
+    genetic = _GeneticValue(ts=ts, trait_df=trait_df, threshold=_threshold)
 
     genetic_result = genetic._run(level)
 

@@ -225,3 +225,107 @@ def _tree_roots(tree, samples, marked, mark, roots):
                 break
             u = parent
     return num_roots
+
+
+@numba.njit
+def _descend_trees(
+    numba_ts,
+    edges_parent,
+    edges_child,
+    row_site,
+    row_trait,
+    row_effect,
+    row_ancestral,
+    row_selected,
+    pair_offset,
+    pair_node,
+    pair_carries,
+    samples,
+    node_output,
+    edge_level,
+    output,
+):
+    """
+    Accumulate the genetic value of the selected causal sites in one pass over
+    the trees, descending from each causal mutation to the nodes that inherit
+    the causal allele from it.
+
+    The rows are sorted by site and each site belongs to one tree, so a single
+    pointer walks the rows in step with the trees. A row's mutations are marked
+    with the row's own index rather than into a cleared array, so a descent
+    costs the nodes it reaches and nothing per node of the tree sequence.
+
+    ``node_output`` gives the index in ``output`` that a node's contribution is
+    added to, with a negative index discarding it; at the edge level the index
+    is instead the edge above the node in the current tree, which is where the
+    contribution arrived from. All of the traits share the pass, since a row
+    knows the trait it belongs to.
+    """
+    num_nodes = numba_ts.num_nodes
+    tree = tree_state(num_nodes)
+    # Marked with the row rather than cleared, so that nothing here costs a
+    # pass over the nodes.
+    stamp = np.full(num_nodes, -1, dtype=np.int64)
+    marked = np.full(num_nodes, -1, dtype=np.int64)
+    carries = np.zeros(num_nodes, dtype=np.bool_)
+    roots = np.empty(num_nodes, dtype=np.int32)
+    # A node is reached by at most one seed of a row, because the descent from
+    # a seed stops at the mutations of the row, so the tree bounds the stack.
+    stack = np.empty(num_nodes, dtype=np.int32)
+
+    row = 0
+    num_rows = len(row_site)
+    tree_index = numba_ts.tree_index()
+    while tree_index.next():
+        _apply_edge_diffs(tree_index, edges_parent, edges_child, tree)
+        site_stop = tree_index.site_range[1]
+        while row < num_rows and row_site[row] < site_stop:
+            if not row_selected[row]:
+                row += 1
+                continue
+            start = pair_offset[row]
+            stop = pair_offset[row + 1]
+            # Every mutation at the site blocks the allele above it, whatever
+            # it changes the state to. A node carrying more than one of them
+            # takes the last, which is the youngest since tskit orders a
+            # mutation after its parent.
+            for k in range(start, stop):
+                stamp[pair_node[k]] = row
+                carries[pair_node[k]] = pair_carries[k]
+
+            top = 0
+            for k in range(start, stop):
+                node = pair_node[k]
+                if carries[node]:
+                    # Cleared so that a node carrying several mutations at this
+                    # site is seeded once.
+                    carries[node] = False
+                    stack[top] = node
+                    top += 1
+            if row_ancestral[row]:
+                # The causal allele is the ancestral state, so it reaches every
+                # node the roots reach. A root carrying a mutation is not one
+                # of them: the mutation replaced the ancestral state there, and
+                # it has already been seeded above if it carries the allele.
+                num_roots = _tree_roots(tree, samples, marked, row, roots)
+                for i in range(num_roots):
+                    if stamp[roots[i]] != row:
+                        stack[top] = roots[i]
+                        top += 1
+
+            trait = row_trait[row]
+            weight = row_effect[row]
+            while top > 0:
+                top -= 1
+                node = stack[top]
+                slot = tree.node_edge[node] if edge_level else node_output[node]
+                if slot >= 0:
+                    output[trait, slot] += weight
+                child = tree.left_child[node]
+                while child != tskit.NULL:
+                    if stamp[child] != row:
+                        stack[top] = child
+                        top += 1
+                    child = tree.right_sib[child]
+            row += 1
+    return output
