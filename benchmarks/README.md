@@ -32,9 +32,9 @@ per tree is inflated.
 
 ### Presets
 
-`--preset small` is the default and takes about 30 seconds; `--preset large` is
-the tree sequence the ARG sweep was written against and takes about nine
-minutes, with its longest single call at 48 seconds.
+`--preset small` is the default and takes about 25 seconds; `--preset large` is
+the tree sequence this work was written against and takes about six minutes,
+with its longest single call at 33 seconds.
 
 | | small | large |
 |---|---|---|
@@ -52,22 +52,22 @@ still overrides it when given explicitly. The tree sequence is cached in
 `_output/` under a name built from the simulation parameters, so `small`
 simulates itself in 0.2s the first time and is loaded after that.
 
-`small` is the default because iterating against a nine minute grid is not
+`small` is the default because iterating against a six minute grid is not
 practical. It reproduces the patterns the large one shows, at `level="node"`:
 
 | num_causal | small uniform | small rare | ratio | large uniform | large rare | ratio |
 |---|---|---|---|---|---|---|
-| 1 | 0.016s | 0.011s | 1.4 | 0.058s | 0.051s | 1.1 |
-| 100 | 0.036s | 0.013s | 2.8 | 0.152s | 0.056s | 2.7 |
-| 1,000 | 0.189s | 0.015s | 12.3 | 0.593s | 0.065s | 9.1 |
-| 10,000 | 1.596s | 0.035s | 45.7 | 5.171s | 0.108s | 48 |
-| 100,000 | — | — | | 48.310s | 0.476s | 101 |
+| 1 | 0.013s | 0.013s | 1.0 | 0.062s | 0.061s | 1.0 |
+| 100 | 0.024s | 0.014s | 1.8 | 0.118s | 0.067s | 1.8 |
+| 1,000 | 0.125s | 0.017s | 7.4 | 0.443s | 0.072s | 6.1 |
+| 10,000 | 1.088s | 0.023s | 47 | 3.848s | 0.091s | 42 |
+| 100,000 | — | — | | 32.589s | 0.216s | 151 |
 
 Both show a flat per call floor, a uniform µs/site that falls to a plateau from
 1,000 causal sites upwards, a rare µs/site that is still falling at the top of
 the grid, a uniform to rare ratio that grows with the number of causal sites,
-and parity between the three levels. The uniform plateau is 160µs/site against
-483µs/site, a factor of 3.0 on a node count ratio of 3.4.
+and parity between the three levels. The uniform plateau is 109µs/site against
+326µs/site, a factor of 3.0 on a node count ratio of 3.4.
 
 What makes the small preset a fair substitute is not the timings but the
 distribution underneath them: the fraction of the nodes that a causal site's
@@ -87,6 +87,44 @@ was tried and rejected: it takes `sites/nodes` from 0.68 to about 2.7 against
 the large preset's 1.08, and the per-call setup floor grows with the number of
 sites, so the low end of the curve stops being comparable.
 
+### The two implementations
+
+There are two, and `--threshold` chooses between them per causal site. Below
+the threshold a site goes through the push down of the ARG, which sweeps the
+nodes once from the past to the present carrying the effect of each causal
+mutation to its carriers. At or above it the site goes through a descent of the
+trees, which builds each tree in turn and walks down from each causal mutation.
+`0` sends everything to the descent and `inf` everything to the push down.
+
+Both cost the nodes that carry a causal allele. The descent is cheaper per
+node, around 20ns against 28ns, because a child is the next link of a list
+rather than a search of the out edges of a node, and because it holds nothing
+per node while it works. Against that it has to build the trees, one insertion
+and one removal per edge, which the push down never does.
+
+That fixed cost is the whole of the argument for a threshold, and the
+measurement says it is not enough of one. Comparing thresholds over the whole
+grid, on both presets, at all three levels, for one and three traits, and for
+causal sites drawn both uniformly and from the rare ones, a threshold of zero
+was fastest or tied in every cell:
+
+| | uniform 1,000 | uniform 10,000 | rare 1,000 | rare 10,000 |
+|---|---|---|---|---|
+| small, all descent | 122ms | 1058ms | 15ms | 23ms |
+| small, all push down | 196ms | 1619ms | 16ms | 35ms |
+| large, all descent | 427ms | 3709ms | 71ms | 90ms |
+| large, all push down | 592ms | 4917ms | 68ms | 108ms |
+
+The push down leads only where there are few causal sites and they are rare, so
+the tree pass is not amortised, and there it leads by a millisecond or two on a
+call that takes a few. With three traits the gap widens the other way, to 2.27x
+on rare causal sites, because the push down sweeps once per trait where the
+descent takes all of them in one pass.
+
+So the default threshold is zero and the push down is not used. It is kept, and
+`--threshold inf` still runs it, only so that the two can go on being compared;
+the intention is to end with the descent alone.
+
 ### What else it measures
 
 Wall time on its own does not say why a configuration is slow. Four optional
@@ -94,54 +132,54 @@ modes say more. `--phases` is the expensive one, roughly doubling the run
 because it times the same work again a piece at a time; the other three add
 seconds.
 
-`--phases` times `_check_trait_df`, `_GeneticValue.__init__`, the
-`_push_down_arg` kernel and the output dataframe separately. The end to end
+`--phases` times `_check_trait_df`, `_GeneticValue.__init__`, the kernel and
+the output dataframe separately. The end to end
 number stays as the headline. This is what tells an algorithmic win from a
 setup win: setup barely grows with the causal sites, going from 8ms to 17ms
 across the whole `small` grid and sitting near 100ms on `large`, so at one
 causal site the public call is measuring almost nothing else, while at 10,000
 the kernel is 98% of it. Most of setup is `tskit.jit.numba.jitwrap`, which runs
 three Python-speed `max(map(len, ...))` passes over the site and mutation
-tables; `_root_runs` is most of the rest when it fires. The dataframe is about
-1ms and is not worth thinking about.
+tables. The dataframe is about 1ms and is not worth thinking about.
 
-`--counters` runs a counting-only copy of the sweep and reports the work it
-does. perf cannot attribute time to source lines inside a numba kernel here
-(see below), so counting what the kernel does and dividing is the way to say
-where the time goes. On `small`:
+`--counters` reports the work the descent does. perf cannot attribute time to
+source lines inside a numba kernel here (see below), so counting what the
+kernel does and dividing is the way to say where the time goes. The kernel
+returns the count itself rather than there being a second copy of the loop to
+keep in step with the first. On `small`:
 
 ```
-selection  num_causal   seeds   edge_scans   edge_hits    appends   reached  scans/seed  hit rate  reached
-uniform             1       1       35,915      33,818     16,909    16,909     35915.0     94.2%    26.7%
-uniform         10000  10,107   56,556,279  53,117,294 26,558,647    32,966      5595.8     93.9%    52.1%
-rare                1       1           10          10          5         5        10.0    100.0%     0.0%
-rare            10000  10,028      318,619     302,898    151,449    29,775        31.8     95.1%    47.0%
+selection  num_causal           rows         visits  visits/row  of num_nodes
+uniform             1              1         33,819     33819.0       53.44%
+uniform         10000         10,000     52,900,059      5290.0        8.36%
+rare                1              1             11        11.0        0.02%
+rare            10000         10,000        131,744        13.2        0.02%
 ```
 
-`edge_scans` is the trip count of the kernel's innermost loop and is what the
-run time is proportional to, so `ns/scan` in the summary table is the constant
-an optimisation has to move. Three things fall out of the table above:
+`visits` is the number of nodes the descent reached, which is what the run time
+is proportional to, so `ns/visit` in the summary table is the constant an
+optimisation has to move. Two things fall out of the table:
 
-- The scan of a node's out edges is not where the waste is: 94% of trips find
-  an edge that spans the seed's causal site.
-- Uniform selection costs 178 times as many scans as rare at 10,000 causal
-  sites but only 46 times the time, because rare is more expensive per scan:
-  63ns against 28ns for the kernel alone. Following a few carriers is random
-  access; a dense pass over half the nodes is sequential. Compare the `kernel`
-  rows rather than `genetic_value`, or the setup floor swamps the rare ones.
-- The kernel has an O(num_nodes) floor. It builds a pending entry for every
-  node before it starts and visits every node whether or not anything reached
-  it, so at one rare causal site — 10 scans — the kernel still takes 2ms.
+- `visits/row` as a fraction of the nodes is the carrier fraction that
+  `--structure` measures independently, and the two agree: 8.4% for uniformly
+  drawn causal sites against a measured mean of 7.2%, and 0.02% for rare ones
+  against a measured median of 0.4%. A single uniformly drawn site reaching
+  53% is one draw from a distribution with a long tail.
+- `ns/visit` is around 20ns once there are enough causal sites to amortise the
+  tree pass, and hundreds of nanoseconds below that. The pass is 2.2ms on
+  `small` and 12.4ms on `large`, so a rare trait of a hundred causal sites is
+  paying for a tree sequence it barely touches. That is the one regime the
+  push down still wins, by a millisecond or two.
 
 `--structure` reports the shape of the tree sequence and the carrier fraction
 distribution described above.
 
-`--memory` reports the peak resident set size of each call, which is how the
-typed list rewrite was justified. VmHWM never falls, so it is reset before each
-call by writing to `/proc/self/clear_refs`; on a kernel without that the column
-reads `unavailable`. This is the one thing the small preset is a poor substitute
-for: 10,000 uniform causal sites peak at 0.02GB over the baseline there, against
-the gigabytes the large preset reaches at 100,000.
+`--memory` reports the peak resident set size of each call. VmHWM never falls,
+so it is reset before each call by writing to `/proc/self/clear_refs`; on a
+kernel without that the column reads `unavailable`. It mattered more when the
+push down was the default, whose working set grew with the causal sites and
+reached gigabytes; the descent holds a fixed handful of arrays the length of
+the nodes however many causal sites there are.
 
 ### Output
 
@@ -167,6 +205,10 @@ uv run --group test benchmarks/profile_genetic_value.py --mode kernel
 `--mode python` is cProfile around the public call. It is the only way to see
 the setup, and it shows `jitwrap` and its `builtins.max` rows plainly. The
 kernel appears in it as one opaque dispatcher frame.
+
+Note that `--mode kernel` runs the push down, not the descent, so its numbers
+describe the implementation that `--threshold inf` selects rather than the
+default one. The perf figures below were taken that way.
 
 `--mode kernel` sets one cell up and runs only the kernel, so that a sampling
 profile is not swamped by simulating effect sizes for the whole site pool. Run
@@ -201,14 +243,14 @@ finds the JIT mappings by itself, so the recipe does not set it.
 
 ## Gotchas
 
-- `_GeneticValue` takes a `_root_runs` branch whenever a drawn causal allele is
-  the ancestral state of its site. It is a Python loop over every tree, costing
-  7ms on `small` and 38ms on `large`, so on `large` it is over a third of the
-  setup. It is not an edge case: drawing 10,000 sites uniformly makes it near
-  certain that one of them qualifies, and it fires at 10,000 and 100,000 causal
-  sites on both presets. At the low end of the grid it usually does not, so it
-  appears part way up the curve and looks like a step in the setup cost. The
-  benchmark prints a line when a cell takes it.
+- `_GeneticValue` takes a `_root_runs` branch when a drawn causal allele is the
+  ancestral state of its site *and* that row goes to the push down. It is a
+  Python loop over every tree, costing 7ms on `small` and 38ms on `large`, so on
+  `large` it was over a third of the setup. It is not an edge case: drawing
+  10,000 sites uniformly makes it near certain that one of them qualifies. At
+  the default threshold those rows go to the descent, which has the roots to
+  hand, and the branch never runs; `--threshold inf` brings it back. The
+  benchmark prints a line when a cell actually takes it.
 - Never compare replicate 0 against replicates 1 and up. `mutations_inherited_state`
   and its neighbours are built lazily and cached on the tree sequence, so the
   first call on a given tree sequence pays for all of them. The warm up call

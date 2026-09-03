@@ -260,6 +260,10 @@ def _descend_trees(
     is instead the edge above the node in the current tree, which is where the
     contribution arrived from. All of the traits share the pass, since a row
     knows the trait it belongs to.
+
+    ``output`` is accumulated into, and the count of nodes visited is returned.
+    That count is what the run time is proportional to, so the benchmark
+    divides by it rather than keeping a copy of this loop that only counts.
     """
     num_nodes = numba_ts.num_nodes
     tree = tree_state(num_nodes)
@@ -273,6 +277,7 @@ def _descend_trees(
     # a seed stops at the mutations of the row, so the tree bounds the stack.
     stack = np.empty(num_nodes, dtype=np.int32)
 
+    visits = 0
     row = 0
     num_rows = len(row_site)
     tree_index = numba_ts.tree_index()
@@ -318,6 +323,7 @@ def _descend_trees(
             while top > 0:
                 top -= 1
                 node = stack[top]
+                visits += 1
                 slot = tree.node_edge[node] if edge_level else node_output[node]
                 if slot >= 0:
                     output[trait, slot] += weight
@@ -328,4 +334,4 @@ def _descend_trees(
                         top += 1
                     child = tree.right_sib[child]
             row += 1
-    return output
+    return visits

@@ -90,7 +90,9 @@ def node_genetic_value(request):
                 "causal_allele": [causal_allele],
             }
         )
-        genetic = _GeneticValue(ts, trait_df)
+        # These test the push down kernel, so keep every row on it rather
+        # than letting the default threshold send them to the descent.
+        genetic = _GeneticValue(ts, trait_df, threshold=np.inf)
         output = np.zeros(genetic._output_size(level))
         return func(**genetic._descent_arguments(level, 0, output))
 

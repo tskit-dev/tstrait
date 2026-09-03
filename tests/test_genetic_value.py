@@ -1315,15 +1315,17 @@ class TestDescentAndPushDown:
         assert np.any(~genetic.descent_rows)
         assert not np.all(genetic.descent_rows[genetic.seed_row])
 
-    def test_no_allele_freq_is_all_push_down(self):
-        # A trait dataframe assembled by hand has no allele_freq, and then
-        # there is nothing to route on.
+    def test_no_allele_freq_needs_no_threshold(self):
+        # A trait dataframe assembled by hand has no allele_freq, so there is
+        # nothing for a positive threshold to compare against and every row
+        # takes the push down. The default threshold of zero needs no
+        # comparison, so those rows take the descent like any other.
         ts = self.simulated_ts()
         trait_df = _check_trait_df(
             ts, random_trait_df(ts, 1, seed=5).drop(columns=["allele_freq"])
         )
-        genetic = _GeneticValue(ts, trait_df, threshold=0.0)
-        assert not np.any(genetic.descent_rows)
+        assert not np.any(_GeneticValue(ts, trait_df, threshold=0.5).descent_rows)
+        assert np.all(_GeneticValue(ts, trait_df, threshold=0.0).descent_rows)
 
     @pytest.mark.parametrize("derived_state", ["A", "T"])
     def test_mutation_on_root(self, derived_state):

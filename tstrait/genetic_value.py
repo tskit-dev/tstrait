@@ -11,12 +11,20 @@ from .base import _check_dataframe, _check_instance, _check_non_decreasing  # no
 ALLELE_FREQ = "allele_freq"
 
 # Causal sites at or above this allele frequency go through the descent of the
-# trees, and the rest through the push down of the ARG. The descent is faster
-# almost everywhere, and measurably so from about a thousandth: below that the
-# tree pass it starts with is not amortised and the push down, which never
-# builds a tree, wins. Private while the two implementations are being
-# compared, since the intention is to end with one of them.
-_COMMON_THRESHOLD = 0.001
+# trees, and the rest through the push down of the ARG. Zero, because the
+# descent measured faster than the push down at every point of the benchmark
+# grid on both tree sequences, at every level, for one and three traits, and
+# for causal sites drawn both uniformly and from the rare ones: 1.33 to 1.70
+# times on uniformly drawn sites and up to 2.27 times on rare ones with three
+# traits, where the push down runs its sweep once per trait and the descent
+# takes all of them in one pass. The few cells the push down led were a
+# fraction of a millisecond apart.
+#
+# A threshold of zero needs no allele frequency to compare against, so it
+# applies to a trait dataframe assembled by hand as well. Private, and kept
+# only so that the two can still be compared, since the intention is to end
+# with the descent alone.
+_COMMON_THRESHOLD = 0.0
 
 
 def _row_mutations(ts, trait_df):
@@ -199,8 +207,13 @@ class _GeneticValue:
         # Rows go to the descent of the trees when their causal allele is
         # common enough for the tree pass to pay for itself, and when it is the
         # ancestral state, where the descent has the roots to hand and the push
-        # down would need them found for it.
-        if ALLELE_FREQ in self.trait_df.columns:
+        # down would need them found for it. Every frequency is at or above a
+        # threshold of zero, so there is nothing to look up in that case, which
+        # is what lets the default apply to a trait dataframe that has no
+        # allele frequency in it.
+        if threshold <= 0:
+            self.descent_rows = np.ones(len(self.trait_df), dtype=bool)
+        elif ALLELE_FREQ in self.trait_df.columns:
             self.descent_rows = self.trait_df[ALLELE_FREQ].to_numpy() >= threshold
             self.descent_rows |= self.row_ancestral
         else:

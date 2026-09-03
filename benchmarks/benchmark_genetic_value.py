@@ -20,16 +20,13 @@ import sys
 import time
 
 import msprime
-import numba
 import numpy as np
 import pandas as pd
 import tskit
-from numba.core import types
-from numba.typed import List
 
 import tstrait
 from tstrait import jit
-from tstrait.genetic_value import _check_trait_df, _GeneticValue
+from tstrait.genetic_value import _COMMON_THRESHOLD, _check_trait_df, _GeneticValue
 
 LEVELS = ["individual", "node", "edge"]
 SELECTIONS = ["uniform", "rare"]
@@ -50,100 +47,6 @@ PRESETS = {
         "num_causal": [1, 100, 1000, 10_000, 100_000],
     },
 }
-
-# The counting kernel mirrors tstrait.jit._push_down_arg, so it holds what a
-# node holds there: the indexes of the seeds whose effect has reached it.
-_SEED_LIST = types.ListType(types.int32)
-
-COUNTERS = ["seeds", "edge_scans", "edge_hits", "appends", "reached"]
-
-
-@numba.njit
-def _count_push_down_arg(
-    child_index,
-    edges_child,
-    edges_site_start,
-    edges_site_stop,
-    nodes_by_time,
-    seed_node,
-    seed_site,
-):
-    """
-    Count the work that ``tstrait.jit._push_down_arg`` does, without doing any
-    of it.
-
-    perf cannot attribute time to source lines inside a numba kernel here, so
-    the way to say where the time goes is to count the things the kernel does
-    and divide. This is a copy of the sweep with the output writes and the
-    weight lookups taken out and a counter put in their place, which is the
-    only reason it may diverge from the kernel it mirrors: keep them in step.
-
-    Returns the counters named in ``COUNTERS``:
-
-    ``seeds``       the causal mutations, plus the roots seeded when the causal
-                    allele is the ancestral state
-    ``edge_scans``  trips of the innermost loop, i.e. the sum over every
-                    (swept node, seed held there) pair of the node's out degree
-    ``edge_hits``   those trips where the edge spans the seed's causal site, so
-                    edge_scans - edge_hits is the scan that was wasted
-    ``appends``     seeds pushed onto a node's list
-    ``reached``     nodes that held a list, so reached / num_nodes is the
-                    fraction of the tree sequence the sweep touched, and, since
-                    a list is made for a node the first time anything reaches
-                    it, also the number of typed lists allocated
-    """
-    num_nodes = len(child_index)
-    empty = List.empty_list(types.int32)
-    pending = List.empty_list(_SEED_LIST)
-    for _ in range(num_nodes):
-        pending.append(empty)
-    reached = np.zeros(num_nodes, dtype=np.bool_)
-
-    edge_scans = 0
-    edge_hits = 0
-    appends = 0
-
-    for j in range(len(seed_node)):
-        u = seed_node[j]
-        if child_index[u, 0] < 0:
-            continue
-        if not reached[u]:
-            pending[u] = List.empty_list(types.int32)
-            reached[u] = True
-        pending[u].append(np.int32(j))
-        appends += 1
-
-    for i in range(len(nodes_by_time)):
-        parent = nodes_by_time[i]
-        if not reached[parent]:
-            continue
-        items = pending[parent]
-        edge_start = child_index[parent, 0]
-        edge_stop = child_index[parent, 1]
-        for k in range(len(items)):
-            item = items[k]
-            site = seed_site[item]
-            edge_scans += edge_stop - edge_start
-            for e in range(edge_start, edge_stop):
-                if edges_site_start[e] <= site and site < edges_site_stop[e]:
-                    edge_hits += 1
-                    child = edges_child[e]
-                    if child_index[child, 0] < 0:
-                        continue
-                    if not reached[child]:
-                        pending[child] = List.empty_list(types.int32)
-                        reached[child] = True
-                    pending[child].append(np.int32(item))
-                    appends += 1
-        pending[parent] = empty
-
-    return (
-        len(seed_node),
-        edge_scans,
-        edge_hits,
-        appends,
-        int(np.sum(reached)),
-    )
 
 
 def cached_simulation(args):
@@ -269,10 +172,12 @@ def warm_up(ts, model, levels, counters):
     before = time.perf_counter()
     trait_df = tstrait.sim_trait(ts, model=model, num_causal=1, random_seed=1)
     for level in levels:
-        tstrait.genetic_value(ts, trait_df, level=level)
+        # Both implementations, since the grid may use either.
+        for threshold in (0.0, np.inf):
+            tstrait.genetic_value(ts, trait_df, level=level, _threshold=threshold)
     if counters:
         # A kernel of its own to compile, so only pay for it when it is used.
-        count_work(ts, _check_trait_df(ts, trait_df))
+        count_work(ts, _check_trait_df(ts, trait_df), 0.0)
     print(f"Warm up (includes numba compilation): {time.perf_counter() - before:.1f}s")
 
 
@@ -328,39 +233,59 @@ def _build_frame(num_trait, size, level, values):
     )
 
 
-def count_work(ts, trait_df):
-    """
-    Return the work counters for a trait, as a dict keyed by COUNTERS.
+COUNTERS = ["rows", "visits"]
 
-    The counts do not depend on the level, because the same sweep serves all
+
+def count_work(ts, trait_df, threshold):
+    """
+    Return the work the descent does, as a dict keyed by COUNTERS.
+
+    ``visits`` is the number of nodes the descent reached, which is what its
+    run time is proportional to, so seconds divided by it is the per node
+    constant that an optimisation has to move. The kernel returns it, so there
+    is no second copy of the loop to keep in step with the first.
+
+    The counts do not depend on the level, because the same descent serves all
     three and only the array the contributions land in differs.
     """
-    genetic = _GeneticValue(ts, trait_df)
-    arguments = genetic._descent_arguments("node", 0, np.zeros(ts.num_nodes))
-    counts = _count_push_down_arg(
-        arguments["child_index"],
-        arguments["edges_child"],
-        arguments["edges_site_start"],
-        arguments["edges_site_stop"],
-        arguments["nodes_by_time"],
-        arguments["seed_node"],
-        arguments["seed_site"],
+    genetic = _GeneticValue(ts, trait_df, threshold=threshold)
+    if not np.any(genetic.descent_rows):
+        return {"rows": 0, "visits": 0}
+    visits = jit._descend_trees(
+        genetic.numba_ts,
+        ts.edges_parent,
+        ts.edges_child,
+        genetic.row_site,
+        genetic.row_trait,
+        genetic.row_effect,
+        genetic.row_ancestral,
+        genetic.descent_rows,
+        genetic.pair_offset,
+        genetic.pair_node,
+        genetic.pair_carries,
+        ts.samples().astype(np.int32),
+        genetic._node_output("node"),
+        False,
+        np.zeros((genetic.num_trait, ts.num_nodes)),
     )
-    return dict(zip(COUNTERS, counts))
+    return {"rows": int(np.sum(genetic.descent_rows)), "visits": int(visits)}
 
 
-def root_runs_fired(ts, trait_df):
+def root_runs_fired(ts, trait_df, descent_rows):
     """
     Whether this trait takes the _root_runs branch in _GeneticValue.
 
     That branch is a Python loop over every tree, so it costs O(num_trees) at
-    Python speed, and it fires only when a drawn causal allele happens to be
-    the ancestral state of its site. It therefore appears and vanishes with the
-    seed, which makes for confusing non-monotonic timings unless it is reported.
+    Python speed. It fires when a drawn causal allele happens to be the
+    ancestral state of its site and that row goes to the push down, which needs
+    the roots found for it; the descent has them to hand. It therefore appears
+    and vanishes with the seed and the threshold, which makes for confusing
+    non-monotonic timings unless it is reported.
     """
     site_id = trait_df["site_id"].to_numpy()
     causal_allele = trait_df["causal_allele"].to_numpy()
-    return bool(np.any(ts.sites_ancestral_state[site_id] == causal_allele))
+    ancestral = ts.sites_ancestral_state[site_id] == causal_allele
+    return bool(np.any(ancestral & ~descent_rows))
 
 
 def carrier_fractions(ts, pool, sample_size, rng):
@@ -444,18 +369,26 @@ def run_benchmark(ts, args):
             if trait_df is None:
                 print(f"  too few {selection} sites for num_causal={num_causal}")
                 continue
-            if root_runs_fired(ts, trait_df):
+            checked = _check_trait_df(ts, trait_df)
+            descent = _GeneticValue(ts, checked, threshold=args.threshold).descent_rows
+            print(
+                f"  {selection} num_causal={num_causal}: "
+                f"{descent.sum()} of {len(descent)} rows take the descent"
+            )
+            if root_runs_fired(ts, checked, descent):
                 print(
                     f"  {selection} num_causal={num_causal} takes the _root_runs "
                     "branch, a Python loop over every tree"
                 )
             if args.counters:
-                counts[(num_causal, selection)] = count_work(
-                    ts, _check_trait_df(ts, trait_df)
-                )
+                counts[(num_causal, selection)] = count_work(ts, checked, args.threshold)
             for level in args.levels:
                 call = functools.partial(
-                    tstrait.genetic_value, ts, trait_df, level=level
+                    tstrait.genetic_value,
+                    ts,
+                    trait_df,
+                    level=level,
+                    _threshold=args.threshold,
                 )
                 if args.memory:
                     _, memory[(num_causal, selection, level)] = peak_memory(call)
@@ -513,11 +446,11 @@ def summarise(rows, counts, memory, completed, ts, args):
         best[key] = min(best.get(key, seconds), seconds)
 
     print(f"\n{describe(ts)}")
-    print(f"Minimum of {args.replicates} replicates\n")
+    print(f"Minimum of {args.replicates} replicates, threshold {args.threshold:g}\n")
     columns = f"{'phase':<14} {'selection':<10} {'level':<11} {'num_causal':>10} "
     columns += f"{'seconds':>10} {'us/site':>10}"
     if args.counters:
-        columns += f" {'ns/scan':>9}"
+        columns += f" {'ns/visit':>9}"
     print(columns)
     print("-" * len(columns))
     phases = ["sim_trait", "genetic_value"]
@@ -542,12 +475,12 @@ def summarise(rows, counts, memory, completed, ts, args):
                 f"{seconds:>10.3f} {seconds / num_causal * 1e6:>10.1f}"
             )
             if args.counters:
-                # Only the phases that run the sweep have a per trip cost.
-                scans = counts.get((num_causal, selection), {}).get("edge_scans")
-                sweeps = phase in ("genetic_value", "kernel")
+                # Only the phases that run the descent have a per node cost.
+                visits = counts.get((num_causal, selection), {}).get("visits")
+                descends = phase in ("genetic_value", "kernel")
                 line += (
-                    f" {seconds / scans * 1e9:>9.2f}"
-                    if sweeps and scans is not None
+                    f" {seconds / visits * 1e9:>9.2f}"
+                    if descends and visits
                     else f" {'':>9}"
                 )
             print(line)
@@ -555,23 +488,19 @@ def summarise(rows, counts, memory, completed, ts, args):
     if args.counters:
         print()
         header = f"{'selection':<10} {'num_causal':>10} "
-        header += " ".join(f"{name:>12}" for name in COUNTERS)
-        header += f" {'scans/seed':>11} {'hit rate':>9} {'reached':>8}"
+        header += " ".join(f"{name:>14}" for name in COUNTERS)
+        header += f" {'visits/row':>11} {'of num_nodes':>13}"
         print(header)
         print("-" * len(header))
-        # The sweep visits every node whether or not anything reached it, and
-        # builds a pending entry for every node before it starts, so a low
-        # reached fraction is a kernel spending its time on the prologue.
         for selection in args.selections:
             for num_causal in completed:
                 got = counts.get((num_causal, selection))
                 if got is None:
                     continue
                 line = f"{selection:<10} {num_causal:>10} "
-                line += " ".join(f"{got[name]:>12,}" for name in COUNTERS)
-                line += f" {got['edge_scans'] / max(got['seeds'], 1):>11.1f}"
-                line += f" {got['edge_hits'] / max(got['edge_scans'], 1) * 100:>8.1f}%"
-                line += f" {got['reached'] / ts.num_nodes * 100:>7.1f}%"
+                line += " ".join(f"{got[name]:>14,}" for name in COUNTERS)
+                line += f" {got['visits'] / max(got['rows'], 1):>11.1f}"
+                line += f" {got['visits'] / max(got['rows'], 1) / ts.num_nodes:>12.2%}"
                 print(line)
 
     if len(memory) > 0:
@@ -611,6 +540,7 @@ def write_csv(rows, ts, args):
                 "num_edges",
                 "num_trees",
                 "num_sites",
+                "threshold",
             ]
         )
         for row in rows:
@@ -623,6 +553,7 @@ def write_csv(rows, ts, args):
                     ts.num_edges,
                     ts.num_trees,
                     ts.num_sites,
+                    args.threshold,
                 ]
             )
     print(f"\nWrote {args.output}")
@@ -695,6 +626,16 @@ def parse_args():
         help=(
             "Stop before the next number of causal sites once a single call has "
             "taken longer than this"
+        ),
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=_COMMON_THRESHOLD,
+        help=(
+            "Allele frequency at or above which a causal site goes through the "
+            "descent of the trees. 0 sends everything there and inf sends "
+            "everything to the push down of the ARG"
         ),
     )
     parser.add_argument(
