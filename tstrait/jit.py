@@ -13,10 +13,10 @@ Two conventions apply throughout this module:
    Keeping the compiled functions in one module lets us unit test them
    through their ``py_func`` attribute in ``tests/test_jit.py``, which runs
    the untranslated Python and therefore gets numpy's bounds checking and
-   coverage measurement for free. ``_descend_trees`` calls the tree building
-   kernels rather than their ``py_func``, so running it that way interprets
-   only its own loop; those kernels are covered instead by ``TestTreeState``,
-   which compares them against ``tskit.Tree`` tree for tree.
+   coverage measurement for free. A kernel calling another one calls whatever
+   the name is bound to in this module, so the tests swap the whole set for
+   their ``py_func`` together and a kernel is interpreted the whole way down
+   rather than only in its own loop.
 
 An earlier implementation pushed the effect of each causal mutation down the
 ARG in a single sweep of the nodes from the past to the present, and never

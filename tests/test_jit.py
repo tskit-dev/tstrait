@@ -36,11 +36,30 @@ from .data import (
 ANCESTRAL_STATE = "A"
 
 
-def kernel(func, param):
+# The kernels that _descend_trees and the test driver below call. A numba
+# function calls whatever the name is bound to in the module when it runs, so
+# swapping these for the Python they were written as makes a caller that is
+# itself untranslated interpreted the whole way down rather than only in its
+# own loop.
+TREE_KERNELS = [
+    "tree_state",
+    "_remove_edge",
+    "_insert_edge",
+    "_apply_edge_diffs",
+    "_tree_roots",
+]
+
+
+def kernel(func, param, monkeypatch):
     """
-    Return either the compiled kernel or the Python it was written as.
+    Return either the compiled kernel or the Python it was written as, in the
+    latter case untranslating the kernels it calls along with it.
     """
-    return func if param == "jit" else func.py_func
+    if param == "jit":
+        return func
+    for name in TREE_KERNELS:
+        monkeypatch.setattr(jit, name, getattr(jit, name).py_func)
+    return func.py_func
 
 
 def one_site(tree, mutations):
@@ -62,7 +81,7 @@ def one_site(tree, mutations):
 
 
 @pytest.fixture(params=["jit", "nojit"])
-def node_genetic_value(request):
+def node_genetic_value(request, monkeypatch):
     """
     Return a function computing the node genetic values of a tree carrying one
     causal site.
@@ -71,7 +90,7 @@ def node_genetic_value(request):
     state of "A", and a node's value is ``effect_size`` when the allele it
     inherits is ``causal_allele``.
     """
-    func = kernel(jit._descend_trees, request.param)
+    func = kernel(jit._descend_trees, request.param, monkeypatch)
 
     def f(
         tree,
@@ -515,10 +534,20 @@ def _walk_trees(
     return i
 
 
-def walk_trees(ts):
+@pytest.fixture(params=["jit", "nojit"])
+def walk_trees(request, monkeypatch):
     """
-    Return the per tree state arrays that _walk_trees records.
+    Return a function giving the per tree state arrays that _walk_trees records.
     """
+    driver = kernel(_walk_trees, request.param, monkeypatch)
+
+    def f(ts):
+        return _walk(driver, ts)
+
+    return f
+
+
+def _walk(driver, ts):
     numba_ts = tskit_numba.jitwrap(ts)
     shape = (max(ts.num_trees, 1), ts.num_nodes)
     got = {
@@ -526,7 +555,7 @@ def walk_trees(ts):
         for name in ("parent", "left_child", "right_sib", "node_edge", "roots")
     }
     num_roots = np.zeros(shape[0], dtype=np.int32)
-    count = _walk_trees(
+    count = driver(
         numba_ts,
         ts.edges_parent,
         ts.edges_child,
@@ -578,7 +607,7 @@ class TestTreeState:
             empty_ts(),
         ],
     )
-    def test_matches_tskit(self, ts):
+    def test_matches_tskit(self, ts, walk_trees):
         got, num_roots = walk_trees(ts)
         n = ts.num_nodes
         for i, tree in enumerate(ts.trees()):
