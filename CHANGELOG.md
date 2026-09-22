@@ -10,34 +10,15 @@ In development
   and `level="edge"` to return genetic values for the corresponding entities.
   {pr}`189`
 - Added `edge_effect` to compute introduced effects on edges {pr}`189`
-
-### Performance
-
-- `sim_phenotype` takes a `num_threads` argument and hands it to
-  `genetic_value`, which is the part of it that threads.
-- `genetic_value` takes a `num_threads` argument, dividing the causal sites
-  between that many worker threads and defaulting to 0, which does the work on
-  the calling thread. Each thread holds arrays the length of the nodes, so how
-  well it scales is set by the size of the tree sequence rather than by the
-  number of causal sites: on 30,000 samples a trait of 10,000 uniformly drawn
-  causal sites is 3.4 times faster on four threads, while on 100,000 samples,
-  where the arrays no longer fit in cache, the same trait is 1.6 times faster.
-  Threads do not pay for themselves on a trait whose causal sites are few or
-  rare, since each of them walks the trees.
-- `genetic_value` accumulates every causal site of every trait in one pass over
-  the trees, into a single output array. Descending from a causal site's
-  mutations is what it always did and is unchanged; what has gone is the work
-  around it, which was repeated for every causal site: building Python objects
-  for that site's mutations, and allocating and accumulating arrays the length
-  of the nodes. None of that depended on how many nodes the causal allele
-  actually reached. Measured on causal sites reaching fewer than two nodes
-  each, so that the descent is negligible either way, the cost per causal site
-  ran from 19us on a tree sequence of 4,870 nodes to 156us on one of 257,614;
-  it is now flat. On 100,000 samples a trait with 100,000 rare causal sites is
-  over 200 times faster. One whose causal sites are drawn uniformly, and so are
-  mostly common variants, is close to unchanged: a little over 1.1 times
-  faster, against a run to run spread of 7% on a measurement that size. What
-  those sites cost has always been the descent, and the descent is the same.
+- `genetic_value` computes every causal site of every trait in one pass over
+  the trees, instead of taking each causal site on its own. Traits with rare
+  causal sites are over 200 times faster; traits whose causal sites are mostly
+  common variants are close to unchanged {pr}`194`
+- `genetic_value` and `sim_phenotype` take a `num_threads` argument, dividing
+  the causal sites between that many worker threads. The default of 0 does the
+  work on the calling thread. Up to 3.4 times faster on four threads, and less
+  on a tree sequence big enough that the per-thread arrays leave cache
+  {pr}`194`
 
 ### Breaking changes
 
