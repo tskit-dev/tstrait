@@ -24,14 +24,20 @@ In development
   where the arrays no longer fit in cache, the same trait is 1.6 times faster.
   Threads do not pay for themselves on a trait whose causal sites are few or
   rare, since each of them walks the trees.
-- `genetic_value` descends from the mutations of each causal site instead of
-  making a pass over every node for each of them, so its cost is the number of
-  nodes carrying a causal allele rather than the number of causal sites times
-  the size of the tree sequence. On 100,000 samples, a trait with 100,000 rare
-  causal sites is around 180 times faster, and one whose causal sites are drawn
-  uniformly, and so are mostly common variants, around 1.2 times faster. Every
-  trait of a tree sequence is computed in one pass over the trees rather than
-  one pass each.
+- `genetic_value` accumulates every causal site of every trait in one pass over
+  the trees, into a single output array. Descending from a causal site's
+  mutations is what it always did and is unchanged; what has gone is the work
+  around it, which was repeated for every causal site: building Python objects
+  for that site's mutations, and allocating and accumulating arrays the length
+  of the nodes. None of that depended on how many nodes the causal allele
+  actually reached. Measured on causal sites reaching fewer than two nodes
+  each, so that the descent is negligible either way, the cost per causal site
+  ran from 19us on a tree sequence of 4,870 nodes to 156us on one of 257,614;
+  it is now flat. On 100,000 samples a trait with 100,000 rare causal sites is
+  over 200 times faster. One whose causal sites are drawn uniformly, and so are
+  mostly common variants, is close to unchanged: a little over 1.1 times
+  faster, against a run to run spread of 7% on a measurement that size. What
+  those sites cost has always been the descent, and the descent is the same.
 
 ### Breaking changes
 
