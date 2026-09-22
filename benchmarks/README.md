@@ -16,11 +16,33 @@ uv run --group test benchmarks/benchmark_genetic_value.py
 causal sites it carries, at around 20ns a node once the tree building is
 amortised, so its cost is the number of nodes that carry a causal allele and the
 allele frequency of the causal sites matters more than how many there are.
-`--selections` therefore draws them two ways: `uniform` over all sites, which
-the common variants in the tail of the frequency spectrum dominate, and `rare`,
-restricted to sites below `--rare-threshold`. The two differ by two orders of
-magnitude and behave differently, so a single number for "the cost of a causal
-site" is meaningless without saying which.
+`--selections` therefore draws them two ways: `uniform` over all sites, and
+`rare`, restricted to sites below `--rare-threshold`. The two differ by two
+orders of magnitude, so a single number for "the cost of a causal site" is
+meaningless without saying which.
+
+It is worth being clear about why, because the obvious reasoning gives the
+wrong answer. Most sites are rare, so most of a uniform draw is rare too: of
+3,000 drawn from the `small` preset, 79% sit below a frequency of 0.1 and the
+median one reaches 279 of the 63,287 nodes. But the mean reaches 5,345, 19
+times the median, and the rarest half of the sites account for half a percent
+of the work. Sorting the same sites by frequency:
+
+| band | sites | nodes reached, each | share of the work |
+|---|---|---|---|
+| 0 – 1e-4 | 14% | 2 | 0.0% |
+| 1e-4 – 1e-3 | 21% | 22 | 0.1% |
+| 1e-3 – 1e-2 | 24% | 243 | 1.1% |
+| 1e-2 – 1e-1 | 21% | 2,238 | 8.6% |
+| 1e-1 – 1 | 21% | 23,073 | 90.2% |
+
+The two columns are reciprocal. A coalescent frequency spectrum has density
+1/f, so each decade of frequency holds about the same number of sites; the
+nodes an allele reaches is its frequency times the tree, so each decade costs
+ten times the one below. Equal counts against ten times the cost makes the work
+a geometric series, and the top decade is nearly all of it. One site at a
+frequency of 0.5 costs what ten thousand singletons cost, and there are only
+about ten times fewer of them.
 
 `sim_trait` is timed separately, because it has a per-site Python loop of its
 own that we do not want folded into the `genetic_value` numbers. The numba
