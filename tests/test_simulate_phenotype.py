@@ -348,3 +348,37 @@ class TestNormalise:
         var_array = grouped.var().values.T[0]
         np.testing.assert_almost_equal(mean_array, np.zeros(2), decimal=2)
         np.testing.assert_almost_equal(var_array, np.ones(2), decimal=2)
+
+
+class TestNumThreads:
+    """
+    sim_phenotype hands num_threads to genetic_value, which is the only part
+    of it that threads.
+    """
+
+    @pytest.mark.parametrize("num_threads", [1, 2, 5])
+    def test_matches_sequential(self, sample_ts, sample_trait_model, num_threads):
+        # The same seed gives the same causal sites and the same environmental
+        # noise, so only the genetic values could differ, and those are summed
+        # over the chunks rather than accumulated in one go.
+        sequential = tstrait.sim_phenotype(
+            ts=sample_ts, model=sample_trait_model, num_causal=30, random_seed=7
+        )
+        threaded = tstrait.sim_phenotype(
+            ts=sample_ts,
+            model=sample_trait_model,
+            num_causal=30,
+            random_seed=7,
+            num_threads=num_threads,
+        )
+        pd.testing.assert_frame_equal(threaded.trait, sequential.trait)
+        pd.testing.assert_frame_equal(threaded.phenotype, sequential.phenotype)
+
+    def test_bad_num_threads(self, sample_ts, sample_trait_model):
+        with pytest.raises(TypeError, match="num_threads must be an integer"):
+            tstrait.sim_phenotype(
+                ts=sample_ts,
+                model=sample_trait_model,
+                num_causal=1,
+                num_threads=1.5,
+            )

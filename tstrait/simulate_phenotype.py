@@ -41,6 +41,7 @@ def sim_phenotype(
     alpha=None,
     h2=None,
     random_seed=None,
+    num_threads=0,
 ):
     """
     Simulate quantitative traits.
@@ -66,6 +67,11 @@ def sim_phenotype(
     :param random_seed: Random seed of simulation. If None, simulation will be
         conducted randomly.
     :type random_seed: int
+    :param num_threads: Number of worker threads to divide the causal sites
+        between when computing genetic values. The default of 0 does the work
+        on the calling thread. Please see :func:`genetic_value` for what
+        determines how well it scales.
+    :type num_threads: int
     :returns: Dataclass object that includes phenotype and trait dataframe.
     :rtype: PhenotypeResult
     :raises ValueError: If the number of mutations in `ts` is smaller than `num_causal`.
@@ -123,7 +129,7 @@ def sim_phenotype(
         alpha=alpha,
         random_seed=random_seed,
     )
-    genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df)
+    genetic_df = tstrait.genetic_value(ts=ts, trait_df=trait_df, num_threads=num_threads)
     phenotype_df = tstrait.sim_env(genetic_df=genetic_df, h2=h2, random_seed=random_seed)
 
     result = tstrait.PhenotypeResult(trait=trait_df, phenotype=phenotype_df)
