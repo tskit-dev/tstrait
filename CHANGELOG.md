@@ -13,6 +13,8 @@ In development
 
 ### Performance
 
+- `sim_phenotype` takes a `num_threads` argument and hands it to
+  `genetic_value`, which is the part of it that threads.
 - `genetic_value` takes a `num_threads` argument, dividing the causal sites
   between that many worker threads and defaulting to 0, which does the work on
   the calling thread. Each thread holds arrays the length of the nodes, so how
