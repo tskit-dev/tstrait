@@ -189,10 +189,11 @@ Results are written to `_output/genetic_value.csv` in long format, one row per
 replicate, together with the dimensions of the tree sequence they were measured
 on; `--counters` writes a second file alongside it. `_output/` is gitignored.
 
-`baseline_small.csv` and `baseline_small_counters.csv` are the `small` preset as
-it stands, for diffing against. The timings in the first are
-specific to the machine they were taken on; the counts in the second are not,
-and are the part worth treating as a regression test.
+Nothing is checked in to diff against. Timings are specific to the machine
+they were taken on, so a baseline from someone else's is not worth much; take
+one on yours before a change and compare against that. The counts `--counters`
+writes are machine independent, and are the part that would mean the same
+thing anywhere.
 
 ## `profile_genetic_value.py`
 
