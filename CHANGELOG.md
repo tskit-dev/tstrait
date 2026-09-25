@@ -1,8 +1,8 @@
 # Changelog
 
-## [0.1.3] - 2026-xx-xx
+## [0.2.0] - 2026-09-25
 
-In development
+Feature and performance release.
 
 ### Highlights
 
@@ -10,10 +10,9 @@ In development
   and `level="edge"` to return genetic values for the corresponding entities.
   {pr}`189`
 - Added `edge_effect` to compute introduced effects on edges {pr}`189`
-- `genetic_value` computes every causal site of every trait in one pass over
-  the trees, instead of taking each causal site on its own. Traits with rare
-  causal sites are over 200 times faster; traits whose causal sites are mostly
-  common variants are close to unchanged {pr}`194`
+- Improved algorithm for `genetic_value`. Traits with many rare causal sites
+  may be much faster, but the time required for common variants still
+  dominates {pr}`194`.
 - `genetic_value` and `sim_phenotype` take a `num_threads` argument, dividing
   the causal sites between that many worker threads. The default of 0 does the
   work on the calling thread. Up to 3.4 times faster on four threads, and less
@@ -32,7 +31,7 @@ In development
   edge effects, and edge, node, and individual genetic values {pr}`189`
 - Clarified that tstrait currently uses a site-mode effect model {pr}`189`
 
-### Fix
+### Bugfix
 
 - Fix an out-of-bounds write in the node traversal when the causal allele is
   the ancestral allele, in which case the virtual root is a causal node
