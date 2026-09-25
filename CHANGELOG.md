@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.1] - 2026-XX-XX
+
+In development.
+
 ## [0.2.0] - 2026-09-25
 
 Feature and performance release.
